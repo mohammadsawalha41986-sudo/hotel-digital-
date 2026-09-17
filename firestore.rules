@@ -1,0 +1,79 @@
+﻿rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for Authentication & RBAC
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'SUPER_ADMIN';
+    }
+
+    function isHotelStaff(hotelId) {
+      return isAuthenticated() && (
+        isSuperAdmin() ||
+        (request.auth.token.hotelId == hotelId) ||
+        (request.auth.token.allowedHotelIds is list && request.auth.token.allowedHotelIds.hasAny([hotelId, '*']))
+      );
+    }
+
+    // Helper validation for guest-created operational requests
+    function isValidGuestRequest(hotelId, requestId) {
+      let data = request.resource.data;
+      return (data.hotelId == hotelId) &&
+             (data.id == requestId || data.reference == requestId) &&
+             (data.status == 'NEW') &&
+             (data.department in ['FNB', 'SPA', 'LDY', 'HK', 'MNT', 'CON', 'FO', 'ROOM']) &&
+             (data.customerType in ['IN_HOUSE', 'EXTERNAL']) &&
+             (data.guestName is string && data.guestName.size() > 0 && data.guestName.size() <= 100);
+    }
+
+    // 1. Hotel Configurations & Public Content
+    match /hotels/{hotelId} {
+      // Guests can read published hotel public information
+      allow read: if true;
+      // Only authorized hotel management or Super Admin can edit property details
+      allow write: if isHotelStaff(hotelId);
+
+      // Operational Requests Sub-collection
+      match /requests/{requestId} {
+        // Guests can create new operational requests with validated schema & tenant isolation
+        allow create: if isValidGuestRequest(hotelId, requestId);
+
+        // Staff can read the live request queue for their assigned hotel
+        allow read: if isHotelStaff(hotelId);
+
+        // Staff can update request lifecycle status & assign staff
+        allow update: if isHotelStaff(hotelId) &&
+                         request.resource.data.hotelId == hotelId;
+
+        // Deletion restricted to Super Admin
+        allow delete: if isSuperAdmin();
+      }
+
+      // Department & Service Catalogs (Optional future persisted sub-collections)
+      match /{catalogType}/{itemId} {
+        allow read: if true;
+        allow write: if isHotelStaff(hotelId);
+      }
+    }
+
+    // 2. Admin User Directory & Role Management
+    match /admins/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow write: if isSuperAdmin();
+    }
+
+    match /adminUsers/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow write: if isSuperAdmin();
+    }
+
+    // Default deny all other paths
+    match /{document=**} {
+      allow read, write: false;
+    }
+  }
+}

@@ -4,9 +4,12 @@ import { OrderBasketItem, FBOutlet } from '../../types/department';
 import { Language } from '../../types/hotel';
 import { generateOperationalReference, saveOperationalRequest } from '../../utils/requestStore';
 import { buildBilingualWhatsAppMessage, buildEncodedWhatsAppUrl } from '../../utils/whatsappMessageBuilder';
+import { submitProductionRequest } from '../../services/requestService';
 
 interface OrderBasketDrawerProps {
   outlet: FBOutlet;
+  hotelNameEn?: string;
+  hotelNameAr?: string;
   items: OrderBasketItem[];
   currency: string;
   language: Language;
@@ -20,6 +23,8 @@ interface OrderBasketDrawerProps {
 
 export const OrderBasketDrawer: React.FC<OrderBasketDrawerProps> = ({
   outlet,
+  hotelNameEn,
+  hotelNameAr,
   items,
   currency,
   language,
@@ -60,13 +65,17 @@ export const OrderBasketDrawer: React.FC<OrderBasketDrawerProps> = ({
       };
     });
 
+    const effectiveHotelNameEn = hotelNameEn || 'Swiss Flora Royal Hotel Riyadh';
+    const effectiveHotelNameAr = hotelNameAr || 'فندق سويس فلورا رويال الرياض';
+    const effectiveHotelId = outlet.hotel_id || '11';
+
     // 1. Build standardized bilingual WhatsApp message (English first, separator, Arabic second)
     const { englishText, arabicText, fullMessage } = buildBilingualWhatsAppMessage({
       requestTypeEn: 'New Food & Beverage Order',
       requestTypeAr: 'طلب أطعمة ومشروبات جديد',
       referenceNumber: refCode,
-      hotelNameEn: 'Swiss Flora Royal Hotel Riyadh',
-      hotelNameAr: 'فندق سويس فلورا رويال الرياض',
+      hotelNameEn: effectiveHotelNameEn,
+      hotelNameAr: effectiveHotelNameAr,
       outletOrServiceNameEn: outlet.name_en,
       outletOrServiceNameAr: outlet.name_ar,
       roomNumber: roomNumber || undefined,
@@ -81,9 +90,9 @@ export const OrderBasketDrawer: React.FC<OrderBasketDrawerProps> = ({
     // 2. Critical Rule: SAVE TO SYSTEM BEFORE WHATSAPP!
     saveOperationalRequest({
       id: refCode,
-      hotel_id: outlet.hotel_id || '11',
-      hotel_name_en: 'Swiss Flora Royal Hotel Riyadh',
-      hotel_name_ar: 'فندق سويس فلورا رويال الرياض',
+      hotel_id: effectiveHotelId,
+      hotel_name_en: effectiveHotelNameEn,
+      hotel_name_ar: effectiveHotelNameAr,
       department: 'fnb',
       department_name_en: 'Food & Beverage',
       department_name_ar: 'الأغذية والمشروبات',
@@ -105,6 +114,37 @@ export const OrderBasketDrawer: React.FC<OrderBasketDrawerProps> = ({
       updated_at: new Date().toISOString(),
     });
 
+    submitProductionRequest({
+      id: refCode,
+      reference: refCode,
+      hotelId: effectiveHotelId,
+      hotelNameEn: effectiveHotelNameEn,
+      hotelNameAr: effectiveHotelNameAr,
+      department: 'FNB',
+      requestType: outlet.name_en,
+      customerType: roomNumber ? 'IN_HOUSE' : 'EXTERNAL',
+      roomNumber: roomNumber || undefined,
+      guestName: guestName.trim() || (isAr ? 'نزيل الفندق' : 'Hotel Resident'),
+      items: formattedItems.map((it) => ({
+        id: it.id,
+        nameEn: it.name_en,
+        nameAr: it.name_ar,
+        quantity: it.quantity,
+        unitPrice: it.unit_price,
+        totalPrice: it.total_price,
+        options: it.options,
+        notes: it.notes,
+      })),
+      total: estimatedTotal,
+      currency,
+      notes: deliveryNotes.trim() || undefined,
+      status: 'NEW',
+      channel: 'WHATSAPP',
+      targetWhatsApp: outlet.contact.whatsapp_number,
+      whatsappMessageEn: englishText,
+      whatsappMessageAr: arabicText,
+    }).catch((err) => console.error('[OrderBasketDrawer] Production request failed:', err));
+
     // 3. Open WhatsApp with pre-filled bilingual message
     const waUrl = buildEncodedWhatsAppUrl(outlet.contact.whatsapp_number, fullMessage);
     window.open(waUrl, '_blank');
@@ -118,6 +158,10 @@ export const OrderBasketDrawer: React.FC<OrderBasketDrawerProps> = ({
 
   const handlePlaceOrderDigital = () => {
     const refCode = generateOperationalReference('FNB');
+    const effectiveHotelNameEn = hotelNameEn || 'Swiss Flora Royal Hotel Riyadh';
+    const effectiveHotelNameAr = hotelNameAr || 'فندق سويس فلورا رويال الرياض';
+    const effectiveHotelId = outlet.hotel_id || '11';
+
     const formattedItems = items.map((it) => ({
       id: it.id,
       name_en: it.name_en,
@@ -132,9 +176,9 @@ export const OrderBasketDrawer: React.FC<OrderBasketDrawerProps> = ({
     // Save directly to system as NEW order
     saveOperationalRequest({
       id: refCode,
-      hotel_id: outlet.hotel_id || '11',
-      hotel_name_en: 'Swiss Flora Royal Hotel Riyadh',
-      hotel_name_ar: 'فندق سويس فلورا رويال الرياض',
+      hotel_id: effectiveHotelId,
+      hotel_name_en: effectiveHotelNameEn,
+      hotel_name_ar: effectiveHotelNameAr,
       department: 'fnb',
       department_name_en: 'Food & Beverage',
       department_name_ar: 'الأغذية والمشروبات',
@@ -155,6 +199,37 @@ export const OrderBasketDrawer: React.FC<OrderBasketDrawerProps> = ({
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
+
+    submitProductionRequest({
+      id: refCode,
+      reference: refCode,
+      hotelId: effectiveHotelId,
+      hotelNameEn: effectiveHotelNameEn,
+      hotelNameAr: effectiveHotelNameAr,
+      department: 'FNB',
+      requestType: outlet.name_en,
+      customerType: roomNumber ? 'IN_HOUSE' : 'EXTERNAL',
+      roomNumber: roomNumber || undefined,
+      guestName: guestName.trim() || (isAr ? 'نزيل الفندق' : 'Hotel Resident'),
+      items: formattedItems.map((it) => ({
+        id: it.id,
+        nameEn: it.name_en,
+        nameAr: it.name_ar,
+        quantity: it.quantity,
+        unitPrice: it.unit_price,
+        totalPrice: it.total_price,
+        options: it.options,
+        notes: it.notes,
+      })),
+      total: estimatedTotal,
+      currency,
+      notes: deliveryNotes.trim() || undefined,
+      status: 'NEW',
+      channel: 'DIRECT_PORTAL',
+      targetWhatsApp: outlet.contact.whatsapp_number,
+      whatsappMessageEn: `NEW ROOM SERVICE ORDER\nReference: ${refCode}\nRoom: ${roomNumber || 'N/A'}`,
+      whatsappMessageAr: `طلب خدمة غرف جديد\nالمرجع: ${refCode}\nالغرفة: ${roomNumber || 'N/A'}`,
+    }).catch((err) => console.error('[OrderBasketDrawer] Production request failed:', err));
 
     setOrderConfirmed(refCode);
     onOrderSuccess(refCode);

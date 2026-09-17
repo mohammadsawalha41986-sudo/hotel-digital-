@@ -20,6 +20,7 @@ import { saveOperationalRequest } from '../../utils/requestStore';
 import { OperationalRequest } from '../../types/requests';
 import { buildWhatsAppLink } from '../../utils/operatingStatus';
 import { ServiceIcon } from '../../utils/serviceIcons';
+import { submitProductionRequest, normalizeDepartmentCode } from '../../services/requestService';
 
 interface InRoomServiceRequestModalProps {
   service: InRoomServiceItem | null;
@@ -177,6 +178,28 @@ export const InRoomServiceRequestModal: React.FC<InRoomServiceRequestModalProps>
     };
 
     saveOperationalRequest(newRequest);
+
+    submitProductionRequest({
+      id: reqId,
+      reference: reqId,
+      hotelId: hotel.id,
+      hotelNameEn: hotel.name_en,
+      hotelNameAr: hotel.name_ar,
+      department: normalizeDepartmentCode(service.category || service.departmentId),
+      requestType: isAr ? service.nameAr : service.nameEn,
+      customerType: 'IN_HOUSE',
+      roomNumber: currentRoom.trim(),
+      guestName: guestName.trim() || (isAr ? 'نزيل الغرفة' : 'In-House Guest'),
+      total: 0,
+      currency: 'SAR',
+      notes: notes.trim() || undefined,
+      status: 'NEW',
+      channel: 'DIRECT_PORTAL',
+      targetWhatsApp: targetWhatsApp,
+      whatsappMessageEn: generatedMsg.textEn,
+      whatsappMessageAr: generatedMsg.textAr,
+    }).catch((err) => console.error('[InRoomServiceRequestModal] Production request failed:', err));
+
     onSetRoomNumber(currentRoom.trim());
 
     setTimeout(() => {
@@ -192,6 +215,61 @@ export const InRoomServiceRequestModal: React.FC<InRoomServiceRequestModalProps>
     onSetRoomNumber(currentRoom.trim());
 
     const generatedMsg = getPreparedWhatsAppMessage();
+    const reqId = `REQ-${Date.now().toString().slice(-5)}`;
+
+    const newRequest: OperationalRequest = {
+      id: reqId,
+      hotel_id: hotel.id,
+      hotel_name_en: hotel.name_en,
+      hotel_name_ar: hotel.name_ar,
+      department:
+        service.category === 'maintenance'
+          ? 'engineering'
+          : service.category === 'room_service'
+          ? 'fnb'
+          : 'housekeeping',
+      department_name_en: currentDeptLabel.en,
+      department_name_ar: currentDeptLabel.ar,
+      outlet_or_service_name_en: service.nameEn,
+      outlet_or_service_name_ar: service.nameAr,
+      customer_type: 'IN_HOUSE',
+      room_number: currentRoom.trim(),
+      guest_name: guestName.trim() || (isAr ? 'نزيل الغرفة' : 'In-House Guest'),
+      guest_phone: '',
+      estimated_total: 0,
+      currency: 'SAR',
+      notes: notes.trim(),
+      target_whatsapp: targetWhatsApp,
+      whatsapp_message_en: generatedMsg.textEn,
+      whatsapp_message_ar: generatedMsg.textAr,
+      status: 'RECEIVED',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    saveOperationalRequest(newRequest);
+
+    submitProductionRequest({
+      id: reqId,
+      reference: reqId,
+      hotelId: hotel.id,
+      hotelNameEn: hotel.name_en,
+      hotelNameAr: hotel.name_ar,
+      department: normalizeDepartmentCode(service.category || service.departmentId),
+      requestType: isAr ? service.nameAr : service.nameEn,
+      customerType: 'IN_HOUSE',
+      roomNumber: currentRoom.trim(),
+      guestName: guestName.trim() || (isAr ? 'نزيل الغرفة' : 'In-House Guest'),
+      total: 0,
+      currency: 'SAR',
+      notes: notes.trim() || undefined,
+      status: 'NEW',
+      channel: 'WHATSAPP',
+      targetWhatsApp: targetWhatsApp,
+      whatsappMessageEn: generatedMsg.textEn,
+      whatsappMessageAr: generatedMsg.textAr,
+    }).catch((err) => console.error('[InRoomServiceRequestModal] Production request failed:', err));
+
     const cleanNumber = targetWhatsApp.replace(/[^0-9]/g, '');
     const url = buildWhatsAppLink(cleanNumber, isAr ? generatedMsg.textAr : generatedMsg.textEn);
     window.open(url, '_blank');

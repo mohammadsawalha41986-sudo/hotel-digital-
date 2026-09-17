@@ -38,6 +38,9 @@ import { WellnessBookingModal } from './WellnessBookingModal';
 import { buildEncodedWhatsAppUrl } from '../../utils/whatsappMessageBuilder';
 
 interface WellnessHubPageProps {
+  hotelId?: string;
+  hotelNameEn?: string;
+  hotelNameAr?: string;
   services?: WellnessService[];
   currency?: string;
   language: Language;
@@ -47,6 +50,9 @@ interface WellnessHubPageProps {
 }
 
 export const WellnessHubPage: React.FC<WellnessHubPageProps> = ({
+  hotelId,
+  hotelNameEn,
+  hotelNameAr,
   currency = 'SAR',
   language,
   roomNumber = '',
@@ -857,6 +863,9 @@ export const WellnessHubPage: React.FC<WellnessHubPageProps> = ({
       {selectedServiceForBooking && (
         <WellnessBookingModal
           service={selectedServiceForBooking}
+          hotelId={hotelId}
+          hotelNameEn={hotelNameEn}
+          hotelNameAr={hotelNameAr}
           currency={currency}
           language={language}
           roomNumber={roomNumber}

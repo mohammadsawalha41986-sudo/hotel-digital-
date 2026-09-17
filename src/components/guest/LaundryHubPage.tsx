@@ -51,8 +51,12 @@ import {
   buildBilingualWhatsAppMessage,
   buildEncodedWhatsAppUrl,
 } from '../../utils/whatsappMessageBuilder';
+import { submitProductionRequest } from '../../services/requestService';
 
 interface LaundryHubPageProps {
+  hotelId?: string;
+  hotelNameEn?: string;
+  hotelNameAr?: string;
   items?: LaundryCatalogItem[];
   contact?: DepartmentContact;
   operatingInfo?: OperatingInfo;
@@ -63,6 +67,9 @@ interface LaundryHubPageProps {
 }
 
 export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
+  hotelId,
+  hotelNameEn,
+  hotelNameAr,
   items: propItems,
   contact,
   operatingInfo: _operatingInfo,
@@ -381,13 +388,17 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
       .filter(Boolean)
       .join(' | ');
 
+    const effectiveHotelId = hotelId || '11';
+    const effectiveHotelNameEn = hotelNameEn || 'Swiss Flora Royal Hotel Riyadh';
+    const effectiveHotelNameAr = hotelNameAr || 'فندق سويس فلورا رويال الرياض';
+
     // 1. Build standardized bilingual WhatsApp message (English first, divider, Arabic second)
     const { englishText, arabicText, fullMessage } = buildBilingualWhatsAppMessage({
       requestTypeEn: `Valet Laundry & Garment Care (${isExpress ? 'Express 4-Hour' : 'Standard'})`,
       requestTypeAr: `طلب استلام ملابس للغسيل والمصبغة (${isExpress ? 'خدمة سريعة 4 ساعات' : 'خدمة قياسية'})`,
       referenceNumber: refCode,
-      hotelNameEn: 'Swiss Flora Royal Hotel Riyadh',
-      hotelNameAr: 'فندق سويس فلورا رويال الرياض',
+      hotelNameEn: effectiveHotelNameEn,
+      hotelNameAr: effectiveHotelNameAr,
       outletOrServiceNameEn: 'Valet Laundry Service',
       outletOrServiceNameAr: 'خدمة المغسلة والمصبغة الملكية',
       roomNumber: effectiveRoom,
@@ -404,9 +415,9 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
     // 2. Persist to system operational request store
     saveOperationalRequest({
       id: refCode,
-      hotel_id: '11',
-      hotel_name_en: 'Swiss Flora Royal Hotel Riyadh',
-      hotel_name_ar: 'فندق سويس فلورا رويال الرياض',
+      hotel_id: effectiveHotelId,
+      hotel_name_en: effectiveHotelNameEn,
+      hotel_name_ar: effectiveHotelNameAr,
       department: 'laundry',
       department_name_en: 'Valet Laundry',
       department_name_ar: 'المغسلة والمصبغة',
@@ -427,6 +438,36 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
+
+    submitProductionRequest({
+      id: refCode,
+      reference: refCode,
+      hotelId: effectiveHotelId,
+      hotelNameEn: effectiveHotelNameEn,
+      hotelNameAr: effectiveHotelNameAr,
+      department: 'LDY',
+      requestType: isExpress ? 'Express Valet Laundry (4-Hr)' : 'Standard Valet Laundry',
+      customerType: effectiveRoom !== 'Room Not Specified' ? 'IN_HOUSE' : 'EXTERNAL',
+      roomNumber: effectiveRoom !== 'Room Not Specified' ? effectiveRoom : undefined,
+      guestName: guestDisplayName,
+      items: formattedItems.map((it) => ({
+        id: it.id,
+        nameEn: it.name_en,
+        nameAr: it.name_ar,
+        quantity: it.quantity,
+        unitPrice: it.unit_price,
+        totalPrice: it.total_price,
+        options: it.options,
+      })),
+      total: grandTotal,
+      currency,
+      notes: combinedNotes || undefined,
+      status: 'NEW',
+      channel: 'WHATSAPP',
+      targetWhatsApp: valetWhatsApp,
+      whatsappMessageEn: englishText,
+      whatsappMessageAr: arabicText,
+    }).catch((err) => console.error('[LaundryHubPage] Production request failed:', err));
 
     // 3. Open WhatsApp pre-filled
     const waUrl = buildEncodedWhatsAppUrl(valetWhatsApp, fullMessage);

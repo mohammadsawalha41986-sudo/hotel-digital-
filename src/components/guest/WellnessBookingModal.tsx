@@ -4,6 +4,7 @@ import { WellnessBookingRequest } from '../../types/department';
 import { Language } from '../../types/hotel';
 import { generateOperationalReference, saveOperationalRequest } from '../../utils/requestStore';
 import { buildBilingualWhatsAppMessage, buildEncodedWhatsAppUrl } from '../../utils/whatsappMessageBuilder';
+import { submitProductionRequest } from '../../services/requestService';
 
 export interface BookingTargetItem {
   id: string;
@@ -30,6 +31,9 @@ export interface BookingTargetItem {
 
 interface WellnessBookingModalProps {
   service: BookingTargetItem | any;
+  hotelId?: string;
+  hotelNameEn?: string;
+  hotelNameAr?: string;
   currency: string;
   language: Language;
   roomNumber: string;
@@ -39,6 +43,9 @@ interface WellnessBookingModalProps {
 
 export const WellnessBookingModal: React.FC<WellnessBookingModalProps> = ({
   service,
+  hotelId,
+  hotelNameEn,
+  hotelNameAr,
   currency,
   language,
   roomNumber: initialRoomNumber,
@@ -49,7 +56,9 @@ export const WellnessBookingModal: React.FC<WellnessBookingModalProps> = ({
 
   const nameEn = service.nameEn || service.name_en || 'Wellness Service';
   const nameAr = service.nameAr || service.name_ar || 'خدمة سبا واستشفاء';
-  const hotelId = service.hotelId || service.hotel_id || '11';
+  const effectiveHotelId = hotelId || service.hotelId || service.hotel_id || '11';
+  const effectiveHotelNameEn = hotelNameEn || 'Swiss Flora Royal Hotel Riyadh';
+  const effectiveHotelNameAr = hotelNameAr || 'فندق سويس فلورا رويال الرياض';
   const targetWhatsApp =
     service.whatsappNumber || service.contact?.whatsapp_number || '+966555072806';
 
@@ -86,8 +95,8 @@ export const WellnessBookingModal: React.FC<WellnessBookingModalProps> = ({
       requestTypeEn: 'Wellness & Spa Reservation Request',
       requestTypeAr: 'طلب حجز جلسة سبا واستشفاء',
       referenceNumber: refId,
-      hotelNameEn: 'Swiss Flora Royal Hotel Riyadh',
-      hotelNameAr: 'فندق سويس فلورا رويال الرياض',
+      hotelNameEn: effectiveHotelNameEn,
+      hotelNameAr: effectiveHotelNameAr,
       outletOrServiceNameEn: serviceLabelEn,
       outletOrServiceNameAr: serviceLabelAr,
       roomNumber: activeRoomNumber || undefined,
@@ -115,9 +124,9 @@ export const WellnessBookingModal: React.FC<WellnessBookingModalProps> = ({
     // 2. Critical Rule: SAVE TO SYSTEM BEFORE WHATSAPP!
     saveOperationalRequest({
       id: refId,
-      hotel_id: hotelId,
-      hotel_name_en: 'Swiss Flora Royal Hotel Riyadh',
-      hotel_name_ar: 'فندق سويس فلورا رويال الرياض',
+      hotel_id: effectiveHotelId,
+      hotel_name_en: effectiveHotelNameEn,
+      hotel_name_ar: effectiveHotelNameAr,
       department: 'spa',
       department_name_en: 'Wellness & Spa',
       department_name_ar: 'النادي الصحي والسبا',
@@ -149,9 +158,42 @@ export const WellnessBookingModal: React.FC<WellnessBookingModalProps> = ({
       updated_at: new Date().toISOString(),
     });
 
+    submitProductionRequest({
+      id: refId,
+      reference: refId,
+      hotelId: effectiveHotelId,
+      hotelNameEn: effectiveHotelNameEn,
+      hotelNameAr: effectiveHotelNameAr,
+      department: 'SPA',
+      requestType: serviceLabelEn,
+      customerType: activeRoomNumber ? 'IN_HOUSE' : 'EXTERNAL',
+      roomNumber: activeRoomNumber || undefined,
+      guestName: guestDisplayName,
+      guestPhone: guestMobile.trim() || undefined,
+      services: [
+        {
+          id: service.id,
+          nameEn: serviceLabelEn,
+          nameAr: serviceLabelAr,
+          date,
+          time,
+          guestsCount,
+          price: estimatedTotal,
+        },
+      ],
+      total: estimatedTotal,
+      currency,
+      notes: notes.trim() || undefined,
+      status: 'NEW',
+      channel: 'WHATSAPP',
+      targetWhatsApp: targetWhatsApp,
+      whatsappMessageEn: englishText,
+      whatsappMessageAr: arabicText,
+    }).catch((err) => console.error('[WellnessBookingModal] Production request failed:', err));
+
     const newBooking: WellnessBookingRequest = {
       id: refId,
-      hotel_id: hotelId,
+      hotel_id: effectiveHotelId,
       service_id: service.id,
       service_name_en: serviceLabelEn,
       service_name_ar: serviceLabelAr,

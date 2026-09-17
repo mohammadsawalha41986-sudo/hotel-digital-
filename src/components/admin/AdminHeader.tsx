@@ -6,18 +6,13 @@ import {
   Building2,
   UploadCloud,
   CheckCircle2,
+  LogOut,
+  UserCheck,
 } from 'lucide-react';
 import { Hotel } from '../../types/hotel';
+import { AdminUser, StaffRole } from '../../types/auth';
 
-export type StaffRole =
-  | 'SUPER_ADMIN'
-  | 'HOTEL_ADMIN'
-  | 'FNB_MANAGER'
-  | 'HOUSEKEEPING_SUPERVISOR'
-  | 'LAUNDRY_MANAGER'
-  | 'SPA_DIRECTOR'
-  | 'ENGINEERING_CHIEF'
-  | 'VIEWER';
+export type { StaffRole };
 
 interface AdminHeaderProps {
   hotels: Hotel[];
@@ -25,6 +20,8 @@ interface AdminHeaderProps {
   onSelectHotel: (hotel: Hotel) => void;
   currentRole: StaffRole;
   onChangeRole: (role: StaffRole) => void;
+  currentUser?: AdminUser | null;
+  onSignOut?: () => void;
   hasUnpublishedChanges: boolean;
   onPublishChanges: () => void;
   onViewLivePortal: () => void;
@@ -37,6 +34,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   onSelectHotel,
   currentRole,
   onChangeRole,
+  currentUser,
+  onSignOut,
   hasUnpublishedChanges,
   onPublishChanges,
   onViewLivePortal,
@@ -126,6 +125,32 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           <span className="hidden sm:inline">View Live Portal</span>
           <span className="sm:hidden">Live</span>
         </button>
+
+        {/* Authenticated Staff User Pill & Sign Out */}
+        {currentUser && (
+          <div className="flex items-center gap-2 ps-2 border-s border-stone-800">
+            <div className="hidden lg:flex items-center gap-1.5 text-stone-300 text-[11px]">
+              <div className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center font-bold text-[10px]">
+                <UserCheck size={12} />
+              </div>
+              <div className="text-start leading-tight">
+                <p className="font-semibold text-white max-w-[120px] truncate">{currentUser.displayName || currentUser.email}</p>
+                <p className="text-[9px] text-amber-400 font-mono">{currentUser.role}</p>
+              </div>
+            </div>
+
+            {onSignOut && (
+              <button
+                onClick={onSignOut}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-stone-800 hover:bg-rose-950/40 text-stone-400 hover:text-rose-400 border border-stone-700 hover:border-rose-900/50 transition-colors cursor-pointer"
+                title="Sign out of staff portal"
+              >
+                <LogOut size={13} />
+                <span className="hidden sm:inline text-[11px] font-medium">Sign Out</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

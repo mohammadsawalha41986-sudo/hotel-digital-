@@ -19,33 +19,39 @@ import { LivePreviewModal } from '../components/admin/LivePreviewModal';
 import { HotelCreationWizard } from '../components/admin/HotelCreationWizard';
 import { AdminReviewsManager } from '../components/admin/AdminReviewsManager';
 import { AdminFeedbackManager } from '../components/admin/AdminFeedbackManager';
+import { AdminUser } from '../types/auth';
+import { subscribeToHotelRequests } from '../services/requestService';
 
 interface AdminControlCenterPageProps {
   hotels: Hotel[];
   currentHotel: Hotel;
+  currentUser?: AdminUser | null;
   onSelectHotel: (hotel: Hotel) => void;
   onUpdateHotel: (hotel: Hotel) => void;
   onHotelCreated: (hotel: Hotel) => void;
   onViewLivePortal: () => void;
+  onSignOut?: () => void;
 }
 
 export const AdminControlCenterPage: React.FC<AdminControlCenterPageProps> = ({
   hotels,
   currentHotel,
+  currentUser,
   onSelectHotel,
   onUpdateHotel,
   onHotelCreated,
   onViewLivePortal,
+  onSignOut,
 }) => {
   const [activeTab, setActiveTab] = useState<AdminSectionTab>('dashboard');
-  const [currentRole, setCurrentRole] = useState<StaffRole>('SUPER_ADMIN');
+  const [currentRole, setCurrentRole] = useState<StaffRole>(currentUser?.role || 'SUPER_ADMIN');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(false);
   const [showLivePreviewModal, setShowLivePreviewModal] = useState(false);
   const [showCreationWizard, setShowCreationWizard] = useState(false);
   const [requests, setRequests] = useState<OperationalRequest[]>([]);
 
-  // Load operational requests for the current hotel
+  // Load operational requests for the current hotel with real-time sync
   const refreshRequests = () => {
     const all = getStoredRequests();
     const hotelRequests = all.filter((r) => r.hotel_id === currentHotel.id || !r.hotel_id);
@@ -53,9 +59,11 @@ export const AdminControlCenterPage: React.FC<AdminControlCenterPageProps> = ({
   };
 
   useEffect(() => {
-    refreshRequests();
-    const interval = setInterval(refreshRequests, 10000); // Polling operational queue every 10s
-    return () => clearInterval(interval);
+    // Connect to real-time subscription (Firestore onSnapshot or localStorage polling)
+    const unsubscribe = subscribeToHotelRequests(currentHotel.id, (hotelRequests) => {
+      setRequests(hotelRequests);
+    });
+    return () => unsubscribe();
   }, [currentHotel.id]);
 
   const handlePublishChanges = () => {
@@ -178,6 +186,8 @@ export const AdminControlCenterPage: React.FC<AdminControlCenterPageProps> = ({
         onSelectHotel={onSelectHotel}
         currentRole={currentRole}
         onChangeRole={setCurrentRole}
+        currentUser={currentUser}
+        onSignOut={onSignOut}
         hasUnpublishedChanges={hasUnpublishedChanges}
         onPublishChanges={handlePublishChanges}
         onViewLivePortal={onViewLivePortal}

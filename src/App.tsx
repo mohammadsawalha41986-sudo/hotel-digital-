@@ -7,15 +7,18 @@ import { RouteCard } from './components/RouteCard';
 import { HierarchyTreeView } from './components/HierarchyTreeView';
 import { WhatsAppRoutingMatrix } from './components/WhatsAppRoutingMatrix';
 import { LegacyMigrationView } from './components/LegacyMigrationView';
-import { Search, Filter, Sparkles, Check, Home, Shield, QrCode } from 'lucide-react';
+import { Search, Filter, Sparkles, Check, Home, Shield, QrCode, Building2 } from 'lucide-react';
 import { MOCK_HOTELS } from './data/mockHotels';
 import { Hotel, Language } from './types/hotel';
 import { TopLevelDepartment } from './types/department';
 import { applyHotelTheme } from './utils/theme';
 import { GuestPortalPage } from './pages/GuestPortalPage';
 import { AdminControlCenterPage } from './pages/AdminControlCenterPage';
+import { AdminLoginPage } from './components/admin/AdminLoginPage';
 import { parseCurrentRoute, pushAppRoute, buildGuestUrl, buildAdminUrl, findHotelBySlug } from './utils/urlRouter';
 import { RouteQRCodeModal } from './components/RouteQRCodeModal';
+import { AdminUser } from './types/auth';
+import { getCurrentAdminUser, onAuthStateChangedListener, signOutAdminUser } from './services/authService';
 
 const STORAGE_KEY_HOTELS = 'hotel_hub_hotels_list_v4_swissflora';
 const STORAGE_KEY_ACTIVE = 'hotel_hub_active_hotel_id_v4_swissflora';
@@ -79,6 +82,26 @@ export default function App() {
   });
   const [orderId, setOrderId] = useState<string>('ORD-8821');
 
+  // Admin Authentication State
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(() => getCurrentAdminUser());
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChangedListener((user) => {
+      setAdminUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Unknown Hotel Not Found handling
+  const [isHotelNotFound, setIsHotelNotFound] = useState<boolean>(() => {
+    const parsed = parseCurrentRoute();
+    if (parsed.hotelSlug) {
+      const match = findHotelBySlug(MOCK_HOTELS, parsed.hotelSlug);
+      return !match;
+    }
+    return false;
+  });
+
   // Primary Application View: 'guest_portal' | 'admin_portal' | 'route_registry'
   const [appView, setAppView] = useState<'guest_portal' | 'admin_portal' | 'route_registry'>(() => {
     const parsed = parseCurrentRoute();
@@ -112,7 +135,14 @@ export default function App() {
         setAppView('guest_portal');
         if (parsed.hotelSlug) {
           const match = findHotelBySlug(hotelsList, parsed.hotelSlug);
-          if (match) setCurrentHotel(match);
+          if (match) {
+            setCurrentHotel(match);
+            setIsHotelNotFound(false);
+          } else {
+            setIsHotelNotFound(true);
+          }
+        } else {
+          setIsHotelNotFound(false);
         }
         if (parsed.roomNumber !== undefined) {
           setRoomNumber(parsed.roomNumber);
@@ -277,6 +307,15 @@ ${mdRows}
 
   // 1. Hotel Admin Control Center View (Dedicated for staff)
   if (appView === 'admin_portal') {
+    if (!adminUser) {
+      return (
+        <AdminLoginPage
+          onLoginSuccess={(user) => setAdminUser(user)}
+          onBackToGuestPortal={handleViewLivePortal}
+        />
+      );
+    }
+
     return (
       <div className="relative min-h-screen bg-stone-950">
         {toastMessage && (
@@ -289,10 +328,15 @@ ${mdRows}
         <AdminControlCenterPage
           hotels={hotelsList}
           currentHotel={currentHotel}
+          currentUser={adminUser}
           onSelectHotel={handleSelectHotel}
           onUpdateHotel={handleUpdateHotel}
           onHotelCreated={handleHotelCreated}
           onViewLivePortal={handleViewLivePortal}
+          onSignOut={async () => {
+            await signOutAdminUser();
+            setAdminUser(null);
+          }}
         />
       </div>
     );
@@ -300,6 +344,39 @@ ${mdRows}
 
   // 2. Pure Guest Portal View (Strictly separated: No Admin, No Hotel Switcher, No Dev tools)
   if (appView === 'guest_portal') {
+    if (isHotelNotFound) {
+      return (
+        <div
+          className="min-h-screen bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center"
+          dir={language === 'ar' ? 'rtl' : 'ltr'}
+        >
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-6">
+            <Building2 size={32} />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white mb-2">
+            {language === 'ar' ? 'الفندق غير مسجل' : 'Hotel Not Found'}
+          </h1>
+          <p className="text-stone-400 text-sm max-w-md mb-8 leading-relaxed">
+            {language === 'ar'
+              ? 'معرّف الفندق المطلوب غير متوفر في النظام. يرجى التأكد من مسح رمز الاستجابة السريعة (QR) الصحيح أو الرجوع للفندق الافتراضي.'
+              : 'The requested hotel identifier does not exist in the system. Please verify the QR link or navigate to an available property.'}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => {
+                setIsHotelNotFound(false);
+                setCurrentHotel(hotelsList[0]);
+                pushAppRoute(buildGuestUrl(hotelsList[0].slug));
+              }}
+              className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-sm transition-all cursor-pointer shadow-lg"
+            >
+              {language === 'ar' ? `الانتقال إلى ${hotelsList[0]?.name_ar}` : `Go to ${hotelsList[0]?.name_en}`}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="relative">
         {/* Toast Notification */}

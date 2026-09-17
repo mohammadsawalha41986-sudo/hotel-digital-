@@ -297,6 +297,8 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
           ) : (
             <FBOutletDetailPage
               outlet={selectedFBOutlet}
+              hotelNameEn={currentHotel.name_en}
+              hotelNameAr={currentHotel.name_ar}
               currency={currency}
               language={language}
               roomNumber={roomNumber}
@@ -314,6 +316,9 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
       {activeDepartment === 'wellness' && (
         <main className="flex-1">
           <WellnessHubPage
+            hotelId={currentHotel.id}
+            hotelNameEn={currentHotel.name_en}
+            hotelNameAr={currentHotel.name_ar}
             services={hotelWellnessServices}
             currency={currency}
             language={language}
@@ -328,6 +333,9 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
       {activeDepartment === 'laundry' && (
         <main className="flex-1">
           <LaundryHubPage
+            hotelId={currentHotel.id}
+            hotelNameEn={currentHotel.name_en}
+            hotelNameAr={currentHotel.name_ar}
             items={hotelLaundryItems}
             contact={laundryContact}
             currency={currency}
@@ -342,6 +350,9 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
       {activeDepartment === 'services' && (
         <main className="flex-1">
           <GuestServicesHubPage
+            hotelId={currentHotel.id}
+            hotelNameEn={currentHotel.name_en}
+            hotelNameAr={currentHotel.name_ar}
             services={hotelGuestServices}
             currency={currency}
             language={language}
