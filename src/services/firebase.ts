@@ -25,6 +25,23 @@ let storage: FirebaseStorage | null = null;
 let isFirebaseConfigured = false;
 let firebaseInitError: string | null = null;
 
+// Explicit Environment Detection Helpers
+export const isDevEnvironment = (): boolean => {
+  // Check Node.js process environment (used during tests or SSR)
+  if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production') {
+    return false;
+  }
+  // Check Vite client environment
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+    if ((import.meta as any).env.DEV === true) return true;
+    if ((import.meta as any).env.PROD === true) return false;
+    if ((import.meta as any).env.MODE === 'production') return false;
+  }
+  return true;
+};
+
+export const isProductionEnvironment = (): boolean => !isDevEnvironment();
+
 // Graceful verification: Ensure required parameters are provided before initializing
 if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   try {
@@ -35,15 +52,21 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
     isFirebaseConfigured = true;
   } catch (err: any) {
     firebaseInitError = err?.message || 'Failed to initialize Firebase SDK';
-    console.warn('[Firebase] Initialization error. Running in local fallback mode:', firebaseInitError);
+    console.warn('[Firebase] Initialization error:', firebaseInitError);
   }
 } else {
-  // Graceful local development fallback: Log warning without crashing the app
-  console.info(
-    '[Firebase] Environment variables (VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID) not detected. Operating in local / fallback mode.'
-  );
+  if (isProductionEnvironment()) {
+    firebaseInitError = 'Firebase credentials missing in production environment.';
+    console.error('[Firebase CRITICAL] Missing Firebase credentials in production environment.');
+  } else {
+    // Graceful local development fallback: Log info without crashing the app
+    console.info(
+      '[Firebase] Environment variables (VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID) not detected. Operating in local / dev fallback mode.'
+    );
+  }
 }
 
 export { app, auth, db, storage, isFirebaseConfigured, firebaseInitError };
 export const defaultHotelSlug = metaEnv.VITE_DEFAULT_HOTEL_SLUG || 'swiss-flora-royal';
+
 

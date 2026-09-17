@@ -10,7 +10,8 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { Hotel } from '../../types/hotel';
-import { AdminUser, StaffRole } from '../../types/auth';
+import { AdminUser, StaffRole, canAccessHotel } from '../../types/auth';
+import { isDevEnvironment } from '../../services/firebase';
 
 export type { StaffRole };
 
@@ -41,6 +42,10 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   onViewLivePortal,
   onOpenMobileSidebar,
 }) => {
+  // Enforce tenant isolation: Only list hotels the authenticated user has rights to access
+  const accessibleHotels = hotels.filter((h) => canAccessHotel(currentUser || null, h.id));
+  const canSimulateRoles = isDevEnvironment() || currentUser?.role === 'SUPER_ADMIN';
+
   return (
     <header className="sticky top-0 z-30 bg-stone-900 text-stone-200 border-b border-stone-800 px-4 sm:px-6 py-3 flex items-center justify-between gap-4 shadow-xs">
       {/* Left side: Mobile menu toggle + Hotel selector (Admin context) */}
@@ -48,25 +53,27 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         <button
           onClick={onOpenMobileSidebar}
           className="lg:hidden p-2 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 cursor-pointer"
-          aria-label="Open Admin Menu"
+          aria-label="Open navigation sidebar"
         >
           <Menu size={18} />
         </button>
 
-        {/* Hotel Selector (Allowed only in Admin Control Center for Multi-Property management) */}
         <div className="flex items-center gap-2">
-          <Building2 size={16} className="text-amber-400 shrink-0" />
-          <div className="relative">
+          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+            <Building2 size={16} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] text-stone-400 uppercase tracking-wider font-semibold">Active Property</span>
             <select
               value={currentHotel.id}
               onChange={(e) => {
-                const target = hotels.find((h) => h.id === e.target.value);
+                const target = accessibleHotels.find((h) => h.id === e.target.value);
                 if (target) onSelectHotel(target);
               }}
               className="text-xs bg-stone-800 hover:bg-stone-750 text-white font-semibold border border-stone-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer max-w-[200px] sm:max-w-[280px] truncate"
               title="Manage Hotel Property"
             >
-              {hotels.map((h) => (
+              {accessibleHotels.map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.name_en} ({h.city_en})
                 </option>
@@ -75,24 +82,28 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           </div>
         </div>
 
-        {/* Role Simulator Pill */}
+        {/* Role Pill: Interactive simulator in DEV / SUPER_ADMIN, strictly read-only badge in production */}
         <div className="hidden md:flex items-center gap-1.5 bg-stone-800/90 text-stone-300 px-2.5 py-1 rounded-lg border border-stone-700 text-[11px]">
           <Shield size={12} className="text-amber-400" />
           <span className="text-stone-400">Role:</span>
-          <select
-            value={currentRole}
-            onChange={(e) => onChangeRole(e.target.value as StaffRole)}
-            className="bg-transparent text-amber-300 font-medium focus:outline-none cursor-pointer"
-          >
-            <option value="SUPER_ADMIN" className="bg-stone-900 text-white">Super Admin (All Access)</option>
-            <option value="HOTEL_ADMIN" className="bg-stone-900 text-white">Hotel Admin (Property Manager)</option>
-            <option value="FNB_MANAGER" className="bg-stone-900 text-white">F&B Manager</option>
-            <option value="HOUSEKEEPING_SUPERVISOR" className="bg-stone-900 text-white">Housekeeping Supervisor</option>
-            <option value="LAUNDRY_MANAGER" className="bg-stone-900 text-white">Laundry Manager</option>
-            <option value="SPA_DIRECTOR" className="bg-stone-900 text-white">Spa Director</option>
-            <option value="ENGINEERING_CHIEF" className="bg-stone-900 text-white">Chief Engineer</option>
-            <option value="VIEWER" className="bg-stone-900 text-white">Viewer (Read Only)</option>
-          </select>
+          {canSimulateRoles ? (
+            <select
+              value={currentRole}
+              onChange={(e) => onChangeRole(e.target.value as StaffRole)}
+              className="bg-transparent text-amber-300 font-medium focus:outline-none cursor-pointer"
+            >
+              <option value="SUPER_ADMIN" className="bg-stone-900 text-white">Super Admin (All Access)</option>
+              <option value="HOTEL_ADMIN" className="bg-stone-900 text-white">Hotel Admin (Property Manager)</option>
+              <option value="FNB_MANAGER" className="bg-stone-900 text-white">F&B Manager</option>
+              <option value="HOUSEKEEPING_SUPERVISOR" className="bg-stone-900 text-white">Housekeeping Supervisor</option>
+              <option value="LAUNDRY_MANAGER" className="bg-stone-900 text-white">Laundry Manager</option>
+              <option value="SPA_MANAGER" className="bg-stone-900 text-white">Spa Director</option>
+              <option value="ENGINEERING_CHIEF" className="bg-stone-900 text-white">Chief Engineer</option>
+              <option value="VIEWER" className="bg-stone-900 text-white">Viewer (Read Only)</option>
+            </select>
+          ) : (
+            <span className="text-amber-300 font-medium">{currentUser?.role || currentRole}</span>
+          )}
         </div>
       </div>
 

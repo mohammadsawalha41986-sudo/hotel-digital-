@@ -13,6 +13,25 @@ export type StaffRole =
   | 'CONTENT_EDITOR'
   | 'VIEWER';
 
+/**
+ * Canonical Staff Role Taxonomy
+ * Maps legacy or informal aliases into the canonical primary role.
+ */
+export function canonicalizeStaffRole(rawRole: string): StaffRole {
+  const r = (rawRole || '').trim().toUpperCase();
+  if (r === 'SUPER_ADMIN' || r === 'SUPERADMIN' || r === 'ROOT') return 'SUPER_ADMIN';
+  if (r === 'HOTEL_ADMIN' || r === 'HOTELADMIN' || r === 'GM' || r === 'GENERAL_MANAGER') return 'HOTEL_ADMIN';
+  if (r === 'FNB_MANAGER' || r === 'FNB' || r === 'FOOD_BEVERAGE_DIRECTOR') return 'FNB_MANAGER';
+  if (r === 'SPA_MANAGER' || r === 'SPA_DIRECTOR' || r === 'WELLNESS_MANAGER') return 'SPA_MANAGER';
+  if (r === 'HOUSEKEEPING' || r === 'HOUSEKEEPING_SUPERVISOR' || r === 'HK') return 'HOUSEKEEPING_SUPERVISOR';
+  if (r === 'LAUNDRY_MANAGER' || r === 'LAUNDRY' || r === 'VALET_MANAGER') return 'LAUNDRY_MANAGER';
+  if (r === 'ENGINEERING' || r === 'ENGINEERING_CHIEF' || r === 'MAINTENANCE_DIRECTOR') return 'ENGINEERING_CHIEF';
+  if (r === 'FRONT_OFFICE' || r === 'FRONT_DESK' || r === 'RECEPTION' || r === 'CONCIERGE') return 'FRONT_OFFICE';
+  if (r === 'CONTENT_EDITOR' || r === 'EDITOR') return 'CONTENT_EDITOR';
+  if (r === 'VIEWER' || r === 'AUDITOR' || r === 'READONLY') return 'VIEWER';
+  return 'VIEWER';
+}
+
 export interface AdminUser {
   uid: string;
   email: string;

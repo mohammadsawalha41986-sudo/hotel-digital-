@@ -19,7 +19,8 @@ import { LivePreviewModal } from '../components/admin/LivePreviewModal';
 import { HotelCreationWizard } from '../components/admin/HotelCreationWizard';
 import { AdminReviewsManager } from '../components/admin/AdminReviewsManager';
 import { AdminFeedbackManager } from '../components/admin/AdminFeedbackManager';
-import { AdminUser } from '../types/auth';
+import { ShieldAlert } from 'lucide-react';
+import { AdminUser, canAccessHotel } from '../types/auth';
 import { subscribeToHotelRequests } from '../services/requestService';
 
 interface AdminControlCenterPageProps {
@@ -50,6 +51,34 @@ export const AdminControlCenterPage: React.FC<AdminControlCenterPageProps> = ({
   const [showLivePreviewModal, setShowLivePreviewModal] = useState(false);
   const [showCreationWizard, setShowCreationWizard] = useState(false);
   const [requests, setRequests] = useState<OperationalRequest[]>([]);
+
+  // Multi-Hotel Tenant Security Guard:
+  // If an authenticated user enters another hotel's URL or parameter without permission, block access immediately
+  if (currentUser && !canAccessHotel(currentUser, currentHotel.id)) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-6">
+          <ShieldAlert size={32} />
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white mb-2">
+          Access Restricted / غير مصرح بالدخول
+        </h1>
+        <p className="text-stone-400 text-sm max-w-md mb-8 leading-relaxed">
+          You do not have staff authorization to manage <strong>{currentHotel.name_en}</strong>. Please switch to your authorized property.
+        </p>
+        <button
+          onClick={() => {
+            const authorized = hotels.find((h) => canAccessHotel(currentUser, h.id));
+            if (authorized) onSelectHotel(authorized);
+            else onSignOut?.();
+          }}
+          className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-sm transition-all cursor-pointer shadow-lg"
+        >
+          Return to Authorized Property
+        </button>
+      </div>
+    );
+  }
 
   // Load operational requests for the current hotel with real-time sync
   const refreshRequests = () => {

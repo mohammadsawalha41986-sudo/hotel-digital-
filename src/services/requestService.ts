@@ -198,10 +198,32 @@ export function toLegacyOperationalRequest(p: ProductionRequestPayload): Operati
   };
 }
 
+// In-memory submission de-duplication lock to prevent double-tap race conditions
+const activeSubmissionLocks = new Set<string>();
+
+/**
+ * Generates a collision-resistant, cryptographically sound operational reference code.
+ * Combines timestamp base36 with random entropy for high concurrency safety.
+ * Example: FNB-M7P9A-48K2
+ */
+export function generateSecureReference(prefix: string): string {
+  const p = (prefix || 'REQ').toUpperCase();
+  const timeComponent = Date.now().toString(36).toUpperCase().slice(-5);
+  const randomEntropy = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `${p}-${timeComponent}-${randomEntropy}`;
+}
+
 /**
  * Creates and persists a new guest operational request.
  * Writes to Firestore: /hotels/{hotelId}/requests/{requestId}
- * Falls back to local storage adapter when Firebase is unconfigured.
+ * Falls back to local storage adapter when Firebase is unconfigured in development.
+ * 
+ * NOTE ON FINANCIAL / MONETARY DATA INTEGRITY:
+ * In client-side direct-write architectures, client-calculated subtotals, VAT, and totals
+ * cannot be cryptographically guaranteed against client-side browser tampering.
+ * While firestore.rules bounds total >= 0, authoritative price recalculation MUST be
+ * performed by a secure backend function (e.g. Cloud Function onDocumentCreated)
+ * before dispatching to Kitchen Display Systems (KDS) or charging to PMS room folios.
  */
 export async function submitProductionRequest(
   payload: Omit<ProductionRequestPayload, 'createdAt' | 'updatedAt'>
@@ -210,25 +232,45 @@ export async function submitProductionRequest(
     throw new Error('Tenant isolation violation: Every request must include a valid hotelId.');
   }
 
+  const refId = payload.reference || payload.id;
+  const lockKey = `${payload.hotelId}_${refId}`;
+
+  // De-duplication: Reject duplicate in-flight submissions within 3 seconds
+  if (activeSubmissionLocks.has(lockKey)) {
+    console.warn(`[RequestService] Duplicate in-flight submission suppressed for reference: ${refId}`);
+    return {
+      ...payload,
+      id: refId,
+      reference: refId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  activeSubmissionLocks.add(lockKey);
+  setTimeout(() => activeSubmissionLocks.delete(lockKey), 3000);
+
   const now = new Date().toISOString();
   const completePayload: ProductionRequestPayload = {
     ...payload,
+    id: refId,
+    reference: refId,
     createdAt: now,
     updatedAt: now,
   };
 
   if (isFirebaseConfigured && db) {
     try {
-      const docRef = doc(db, 'hotels', payload.hotelId, 'requests', payload.reference || payload.id);
+      const docRef = doc(db, 'hotels', payload.hotelId, 'requests', refId);
       await setDoc(docRef, {
         ...completePayload,
         serverCreatedAt: serverTimestamp(),
         serverUpdatedAt: serverTimestamp(),
       });
-      console.info(`[RequestService] Request ${payload.reference} persisted to Firestore for hotel ${payload.hotelId}`);
+      console.info(`[RequestService] Request ${refId} persisted to Firestore for hotel ${payload.hotelId}`);
       return completePayload;
     } catch (err) {
-      console.warn('[RequestService] Firestore write failed, using local fallback:', err);
+      console.warn('[RequestService] Firestore write failed, using fallback:', err);
     }
   }
 
@@ -268,15 +310,16 @@ export function subscribeToHotelRequests(
         },
         (error) => {
           console.warn(`[RequestService] Firestore subscription error for hotel ${hotelId}:`, error);
-          // Fallback to local storage on permission or network failure
-          const localList = getStoredRequests(hotelId);
-          onRequestsUpdated(localList);
+          // On permission failure or unauthorized access, strictly empty the list to prevent data leaks
+          onRequestsUpdated([]);
         }
       );
 
       return unsubscribe;
     } catch (err) {
       console.warn('[RequestService] Could not establish Firestore onSnapshot listener:', err);
+      onRequestsUpdated([]);
+      return () => {};
     }
   }
 

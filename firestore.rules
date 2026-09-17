@@ -1,14 +1,16 @@
-﻿rules_version = '2';
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions for Authentication & RBAC
+    // -------------------------------------------------------------
+    // Helper Functions: Authentication & RBAC
+    // -------------------------------------------------------------
     function isAuthenticated() {
       return request.auth != null;
     }
 
     function isSuperAdmin() {
-      return isAuthenticated() && request.auth.token.role == 'SUPER_ADMIN';
+      return isAuthenticated() && request.auth.token.role in ['SUPER_ADMIN', 'SUPERADMIN', 'ROOT'];
     }
 
     function isHotelStaff(hotelId) {
@@ -19,44 +21,155 @@ service cloud.firestore {
       );
     }
 
-    // Helper validation for guest-created operational requests
-    function isValidGuestRequest(hotelId, requestId) {
-      let data = request.resource.data;
-      return (data.hotelId == hotelId) &&
-             (data.id == requestId || data.reference == requestId) &&
-             (data.status == 'NEW') &&
-             (data.department in ['FNB', 'SPA', 'LDY', 'HK', 'MNT', 'CON', 'FO', 'ROOM']) &&
-             (data.customerType in ['IN_HOUSE', 'EXTERNAL']) &&
-             (data.guestName is string && data.guestName.size() > 0 && data.guestName.size() <= 100);
+    function canEditHotelContent(hotelId) {
+      return isHotelStaff(hotelId) && (
+        isSuperAdmin() ||
+        request.auth.token.role in ['HOTEL_ADMIN', 'CONTENT_EDITOR']
+      );
     }
 
-    // 1. Hotel Configurations & Public Content
-    match /hotels/{hotelId} {
-      // Guests can read published hotel public information
-      allow read: if true;
-      // Only authorized hotel management or Super Admin can edit property details
-      allow write: if isHotelStaff(hotelId);
+    // -------------------------------------------------------------
+    // Helper Functions: Strict Guest Request Validation
+    // -------------------------------------------------------------
+    function isValidGuestRequest(hotelId, requestId) {
+      let data = request.resource.data;
 
-      // Operational Requests Sub-collection
+      // 1. Mandatory Tenant & Reference Matching
+      let validTenantAndId = (data.hotelId == hotelId) &&
+                             (data.id == requestId || data.reference == requestId);
+
+      // 2. Canonical Status Guard: Guests can ONLY create 'NEW' requests
+      let validInitialStatus = data.status == 'NEW';
+
+      // 3. Department & Customer Type Allow-list
+      let validDepartment = data.department in [
+        'FNB', 'WELLNESS', 'HOUSEKEEPING', 'LAUNDRY', 'GUEST_SERVICES',
+        'CONCIERGE', 'FRONT_OFFICE', 'SPA', 'LDY', 'HK', 'MNT', 'CON', 'FO', 'ROOM'
+      ];
+      let validCustomerType = data.customerType in ['IN_HOUSE', 'EXTERNAL'];
+
+      // 4. Guest Identity & Contact Constraints
+      let validGuestName = data.guestName is string &&
+                            data.guestName.size() >= 2 &&
+                            data.guestName.size() <= 100;
+      let validPhone = !('guestPhone' in data) ||
+                       (data.guestPhone is string && data.guestPhone.size() <= 30);
+      let validRoom = data.customerType != 'IN_HOUSE' ||
+                      (('roomNumber' in data) && data.roomNumber is string && data.roomNumber.size() >= 1 && data.roomNumber.size() <= 20);
+
+      // 5. Financial & Numerical Boundaries
+      let validTotal = data.total is number && data.total >= 0 && data.total <= 100000;
+      let validSubtotal = !('subtotal' in data) || (data.subtotal is number && data.subtotal >= 0 && data.subtotal <= 100000);
+      let validVat = !('vatAmount' in data) || (data.vatAmount is number && data.vatAmount >= 0 && data.vatAmount <= 50000);
+      let validDiscount = !('discount' in data) || (data.discount is number && data.discount >= 0 && data.discount <= 50000);
+
+      // 6. Security Boundary: Disallow injection of Staff-only / Operational fields
+      let noStaffFields = !('assignedTo' in data) &&
+                          !('assigned_staff' in data) &&
+                          !('staffNotes' in data) &&
+                          !('internalNotes' in data) &&
+                          !('resolution' in data);
+
+      return validTenantAndId &&
+             validInitialStatus &&
+             validDepartment &&
+             validCustomerType &&
+             validGuestName &&
+             validPhone &&
+             validRoom &&
+             validTotal &&
+             validSubtotal &&
+             validVat &&
+             validDiscount &&
+             noStaffFields;
+    }
+
+    // -------------------------------------------------------------
+    // Helper Functions: Staff Update Validation
+    // -------------------------------------------------------------
+    function isValidStaffUpdate(hotelId) {
+      let incoming = request.resource.data;
+      let existing = resource.data;
+
+      // Immutability Guards: Hotel ID, Doc ID, Reference cannot be altered
+      let immutableTenant = incoming.hotelId == existing.hotelId && incoming.hotelId == hotelId;
+      let immutableId = incoming.id == existing.id;
+      let immutableRef = incoming.reference == existing.reference;
+
+      return immutableTenant && immutableId && immutableRef;
+    }
+
+    // =============================================================
+    // Collection Rules
+    // =============================================================
+
+    // 1. Hotel Document & Subcollections
+    match /hotels/{hotelId} {
+      // Public read for published property profile
+      allow read: if true;
+      // Write restricted to authorized management or Super Admin
+      allow write: if isHotelStaff(hotelId) && (isSuperAdmin() || request.auth.token.role == 'HOTEL_ADMIN');
+
+      // 1A. Operational Requests Sub-collection
       match /requests/{requestId} {
-        // Guests can create new operational requests with validated schema & tenant isolation
+        // Guests can create new operational requests with validated schema
         allow create: if isValidGuestRequest(hotelId, requestId);
 
         // Staff can read the live request queue for their assigned hotel
         allow read: if isHotelStaff(hotelId);
 
-        // Staff can update request lifecycle status & assign staff
-        allow update: if isHotelStaff(hotelId) &&
-                         request.resource.data.hotelId == hotelId;
+        // Staff can update request lifecycle status & assign staff (immutable tenant)
+        allow update: if isHotelStaff(hotelId) && isValidStaffUpdate(hotelId);
 
-        // Deletion restricted to Super Admin
+        // Deletion strictly restricted to Super Admin
         allow delete: if isSuperAdmin();
       }
 
-      // Department & Service Catalogs (Optional future persisted sub-collections)
-      match /{catalogType}/{itemId} {
+      // 1B. Explicit Public Catalog Sub-collections
+      // Only explicitly allow-listed catalog collections are publicly readable
+      match /outlets/{itemId} {
         allow read: if true;
-        allow write: if isHotelStaff(hotelId);
+        allow write: if canEditHotelContent(hotelId);
+      }
+      match /wellness/{itemId} {
+        allow read: if true;
+        allow write: if canEditHotelContent(hotelId);
+      }
+      match /rooms/{itemId} {
+        allow read: if true;
+        allow write: if canEditHotelContent(hotelId);
+      }
+      match /offers/{itemId} {
+        allow read: if true;
+        allow write: if canEditHotelContent(hotelId);
+      }
+      match /laundry/{itemId} {
+        allow read: if true;
+        allow write: if canEditHotelContent(hotelId);
+      }
+      match /guestServices/{itemId} {
+        allow read: if true;
+        allow write: if canEditHotelContent(hotelId);
+      }
+      match /branding/{itemId} {
+        allow read: if true;
+        allow write: if canEditHotelContent(hotelId);
+      }
+      match /publicConfig/{itemId} {
+        allow read: if true;
+        allow write: if canEditHotelContent(hotelId);
+      }
+
+      // 1C. Explicit Private & Internal Hotel Collections
+      // Guests CANNOT read or write private hotel settings, internal notes, or audit logs!
+      match /private/{docId} {
+        allow read, write: if isHotelStaff(hotelId);
+      }
+      match /internal/{docId} {
+        allow read, write: if isHotelStaff(hotelId);
+      }
+      match /settings/{docId} {
+        allow read, write: if isHotelStaff(hotelId);
       }
     }
 
@@ -71,7 +184,7 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
-    // Default deny all other paths
+    // 3. Default Deny Catch-all
     match /{document=**} {
       allow read, write: false;
     }

@@ -5,8 +5,8 @@ import {
   User as FirebaseUser,
 } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db, isFirebaseConfigured } from './firebase';
-import { AdminUser, StaffRole } from '../types/auth';
+import { auth, db, isFirebaseConfigured, isDevEnvironment } from './firebase';
+import { AdminUser, StaffRole, canonicalizeStaffRole } from '../types/auth';
 
 // In-memory active authenticated user
 let currentAdminUser: AdminUser | null = null;
@@ -31,7 +31,7 @@ async function resolveAdminProfile(firebaseUser: FirebaseUser): Promise<AdminUse
   try {
     const idTokenResult = await firebaseUser.getIdTokenResult();
     if (idTokenResult.claims.role) {
-      role = idTokenResult.claims.role as StaffRole;
+      role = canonicalizeStaffRole(String(idTokenResult.claims.role));
     }
     if (Array.isArray(idTokenResult.claims.allowedHotelIds)) {
       allowedHotelIds = idTokenResult.claims.allowedHotelIds as string[];
@@ -47,7 +47,7 @@ async function resolveAdminProfile(firebaseUser: FirebaseUser): Promise<AdminUse
       const snapshot = await getDoc(adminDocRef);
       if (snapshot.exists()) {
         const data = snapshot.data();
-        if (data.role) role = data.role as StaffRole;
+        if (data.role) role = canonicalizeStaffRole(String(data.role));
         if (Array.isArray(data.allowedHotelIds)) allowedHotelIds = data.allowedHotelIds;
         if (data.displayName) displayName = data.displayName;
       }
@@ -86,6 +86,13 @@ export function initializeAuthObserver(): void {
       }
     });
   } else {
+    // In production, NEVER restore dev session storage
+    if (!isDevEnvironment()) {
+      currentAdminUser = null;
+      notifyListeners(false);
+      return;
+    }
+
     // Development fallback mode: Check sessionStorage for active session
     try {
       const saved = sessionStorage.getItem(DEV_SESSION_KEY);
@@ -115,7 +122,15 @@ export async function loginAdmin(email: string, pass: string): Promise<AdminUser
     return currentAdminUser;
   }
 
-  // Development Fallback Mode (only active when Firebase environment variables are missing)
+  // CRITICAL PRODUCTION HARDENING GUARD:
+  // Fallback dev authentication is strictly prohibited in production builds!
+  if (!isDevEnvironment()) {
+    throw new Error(
+      'Authentication service is unavailable: Production mode requires active Firebase credentials. Local fallback authentication is disabled.'
+    );
+  }
+
+  // Development Fallback Mode (only active in development when Firebase environment variables are missing)
   if (!cleanEmail || !pass) {
     throw new Error('Please provide both email and password.');
   }
@@ -134,20 +149,26 @@ export async function loginAdmin(email: string, pass: string): Promise<AdminUser
   } else if (cleanEmail.startsWith('fnb')) {
     devRole = 'FNB_MANAGER';
   } else if (cleanEmail.startsWith('housekeeping')) {
-    devRole = 'HOUSEKEEPING';
+    devRole = 'HOUSEKEEPING_SUPERVISOR';
+  } else if (cleanEmail.startsWith('laundry')) {
+    devRole = 'LAUNDRY_MANAGER';
   } else if (cleanEmail.startsWith('engineering')) {
-    devRole = 'ENGINEERING';
+    devRole = 'ENGINEERING_CHIEF';
   } else if (cleanEmail.startsWith('spa')) {
     devRole = 'SPA_MANAGER';
-  } else if (cleanEmail.startsWith('frontoffice')) {
+  } else if (cleanEmail.startsWith('frontoffice') || cleanEmail.startsWith('reception')) {
     devRole = 'FRONT_OFFICE';
+  } else if (cleanEmail.startsWith('editor')) {
+    devRole = 'CONTENT_EDITOR';
+  } else if (cleanEmail.startsWith('viewer')) {
+    devRole = 'VIEWER';
   }
 
   currentAdminUser = {
     uid: `dev-user-${Date.now()}`,
     email: cleanEmail,
     displayName: cleanEmail.split('@')[0].toUpperCase(),
-    role: devRole,
+    role: canonicalizeStaffRole(devRole),
     allowedHotelIds: allowedHotels,
     lastLoginAt: new Date().toISOString(),
   };

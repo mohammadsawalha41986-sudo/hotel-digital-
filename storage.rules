@@ -1,4 +1,4 @@
-﻿rules_version = '2';
+rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
@@ -7,7 +7,7 @@ service firebase.storage {
     }
 
     function isSuperAdmin() {
-      return isAuthenticated() && request.auth.token.role == 'SUPER_ADMIN';
+      return isAuthenticated() && request.auth.token.role in ['SUPER_ADMIN', 'SUPERADMIN', 'ROOT'];
     }
 
     function isHotelStaff(hotelId) {
@@ -18,19 +18,42 @@ service firebase.storage {
       );
     }
 
-    // Hotel Assets & Media Library (Images, Menus, Logos)
-    match /hotels/{hotelId}/{allPaths=**} {
-      // Public read for hotel branding, food images, and documents
+    // 1. Explicit Public Media Library (Images, Menus, Logos, Badges)
+    match /hotels/{hotelId}/public/{allPaths=**} {
+      // Intentionally public read for guest portal assets
       allow read: if true;
 
-      // Write restricted to authorized hotel staff or Super Admin with file constraints
+      // Uploads restricted to authorized hotel staff, max 10MB, strictly media/PDF
       allow write: if isHotelStaff(hotelId) &&
-                     request.resource.size < 10 * 1024 * 1024 &&
-                     (request.resource.contentType.matches('image/.*') ||
+                     request.resource.size <= 10 * 1024 * 1024 &&
+                     (request.resource.contentType.matches('image/(jpeg|png|webp|gif|svg\\+xml)') ||
                       request.resource.contentType == 'application/pdf');
     }
 
-    // Default deny
+    // 2. Explicit Private Hotel Storage (Contracts, Audit logs, Guest PII, Staff exports)
+    match /hotels/{hotelId}/private/{allPaths=**} {
+      // Strictly NO public read! Only authorized hotel staff or Super Admin
+      allow read, write: if isHotelStaff(hotelId) &&
+                           request.resource.size <= 10 * 1024 * 1024 &&
+                           (request.resource.contentType.matches('image/.*') ||
+                            request.resource.contentType in [
+                              'application/pdf',
+                              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                              'application/vnd.ms-excel',
+                              'text/csv'
+                            ]);
+    }
+
+    // 3. Root Hotel Media (Backward-compatible public media path)
+    match /hotels/{hotelId}/{fileName} {
+      allow read: if true;
+      allow write: if isHotelStaff(hotelId) &&
+                     request.resource.size <= 10 * 1024 * 1024 &&
+                     (request.resource.contentType.matches('image/(jpeg|png|webp|gif|svg\\+xml)') ||
+                      request.resource.contentType == 'application/pdf');
+    }
+
+    // Default deny all other paths
     match /{allPaths=**} {
       allow read, write: false;
     }

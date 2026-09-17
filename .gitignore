@@ -18,6 +18,9 @@ dist-ssr/
 firebase-debug.log*
 firestore-debug.log*
 ui-debug.log*
+firebase-applet-config*.json
+*service-account*.json
+*serviceAccount*.json
 
 # Logs
 logs
