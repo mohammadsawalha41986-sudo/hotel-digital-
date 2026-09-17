@@ -1,0 +1,6 @@
+{
+  "name": "Hotel Digital Guest Hub",
+  "description": "Multi-hotel digital guest experience, room service, dining, and service ordering platform with WhatsApp routing and admin management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,774 @@
+{
+  "contacts": {
+    "id": 7,
+    "titleAR": "فنادق ومنتجعات سويس فلورا",
+    "titleEN": "Swiss Flora Hotels & Resorts",
+    "descriptionAR": "<h6 style=\"text-align:start\"><span style=\"color:rgb(34, 34, 34);\"><span style=\"background-color:rgb(255, 255, 255);\">فنادق ومنتجعات سويس فلورا هي علامة تجارية متميزة في قطاع الضيافة بجودتها الاستثنائية وتصميمها الفريد والتزامها بتوفير تجربة ضيف لا مثيل لها. ستعمل سويس فلورا كلاعب بارز في قطاع الفنادق والمنتجعات ، حيث تطور هوية سويس فلورا كعلامة تجارية مميزة تتميز بمزيج من الدقة السويسرية والجماليات المستوحاة من النباتات والالتزام بالاستدامة البيئية.</span></span></h6>",
+    "descriptionEN": "<h6 style=\"text-align:start\"><span style=\"color:rgb(34, 34, 34);\"><span style=\"background-color:rgb(255, 255, 255);\">Swiss Flora Hotels &amp; Resorts is a distinguished brand in the hospitality sector with its exceptional quality, unique design and commitment to providing an unparalleled guest experience. Swiss Flora will serve as a prominent player in the hotel and resort sector, developing Swiss Flora's identity as a distinctive brand characterized by a combination of Swiss precision, botanical-inspired aesthetics, and commitment to environmental sustainability.</span></span></h6>",
+    "addressAr": "طريق الملك فهد, الصحافة ,الرياض , المملكة العربية السعودية",
+    "addressEN": "King Fahad Rd., Al Sahafa District P.O Box 18018, Riyadh 11415, Kingdom Of Saudi Arabia",
+    "phone": "+966112349999",
+    "email": "info@swissflorahotels.com",
+    "mapURL": "https://maps.googleapis.com/maps/api/js?key=AIzaSy",
+    "facebook": "https://www.facebook.com/",
+    "twitter": "https://x.com/home?lang=en",
+    "snapchat": "https://www.snapchat.com/",
+    "instagram": "https://www.instagram.com/",
+    "youtube": "https://youtube.com/"
+  },
+  "hotelRoyal": {
+    "id": 11,
+    "nameEN": "Swiss Flora Royal Hotel Riyadh",
+    "nameAR": "فندق سويس فلورا رويال الرياض",
+    "stars": 4,
+    "addressEN": "King Fahad Rd., Al Sahafa District P.O Box 18018, Riyadh 11415, Kingdom Of Saudi Arabia",
+    "addressAR": "طريق الملك فهد., حي الصحافة ص. ب 18018, الرياض 11415, المملكة العربية السعودية",
+    "email": "Info.royal@swissflorahotels.com",
+    "descriptionEN": "",
+    "descriptionAR": "",
+    "logoPath": null,
+    "heroImage": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/b6c54913-53cd-4103-9705-8a733594d372/room.png",
+    "allSliders": [
+      {
+        "titleEN": "",
+        "titleAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/b6c54913-53cd-4103-9705-8a733594d372/room.png"
+      },
+      {
+        "titleEN": "",
+        "titleAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/196e5f2d-a6e6-4ef9-a628-3b500c9772a3/uu.jpg"
+      },
+      {
+        "titleEN": "",
+        "titleAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/86eaa9d8-261a-4dd3-ace0-75bf16edbd66/tedt.jpg"
+      },
+      {
+        "titleEN": "",
+        "titleAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/1eed00ee-ea16-4f4c-add4-d33a8aa4ae71/shutterstock_378624079.jpg"
+      },
+      {
+        "titleEN": "",
+        "titleAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/ef460eca-3a7a-4858-a7da-88751e9729e5/shutterstock_144792676.jpg"
+      }
+    ],
+    "about": [
+      {
+        "id": 2,
+        "titleEN": "Swiss Flora Royal Hotel Riyadh",
+        "titleAR": "فندق سويس فلورا رويال الرياض",
+        "descriptionEN": "The Swiss Flora Royal Hotel Riyadh is an upscale establishment with contemporary décor, offering a variety of rooms and suites to ensure utmost comfort for its guests. This fully serviced hotel features modern facilities, including an all-day dining restaurant, event meeting rooms, a restaurant and lounge cafe, and an indoor swimming pool. Conveniently located in the Al Sahafa district of Riyadh, it is just 15 minutes away from King Khaled Airport and 5 minutes from the King Abdullah Financial District (KAFD) and the Boulevard World - Riyadh. The Swiss Flora Royal Hotel Riyadh provides the ultimate address for business travelers and those looking to experience Swiss culture. Hotel GDS/IDS Codes Sabre: YX 615584 | Amadeus: YX RUHSIR Apollo/ Galileo: YX D0032 | Worldspan: YX A1119 | DHISCO (WB) 47700",
+        "descriptionAR": "فندق سويس فلورا رويال الرياض هو فندق فاخر يتميز بديكور عصري ويوفر مجموعة متنوعة من الغرف والأجنحة لضمان راحة قصوى لضيوفه. يتمتع هذا الفندق المخدوم بالكامل بمرافق حديثة تشمل مطعماً مفتوحاً طوال اليوم، وغرف اجتماعات للمناسبات، ومطعم ولاونج، وحمام سباحة داخلي. يقع الفندق في حي الصحافة بالرياض على بُعد 15 دقيقة فقط من مطار الملك خالد و5 دقائق من مركز الملك عبد الله المالي (KAFD) وبوليفار وورلد - الرياض. يُعد فندق سويس فلورا رويال الرياض الوجهة المثالية لرحلات العمل ولتجربة الثقافة",
+        "image1": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/About/7d165f73-d3ec-459e-967c-a894a9e770f0/WhatsApp Image 2024-08-01 at 10.38.58.jpg",
+        "image2": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/About/fab8b685-c6c1-483f-9767-3e7fe8a8c609/7_1511849370.jpg"
+      }
+    ],
+    "facilities": [
+      {
+        "id": 4,
+        "icon": "flaticon-swimming",
+        "path": null
+      },
+      {
+        "id": 5,
+        "icon": "flaticon-man",
+        "path": null
+      },
+      {
+        "id": 6,
+        "icon": "",
+        "path": null
+      },
+      {
+        "id": 7,
+        "icon": "flaticon-bed",
+        "path": null
+      },
+      {
+        "id": 8,
+        "icon": "flaticon-event",
+        "path": null
+      }
+    ],
+    "rooms": [
+      {
+        "id": 13,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/217ce135-0d14-403f-bcfe-c296f376c1fa/download.jpg",
+        "size": 32,
+        "occupancy": null
+      },
+      {
+        "id": 12,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/7dcfc016-c0ab-4b0c-a884-80cd5064af36/download1.jpg",
+        "size": 32,
+        "occupancy": null
+      },
+      {
+        "id": 11,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/d565ec4f-cf24-4fcb-acc7-74a1dbe2e71e/ooooo.png",
+        "size": 39,
+        "occupancy": null
+      },
+      {
+        "id": 10,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/4037929e-d322-49b8-a31f-08186100e365/download2.jpg",
+        "size": 39,
+        "occupancy": null
+      },
+      {
+        "id": 9,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/de19aa2c-ef80-4b3c-bc02-3bc2cd7ef296/download3.jpg",
+        "size": 40,
+        "occupancy": null
+      },
+      {
+        "id": 8,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/eaba3e72-69b0-4547-8c80-7aa0922fb54b/download5.jpg",
+        "size": 40,
+        "occupancy": null
+      },
+      {
+        "id": 7,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/84e89c68-44a1-4172-ab51-567963eda23d/download6.jpg",
+        "size": 50,
+        "occupancy": null
+      },
+      {
+        "id": 6,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/1cfb7634-705f-421a-a9e2-22e4f56a060d/room1.png",
+        "size": 50,
+        "occupancy": null
+      }
+    ],
+    "restaurant": [
+      {
+        "id": 1,
+        "titleEN": "                                ",
+        "titleAR": "                                ",
+        "descriptionEN": "At Swiss Flora Hotels &amp; Resorts, our Food &amp; Beverage offerings seamlessly blend authentic Swiss flavors with global culinary influences , crafting a diverse and unforgettable dining experience. We are dedicated to sustainability, sourcing fresh, local ingredients and embracing eco-friendly practices. Our dining venues are elegantly designed to be both inviting and refined, with outdoor options that showcase the natural beauty of our surroundings. Guests can enjoy interactive cooking experiences, themed dining events, and a curated selection of wines and signature cocktails. With a commitment to personalized service and health-conscious choices, Swiss Flora’s Food &amp; Beverage department ensures that every meal celebrates quality, innovation, and Swiss hospitality.",
+        "descriptionAR": "في فنادق ومنتجعات سويس فلورا، نقدم عروض الطعام والشراب التي تمتزج بسلاسة بين النكهات السويسرية الأصيلة والتأثيرات العالمية في فنون الطهي، مما يخلق تجربة تناول طعام متنوعة ولا تُنسى. نحن ملتزمون بالاستدامة من خلال توفير المكونات الطازجة والمحلية وتبني الممارسات الصديقة للبيئة. تم تصميم أماكن تناول الطعام لدينا بعن��ية لتكون أنيقة وترحيبية، مع خيارات تناول الطعام في الهواء الطلق التي تبرز جمال محيطنا الطبيعي. يمكن للضيوف الاستمتاع بتجارب الطهي التفاعلية، والفعاليات ذات الطابع الخاص، واستكشاف مجموعة مختارة من النبيذ والكوكتيلات المميزة. مع التركيز على الخدمة الشخصية والخيارات الصحية، تضمن قسم الطعام والشراب في سويس فلورا أن تكون كل وجبة احتفالًا بالجودة والابتكار والضيافة السويسرية",
+        "menus": [
+          {
+            "id": 7,
+            "categoryId": 0,
+            "titleAR": "مطعم فلورا ",
+            "titleEN": "Flora Restaurant - All Day Dining",
+            "descriptionAR": "<p style=\"text-align:right\">ابدأ يومك في مطعم فلورا بوجبة إفطار لذيذة تشمل مجموعة متنوعة من الفواكه الطازجة، الفطائر، والمعجنات القارية، بالإضافة إلى الأطباق الساخنة من محطات الطهي الحية لدينا. نقدم بوفيهات دولية واسعة مصممة لتقديم تجربة طهي استثنائية تناسب مختلف الأذواق والتفضيلات</p><p style=\"text-align:right\">يتميز مطعم فلورا بأجوائه الأنيقة والترحيب الحار. مع الديكور الأنيق والمقاعد المريحة، يمكنك الاستمتاع بوجبتك في بيئة مريحة وجذابة</p><p style=\"text-align:right\">:ساعات العمل</p><p style=\"text-align:right\">الإفطار: 6:30 صباحًا حتى 10:30 صباحًا (يوميًا)</p><p style=\"text-align:right\">الغداء: 12:30 ظهرًا حتى 3:30 عصرًا (يوميًا)</p><p style=\"text-align:right\">العشاء: 6:30 مساءً حتى 11:30 مساءً (يوميًا)</p>",
+            "descriptionEN": "<p>Kickstart your morning at Flora Restaurant with a delightful breakfast selection, including fresh fruits, pancakes, and continental pastries, alongside hot dishes from our live cooking stations. Our extensive international buffets are thoughtfully crafted to offer an exceptional culinary experience, catering to diverse tastes and preferences. Flora Restaurant provides a warm and elegant atmosphere, with stylish decor and comfortable seating, ensuring you can savor your meal in a relaxed and inviting setting.</p><p><strong>Hours:</strong></p><p>Breakfast: 6.30 am – 10.30 am (daily)</p><p>Lunch: 12.30 noon – 3.30 pm (daily)</p><p>Dinner: 6.30 pm – 11.30 pm (daily)</p>",
+            "price": 0,
+            "path": "AttachmentPath\\RestaurantMenu/b999a510-6e27-4992-95f0-dfb78a82d4c0/downloadk.png",
+            "url": "b999a510-6e27-4992-95f0-dfb78a82d4c0",
+            "restaurantId": 1
+          },
+          {
+            "id": 10,
+            "categoryId": 0,
+            "titleAR": "سويس كافيه مطعم ولاونج",
+            "titleEN": "Swiss Café Restaurant & Lounge                 ",
+            "descriptionAR": "<p style=\"text-align:right\">استمتع بتجربة طعام لا تُنسى دون التنازل عن النكهات الغنية. نقدم لك مجموعة مختارة بعناية من الأطباق التي تجمع بين التنوع الصحي والطعم الرائع. يشرف على مطعمنا طهاة محترفون، مما يجعله متميزًا بمأكولاته الفاخرة وجوّه الفريد. يتميز المطعم بغرفة طعام أنيقة تضم مطبخًا مفتوحًا لقائمة الطعام حسب الطلب. تتنوع قائمة الطعام بين النكهات العالمية والأطباق الكلاسيكية والمبتكرة. انغمس في تجربة طهي لا مثيل لها</p><p style=\"text-align:right\"><strong>:ساعات العمل</strong></p><p style=\"text-align:right\"><strong>الإفطار</strong>: 6:30 صباحًا – 10:30 صباحًا (يوميًا)</p><p style=\"text-align:right\"><strong>الغداء:</strong> 12:00 ظهرًا – 3:30 مساءً (يوميًا)</p><p style=\"text-align:right\"><strong>العشاء:</strong> 7:00 مساءً، وآخر طلب في 11:30 مساءً (يوميًا)</p>",
+            "descriptionEN": "<p>Savor delicious food without compromising on flavor. Enjoy a carefully curated selection of dishes designed to offer the healthy variety you deserve. Our restaurant, led by professional chefs, is renowned for its exceptional cuisine and unique ambiance. The elegant dining room features a live kitchen for an à la carte menu, letting you witness culinary artistry in action. The menu blends international influences with classic favorites and creative dishes, offering a tempting selection to explore. Indulge in some of the finest culinary delights.</p><p><strong>Hours</strong></p><p><strong>Breakfast</strong>: 6:30 am – 10:30 am (daily)</p><p><strong>Lunch</strong>: 12:00 noon – 3:30 pm (daily)</p><p><strong>Dinner</strong>: 7:00 pm – 11:30 pm (last order at 11:30 pm)</p><p><a href=\"www.swissscafe.com\" target=\"_blank\"><strong><span style=\"color:inherit;\"><span style=\"background-color:rgb(255, 255, 255);\">www.swissscafe.com</span></span></strong></a></p>",
+            "price": 0,
+            "path": "AttachmentPath\\RestaurantMenu/d047d924-8978-4e1a-819e-8e0062776e71/downloadc.png",
+            "url": "d047d924-8978-4e1a-819e-8e0062776e71",
+            "restaurantId": 1
+          },
+          {
+            "id": 16,
+            "categoryId": 0,
+            "titleAR": "خدمة الغرف على مدار الساعة",
+            "titleEN": "24/7 Room Service",
+            "descriptionAR": "<p style=\"text-align:right\">في فندق فلورا السويسري، نقدم خدمة الغرف على مدار 24 ساعة لضمان راحتك وراحتك. استمتع بتشكيلة واسعة من الوجبات والمشروبات التي يتم توصيلها مباشرة إلى غرفتك في أي وقت من اليوم أو الليل. سواء كنت تشعر برغبة في تناول وجبة خفيفة في وقت متأخر من الليل أو وجبة كاملة، فإن قائمتنا المتنوعة تحتوي على شيء يرضي جميع الأذواق. استرخِ وتناول الطعام في راحة غرفتك مع خدمتنا السريعة والمحترفة</p><p style=\"text-align:right\"><strong>للطلب الرجاء الاتصال بالرقم: 222</strong></p>",
+            "descriptionEN": "<p><strong>At Swiss Flora Royal Hotel Riyadh,</strong> we offer 24-hour room service to ensure your convenience and comfort. Enjoy a wide variety of meals and beverages delivered directly to your room at any time of the day or night. Whether you're craving a late-night snack or a full meal, our extensive menu has something to satisfy every palate. Relax and dine in the comfort of your room with our prompt and professional room service.</p><p><strong>For order please Dail: 222</strong></p>",
+            "price": 0,
+            "path": "AttachmentPath\\RestaurantMenu/1a2e0441-b476-489c-9b4f-dc74811d67e5/traytracker.jpg",
+            "url": "1a2e0441-b476-489c-9b4f-dc74811d67e5",
+            "restaurantId": 1
+          }
+        ]
+      }
+    ],
+    "restaurantSliders": [
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/e62c936d-a986-4fec-90fa-618652baab0b/chef.jpg",
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/1f797aee-8962-4565-82c8-970a7d2ee11c/shutterstock_645095311.jpg",
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/a7c2a63b-4404-403e-b931-acdc158325c8/download3.png",
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/74705658-750c-4ec8-ae70-c52ab66490ad/download2.png"
+    ],
+    "spa": [
+      {
+        "id": 1,
+        "titleEN": "Flora Fitness & Spa",
+        "titleAR": "فلورا جيم وسبا",
+        "phone": "+966555072806",
+        "descriptionEN": "Flora Fitness &amp; Spa is a luxurious retreat designed to offer a rejuvenating experience for both body and mind. It features a range of wellness facilities, including: Spa Treatments: A variety of therapeutic and beauty treatments, including massages, facials, body scrubs, and wraps, all performed by skilled professionals. Sauna and Steam Rooms: State-of-the-art sauna and steam rooms to detoxify and relax. Fitness Center: A fully equipped gym with modern fitness equipment for a comprehensive workout. Swimming Pool: A beautifully designed pool for relaxation and exercise, perfect for cooling off or enjoying a leisurely swim. Relaxation Lounges: Comfortable lounges where guests can unwind before or after their treatments. Health Bar: Offering a selection of nutritious snacks, smoothies, and herbal teas to complement your wellness journey. Flora Gym &amp; Spa combines modern amenities with a serene environment to create a holistic experience, ensuring guests leave feeling refreshed and revitalized.",
+        "descriptionAR": ":فلورا جيم وسبا هو ملاذ فاخر مصمم لتقديم تجربة تجديدية للجسم والعقل. يتضمن مجموعة من مرافق العافية، بما في ذلك ·علاجات السبا: مجموعة متنوعة من العلاجات العلاجية والتجميلية، بما في ذلك التدليك، والعلاجات الوجهية، وتقشير الجسم، والأغطية، جميعها تتم على يد محترفين مهر * ·الساونا وغرف البخار: ساونا وغرف بخار حديثة لإزالة السموم والاسترخاء * · مركز اللياقة البدنية: صالة رياضية مجهزة بالكامل بأحدث معدات اللياقة البدنية لتدريب شامل * .المسبح: مسبح مصمم بشكل جميل للاسترخاء والتمارين، مثالي للسباحة المريحة أو النشاط البدني * ·بار الصحة: يقدم مجموعة من الوجبات الخفيفة الصحية، والعصائر الطازجة، ��الشاي العشبي لتكملة رحلة العافية الخاصة بك * يجمع فلورا جيم وسبا بين المرافق الحديثة والبيئة الهادئة لخلق تجربة شاملة، مما يضمن أن يشعر الضيوف بالانتعاش والتجديد",
+        "areas": [
+          {
+            "id": 2,
+            "titleAR": "غرفة المساج",
+            "titleEN": "Massage Room",
+            "descriptionAR": "<p style=\"text-align:right\">إستمتع بجلسة استرخاء بعد يوم مرهق في غرفة التدليك لدينا. جرب العلاجات المهدئة المصممة لتخفيف التو��ر وتجديد الجسم والعقل</p><p style=\"text-align:right\">:نقدم مجموعة متنوعة من خيارات التدليك، بما في ذلك</p><p style=\"text-align:right\">التدليك السويدي: تدليك لطيف لكامل الجسم يعزز الاسترخاء ويحسن الدورة الدموية</p><p style=\"text-align:right\">التدليك التايلاندي: تقنية تقليدية تجمع بين التمدد والضغط لتحسين المرونة وتخفيف توتر العضلات</p><p style=\"text-align:right\">تدليك الاسترخاء: تدليك مهدئ يركز على تقليل التوتر وتعزيز الاسترخاء العام</p><p style=\"text-align:right\">ساعات العمل: يومياً: 7:00 صباحاً إلى 11:00 مساءً</p>",
+            "descriptionEN": "<p>Enjoy a relaxing session after a stressful day in our Massage Room. Experience soothing treatments designed to relieve tension and rejuvenate your body and mind. We offer a variety of massage options, including:</p><p><strong>Swedish Massage:</strong> A gentle, full-body massage that promotes relaxation and improves circulation.</p><p><strong>Thai Massage:</strong> A traditional technique that combines stretching and acupressure to enhance flexibility and relieve muscle tension.</p><p><strong>Relaxation Massage:</strong> A calming massage focused on reducing stress and promoting overall relaxation.</p><p><strong>Opening Hours:</strong> Daily: 7:00 am to 11:00 pm</p>",
+            "path": "AttachmentPath\\Spa/a1d28670-ddb6-42fc-9b26-38a6200ba872/Massage.jpg",
+            "url": "a1d28670-ddb6-42fc-9b26-38a6200ba872",
+            "spaId": 1
+          },
+          {
+            "id": 3,
+            "titleAR": "مركز اللياقة",
+            "titleEN": "Fitness Center",
+            "descriptionAR": "<p style=\"text-align:right\">ارتقِ بروتينك الرياضي في مركز اللياقة البدنية الحديث لدينا. صُمم لتلبية جميع احتياجات تمرينك، حيث يقدم المركز مجموعة شاملة من المعدات والخدمات لمساعدتك في تحقيق أهدافك البدنية. استمتع بـ</p><p style=\"text-align:right\"><strong>معدات حديثة</strong>: مجموعة واسعة من أحدث أجهزة اللياقة البدنية والأوزان الحرة لتمرين كامل</p><p style=\"text-align:right\"><strong>طاقم مدرب</strong>: مدربون محترفون متاحون لتقديم الإرشاد والدعم لجميع مستويات اللياقة</p><p style=\"text-align:right\"><strong>بيئة مريحة</strong>: مساحة مُصممة بعناية لتعزيز تجربة التمرين الخاصة بك</p><p style=\"text-align:right\"><strong>ساعات العمل</strong>: يومياً: 7:00 صباحاً إلى 10:00 مساءً</p>",
+            "descriptionEN": "<p>Elevate your fitness routine at our state-of-the-art Gym Center. Designed to meet all your workout needs, our center offers a comprehensive range of equipment and services to help you achieve your fitness goals. Enjoy:</p><p><strong>Modern Equipment:</strong> A wide selection of the latest fitness machines and free weights for a complete workout.</p><p><strong>Trained Staff:</strong> Professional trainers available to offer guidance and support for all fitness levels.</p><p><strong>Comfortable Environment:</strong> A well-maintained space designed to enhance your exercise experience.</p><p><strong>Opening Hours:</strong> Daily: 7:00 am to 10:00 pm</p>",
+            "path": "AttachmentPath\\Spa/4d53ec60-8e37-4d3b-9111-3cbd6e5b66e3/Gym Area 2.jpg",
+            "url": "4d53ec60-8e37-4d3b-9111-3cbd6e5b66e3",
+            "spaId": 1
+          },
+          {
+            "id": 4,
+            "titleAR": "حوض السباحة",
+            "titleEN": "The Flora Pool",
+            "descriptionAR": "<p style=\"text-align:right\">اغمر نفسك في الفخامة في مسبح فلورا، حيث يلتقي الاسترخاء بالأناقة. استمتع بمجموعة من التجارب المتجددة المصممة لإنعاش الجسم والعقل. تشمل بيئتنا الهادئة</p><p style=\"text-align:right\">المسبح الأنيق: استمتع بالسباحة في مسبحنا المصمم بشكل رائع، المثالي للاسترخاء والسباحة الممتعة</p><p style=\"text-align:right\">منطقة الاسترخاء: استرخِ في مساحاتنا الهادئة، التي صممت بعناية لراحتك واسترخائك</p><p style=\"text-align:right\">:ساعات العمل</p><p style=\"text-align:right\">يومياً: 07:00 صباحاً إلى 11:00 مساءً</p>",
+            "descriptionEN": "<p>Immerse yourself in luxury at The Flora Pool, where relaxation meets elegance. Enjoy a range of rejuvenating experiences designed to refresh both body and mind. Our serene environment includes:</p><p><strong>Elegant Pool:</strong> Take a dip in our beautifully designed pool, ideal for unwinding and enjoying leisurely swims.</p><p><strong>Relaxation Area:</strong> Unwind in our tranquil spaces, thoughtfully designed for your comfort and relaxation.</p><p><strong>Opening Hours:</strong> Daily: 07:00 am to 10:00 pm</p>",
+            "path": "AttachmentPath\\Spa/84352dbf-9708-4e81-b174-03156b9bb95b/Pool 4.jpg",
+            "url": "84352dbf-9708-4e81-b174-03156b9bb95b",
+            "spaId": 1
+          }
+        ]
+      }
+    ],
+    "spaSliders": [
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/e73ab5fe-9ed7-48e4-813a-d42837bef79e/spa2.jpg",
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/192b94fb-ff7c-4bdb-b892-e2f25ba19770/spa1.jpg",
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/bf3be8e8-1fbc-4a69-91e8-19d8edb5ed29/spa3.jpg"
+    ],
+    "meeting": [
+      {
+        "id": 1,
+        "titleEN": "Eventura",
+        "titleAR": "إيفينتورا ",
+        "descriptionEN": "Eventura is a strong and sophisticated name, perfectly encapsulating the spirit of innovation and elegance that defines Swiss Flora Hotels &amp; Resorts. It evokes a sense of adventure and uniqueness, promising an event planning experience that is both memorable and extraordinary. The name suggests a journey through creative possibilities, where every detail is meticulously crafted to exceed expectations. Eventura is versatile, making it an ideal brand for a wide range of occasions, from high-profile corporate meetings to lavish weddings and exclusive social gatherings. It conveys a professional tone while also hinting at the bespoke and personalized nature of the services offered. This makes Eventura not just a name, but a promise of excellence, aligning seamlessly with the high standards and luxurious ambiance that Swiss Flora Hotels &amp; Resorts is known for. Emai: eventura.royal@ swissflorahotels.com",
+        "descriptionAR": "إيفينتورا هو اسم قوي وأنيق، يجسد روح الابتكار والفخامة التي تميز فنادق ومنتجعات سويس فلورا. يعبر عن شعور بالمغامرة والتميز، واعدًا بتجربة تخطيط فعاليات لا تُنسى واستثنائية. يشير الاسم إلى رحلة عبر إمكانيات إبداعية، حيث يتم الاهتمام بكل تفصيلة بدقة لتجاوز التوقعات إن إيفينتورا اسم متعدد الاستخدامات، مما يجعله علامة تجارية مثالية لمجموعة واسعة من المناسبات، بدءًا من الاجتماعات المؤسسية الرفيعة المستوى إلى حفلات الزفاف الفاخرة والتجمعات الاجتماعية الحصرية. يضفي الاسم نغمة احترافية مع الإشارة أيضًا إلى الطبيعة المخصصة والشخصية للخدمات المقدمة. وهذا يجعل من إيفينتورا ليس مجرد اسم، بل وعد بالتميز، مما يتماشى بسلاسة مع المعايير العالية والأجواء الفاخرة التي تعرف بها فنادق ومنتجعات سويس فلورا",
+        "areas": [
+          {
+            "id": 1,
+            "titleEN": "Meeting Rooms",
+            "titleAR": "قاعات الاجتماعات",
+            "descriptionEN": "The meeting rooms at Swiss Flora Royal Hotel Riyadh are Flexible Setup Styles, equipped with cutting-edge AV facilities, including high-definition projectors; surround sound systems, wireless microphones, and video conferencing equipment, ensuring seamless presentations and communication. Tailored Meeting Packages: Half-Day/Full-Day Packages: Include room rental, AV equipment, coffee breaks, and optional lunch. Corporate Packages: Combine meetings with accommodation and recreational activities.",
+            "descriptionAR": "تتميز قاعات الاجتماعات في فندق سويس فلورا رويال الرياض بأنماط إعداد مرنة ومجهزة بأحدث مرافق الصوت والصورة، بما في ذلك أجهزة عرض عالية الدقة، وأنظمة صوت محيطي، وميكروفونات لاسلكية، ومعدات لعقد المؤتمرات عبر الفيديو، مما يضمن تقديم عروض واتصالات سلسة :باقات الاجتماعات المصممة خصيصًا .باقات نصف يوم / يوم كامل: تشمل إيجار القاعة، ومعدات الص��ت والصورة، واستراحات القهوة، مع خيار تناول الغداء .باقات الشركات: تجمع بين الاجتماعات والإقامة والأنشطة الترفيهية .يوفر فندق سويس فلورا رويال الرياض أيضًا دعمًا شخصيًا من خلال منسقي فعاليات متخصصين لضمان تجربة اجتماعات سلسة ولا تُنسى.",
+            "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Meeting/6b930953-98c8-43fb-ad8b-a05847209738/WhatsApp Image 2024-08-01 at 16.37.07 (1).jpg"
+          },
+          {
+            "id": 2,
+            "titleEN": "Eventura Events",
+            "titleAR": "الحفلات",
+            "descriptionEN": "Eventura Events is the premier Events division of Swiss Flora Royal Hotel Riyadh, embodying sophistication, adventure, and exclusivity. At Eventura, we specialize in creating extraordinary experiences for a wide array of events, luxurious weddings and social gatherings. Customizable Event Planning : Every event is unique, and our dedicated team works closely with you to tailor every detail to your specific needs, ensuring a seamless and memorable experience. Whether you're planning a corporate event, an international conference, or a glamorous wedding, Eventura Events will exceed your expectations with meticulous attention to detail and a commitment to excellence.",
+            "descriptionAR": "إيفنتورا إيفنتس هو القسم الرئيسي للفعاليات في فندق سويس فلورا رويال الرياض، وهو يجسد الرقي والمغامرة والتفرد. في إيفنتورا، نحن متخصصون في خلق تجارب غير عادية لمجموعة واسعة من الأحداث وحفلات الزفاف الفاخرة والتجمعات الاجتماعية .تخطيط مناسبات قابل للتخصيص: كل حدث فريد من نوعه، ويعمل فريقنا المتفاني معك بشكل وثيق لتخصيص كل التفاصيل وفقًا لاحتياجاتك الخاصة، مما يضمن تجربة سلسة لا تُنسى. .سواء كنت تخطط لحفل مؤسسي، أو مؤتمر دولي، أو حفل زفاف ساحر، فإن إيفنتورا إيفنتس سوف تتجاوز توقعاتك مع الاهتمام الدقيق بالتفاصيل والالتزام بالتميز",
+            "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Meeting/e3004a05-5d76-4ec6-aba8-11c10bbdbde6/shutterstock_145238350.jpg"
+          },
+          {
+            "id": 3,
+            "titleEN": "Outdoor Catering Service",
+            "titleAR": "الحفلات الخارجية",
+            "descriptionEN": "Eventura Outdoor Catering offers an unparalleled dining experience, blending exceptional cuisine with the beauty of the great outdoors. Whether you're hosting an intimate garden party, a grand outdoor wedding, or a corporate event under the stars, our catering services are designed to provide an exquisite culinary experience in any setting. Tailored Menus: Customizable to fit your event’s theme and preferences. Seamless Service: Professional staff ensuring a smooth and enjoyable experience. Memorable Moments: Exquisite dining that leaves a lasting impression.",
+            "descriptionAR": "إيفنتورا للحفلات الخارجية ; يقدم تجربة طعام لا تضاهى، يمزج بين المأكولات الاستثنائية وجمال الطبيعة في الهواء الطلق. سواء كنت تستضيف حفلة حديقة حميمة، أو زفافًا خارجيًا كبيرًا، أو حدثًا مؤسسيًا تحت النجوم، فإن خدماتنا مخصصة لتقديم تجربة طعام رائعة في أي مكان قوائم طعام مخصصة: قابلة للتخصيص لتناسب موضوع الحدث وتفضيلاتك خدمة سلسة ومميزة: فريق محترف يضمن تجربة سلسة وممتعة لحظات لا تُنسى: طعام رائع يترك انطباعًا دائمًا",
+            "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Meeting/3eb11f26-33b9-401c-9cb4-172c63a44507/Buffet Ramadan 2024.jpg"
+          }
+        ]
+      }
+    ],
+    "meetingSliders": [
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/8eafecc9-3ed2-42bf-9b64-67966d39dfed/download9.png",
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/4d43c74a-5bc6-4a24-9795-ee4edb9aaf43/Meetingroom.jpg"
+    ],
+    "destinations": [
+      {
+        "titleEN": "King Khalid International Airport",
+        "titleAR": "مطار الملك خالد الدولي",
+        "distanceKm": 15
+      },
+      {
+        "titleEN": "Boulevard World & City",
+        "titleAR": "عالم ومدينة البوليفار",
+        "distanceKm": 4
+      },
+      {
+        "titleEN": "King Abdullah Financial District (KAFD)",
+        "titleAR": "مركز الملك عبدالله المالي (كافد)",
+        "distanceKm": 6
+      },
+      {
+        "titleEN": "Saudi German Hospital - Riyadh",
+        "titleAR": "المستشفى السعودي الألماني - الرياض",
+        "distanceKm": 1
+      },
+      {
+        "titleEN": "Riyadh Park Mall",
+        "titleAR": "مول الرياض بارك",
+        "distanceKm": 7
+      },
+      {
+        "titleEN": "Dr. Sulaiman Alhabib Hospital, Al Sahafah",
+        "titleAR": "مستشفى الدكتور سليمان الحبيب، الصحافة",
+        "distanceKm": 1
+      }
+    ],
+    "gallery": [
+      {
+        "id": 2,
+        "categoryId": 2,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/0d2279c3-1dd2-4ba9-84ea-e78ebfc294b0/Junior-Suite-scaled.jpg"
+      },
+      {
+        "id": 3,
+        "categoryId": 2,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/0d2279c3-1dd2-4ba9-84ea-e78ebfc294b0/1691391786_7074_classic_room_31 (1).jpg"
+      },
+      {
+        "id": 4,
+        "categoryId": 2,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/0d2279c3-1dd2-4ba9-84ea-e78ebfc294b0/1691391785_7074_classic_room_2.jpg"
+      },
+      {
+        "id": 5,
+        "categoryId": 2,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/0d2279c3-1dd2-4ba9-84ea-e78ebfc294b0/Room-3-scaled.jpg"
+      },
+      {
+        "id": 6,
+        "categoryId": 3,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/8d282b82-971d-47ba-80d5-d0612b1182ca/Swiss-Cafe-Restaurant-Lounge-2.jpg"
+      },
+      {
+        "id": 7,
+        "categoryId": 3,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/8d282b82-971d-47ba-80d5-d0612b1182ca/Mojito-cocktail-scaled.jpg"
+      },
+      {
+        "id": 8,
+        "categoryId": 3,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/8d282b82-971d-47ba-80d5-d0612b1182ca/Grill-Room-Restaurant-3-scaled.jpg"
+      },
+      {
+        "id": 10,
+        "categoryId": 3,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/8d282b82-971d-47ba-80d5-d0612b1182ca/Grill-Room-Restaurant-2-scaled.jpg"
+      },
+      {
+        "id": 11,
+        "categoryId": 3,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/8d282b82-971d-47ba-80d5-d0612b1182ca/Swiss-Cafe-Restaurant-Lounge-1-scaled.jpg"
+      },
+      {
+        "id": 37,
+        "categoryId": 6,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/90c444ea-9d3c-4674-91dd-f2934d091690/shutterstock_645095311.jpg"
+      },
+      {
+        "id": 38,
+        "categoryId": 6,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/90c444ea-9d3c-4674-91dd-f2934d091690/WhatsApp Image 2024-08-01 at 16.37.07 (1).jpg"
+      },
+      {
+        "id": 39,
+        "categoryId": 6,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/90c444ea-9d3c-4674-91dd-f2934d091690/shutterstock_205142620.jpg"
+      },
+      {
+        "id": 52,
+        "categoryId": 4,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/743760f3-84b1-48f4-98bd-27cde26c4fec/79195922-workshop-florist-making-bouquets-and-flower-arrangements-woman-collecting-a-bouquet-of-flowers-soft.jpg"
+      },
+      {
+        "id": 53,
+        "categoryId": 4,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/743760f3-84b1-48f4-98bd-27cde26c4fec/istockphoto-511790714-612x612.jpg"
+      },
+      {
+        "id": 54,
+        "categoryId": 4,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/743760f3-84b1-48f4-98bd-27cde26c4fec/private-car-service.jpg"
+      },
+      {
+        "id": 63,
+        "categoryId": 5,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/c52069f6-459d-4ebb-a0b0-427cdda04285/WhatsApp Image 2025-01-20 at 00.51.53.jpeg"
+      },
+      {
+        "id": 64,
+        "categoryId": 5,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/c52069f6-459d-4ebb-a0b0-427cdda04285/WhatsApp Image 2025-01-20 at 00.52.25.jpeg"
+      },
+      {
+        "id": 65,
+        "categoryId": 5,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/c52069f6-459d-4ebb-a0b0-427cdda04285/WhatsApp Image 2025-01-20 at 00.52.47.jpeg"
+      },
+      {
+        "id": 66,
+        "categoryId": 5,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/c52069f6-459d-4ebb-a0b0-427cdda04285/WhatsApp Image 2025-01-20 at 00.50.59.jpeg"
+      },
+      {
+        "id": 67,
+        "categoryId": 5,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/c52069f6-459d-4ebb-a0b0-427cdda04285/WhatsApp Image 2025-01-20 at 00.51.12.jpeg"
+      },
+      {
+        "id": 68,
+        "categoryId": 5,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/c52069f6-459d-4ebb-a0b0-427cdda04285/WhatsApp Image 2025-01-20 at 00.51.24.jpeg"
+      },
+      {
+        "id": 69,
+        "categoryId": 5,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/ae7b1f60-5b89-4d05-8bcc-32413391f0bd/Front Massage Room 2.jpg"
+      },
+      {
+        "id": 70,
+        "categoryId": 5,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/31d4bc6c-9e7b-44ab-b15f-6da310389732/Front Massage Room 3.jpg"
+      },
+      {
+        "id": 71,
+        "categoryId": 5,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/b46f10e1-076b-4319-ad61-6b64ae072f6c/Gym Area 1.jpg"
+      },
+      {
+        "id": 72,
+        "categoryId": 5,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/8215eaeb-9adf-4fa4-a535-393f6dde4b09/Gym Area 2.jpg"
+      },
+      {
+        "id": 73,
+        "categoryId": 1,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/5b8801f3-8a42-436e-8027-80f41c34d2a5/WhatsApp Image 2025-01-01 at 22.48.41 (1).jpeg"
+      },
+      {
+        "id": 74,
+        "categoryId": 1,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/2e9e13eb-5f88-422e-aaa6-2a031a2d5e37/WhatsApp Image 2025-03-02 at 18.34.40.jpeg"
+      },
+      {
+        "id": 81,
+        "categoryId": 1,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/9fac9e20-bc12-4de2-9a3c-8ec6f4d4b8bb/download.png"
+      }
+    ]
+  },
+  "hotelInn": {
+    "id": 12,
+    "nameEN": "Swiss Flora Inn Hotel Riyadh",
+    "nameAR": "فندق سويس فلورا إن الرياض",
+    "stars": 3,
+    "addressEN": "Al Safaha District Riyadh, Saudi Arabia",
+    "addressAR": "حي الصحافة الرياض, المملكة العربية السعودية",
+    "email": "Info.inn@swissflorahotels.com",
+    "descriptionEN": "Swiss Flora Inn Hotel Riyadh is designed for comfort and convenience. Located in the heart of the Business District, the hotel features 80 spacious and family-friendly rooms and suites with high-end finishes. Guests can enjoy an all-day dining restaurant, complimentary high-speed Wi-Fi, and affordable room rates. The hotel is conveniently situated near local tourist attractions such as Boulevard World - Riyadh and King Abdullah Financial City, making it an ideal base for exploring the city.",
+    "descriptionAR": "تم تصميم فندق سويس فلورا إن الرياض لتوفير الراحة والملاءمة. يقع الفندق في قلب المنطقة التجارية، ويضم 80 غرفة وجناحًا واسعًا ومناسبًا للعائلات مع تشطيبات راقية. يمكن للضيوف الاستمتاع بمطعم مفتوح طوال اليوم وخدمة الواي فاي المجانية عالية السرعة وأسعار الغرف المعقولة. يقع الفندق بالقرب من مناطق الجذب السياحي المحلية مثل بوليفارد وورلد - الرياض ومدينة الملك عبد الله المالية، مما يجعله قاعدة مثالية لاستكشاف المدينة.",
+    "logoPath": null,
+    "heroImage": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/97e61847-38b5-4707-b054-19d6d49966e7/download5.png",
+    "allSliders": [
+      {
+        "titleEN": "",
+        "titleAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/97e61847-38b5-4707-b054-19d6d49966e7/download5.png"
+      },
+      {
+        "titleEN": "",
+        "titleAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/0333b9b8-1f75-4a10-855d-69468736c06f/download1.png"
+      },
+      {
+        "titleEN": "",
+        "titleAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/10867e10-1422-4615-b905-5ffec2df3c91/download2.png"
+      },
+      {
+        "titleEN": "",
+        "titleAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/1a6338a9-0ba9-4a9a-a745-7738d542be0d/download.png"
+      },
+      {
+        "titleEN": "",
+        "titleAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/b47dae81-7ec5-4d10-b7f6-42f11dc95a0b/download.png"
+      }
+    ],
+    "about": [
+      {
+        "id": 4,
+        "titleEN": "Swiss Flora Inn Hotel Riyadh",
+        "titleAR": "فندق سويس فلورا إن الرياض",
+        "descriptionEN": "Swiss Flora Inn Hotel Riyadh is designed for comfort and convenience. Located in the heart of the Business District, the hotel features 80 spacious and family-friendly rooms and suites with high-end finishes. Guests can enjoy an all-day dining restaurant, complimentary high-speed Wi-Fi, and affordable room rates. The hotel is conveniently situated near local tourist attractions such as Boulevard World - Riyadh and King Abdullah Financial City, making it an ideal base for exploring the city. Hotel GDS Codes Sabre: YX 615671 | Amadeus: YX RUHSFI Apollo/ Galileo: YX DI541 | Worldspan: YX A1128 | DHISCO (WB) 47701",
+        "descriptionAR": "فندق سويس فلورا إن الرياض، مصمم للراحة والراحة. يقع في قلب الحي التجاري، ويضم الفندق 80 غرفة وجناحًا واسعة ومناسبة للعائلات مع تشطيبات عالية الجودة. يمكن للنزلاء الاستمتاع بمطعم مفتوح طوال اليوم، وخدمة الواي فاي عالية السرعة المجانية، وأسعار الغرف المعقولة. يقع الفندق بالقرب من المعالم السياحية المحلية مثل بوليفارد وورلد - الرياض ومدينة الملك عبد الله المالية، مما يجعله قاعدة مثالية لاستكشاف المدينة",
+        "image1": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/About/cb2a4062-6175-46e4-8c4c-c65714f26fc8/_22A7761.JPG",
+        "image2": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/About/0c6bdc3d-cab4-4cfe-b2bf-37b8acd55d99/20191104_161312.jpg"
+      }
+    ],
+    "facilities": [
+      {
+        "id": 4,
+        "icon": "flaticon-swimming",
+        "path": null
+      },
+      {
+        "id": 5,
+        "icon": "flaticon-man",
+        "path": null
+      },
+      {
+        "id": 6,
+        "icon": "",
+        "path": null
+      },
+      {
+        "id": 7,
+        "icon": "flaticon-bed",
+        "path": null
+      },
+      {
+        "id": 8,
+        "icon": "flaticon-event",
+        "path": null
+      }
+    ],
+    "rooms": [
+      {
+        "id": 19,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/b2afcb50-49e3-4e66-9184-e82bc9179e5c/download8.jpg",
+        "size": 50,
+        "occupancy": null
+      },
+      {
+        "id": 18,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/016603d9-84b3-4501-a745-f065dea4828f/download9.jpg",
+        "size": 50,
+        "occupancy": null
+      },
+      {
+        "id": 17,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/666ee817-a94b-48cd-a71e-31006eea756a/download10.jpg",
+        "size": 50,
+        "occupancy": null
+      },
+      {
+        "id": 16,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/89172c36-c00a-4fbe-8b61-8e431d164311/download1.png",
+        "size": 35,
+        "occupancy": null
+      },
+      {
+        "id": 15,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/e8a5e367-a3ed-447e-b000-4f8727161bb8/rrrrr1.png",
+        "size": 35,
+        "occupancy": null
+      },
+      {
+        "id": 14,
+        "descriptionEN": "",
+        "descriptionAR": "",
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Rooms/46416a70-4b4e-41d0-af3c-16de894a6132/download2.jpg",
+        "size": 35,
+        "occupancy": null
+      }
+    ],
+    "restaurant": [
+      {
+        "id": 1004,
+        "titleEN": "                                  ",
+        "titleAR": "                              ",
+        "descriptionEN": "At Swiss Flora Hotels &amp; Resorts, our Food &amp; Beverage offerings seamlessly blend authentic Swiss flavors with global culinary influences , crafting a diverse and unforgettable dining experience. We are dedicated to sustainability, sourcing fresh, local ingredients and embracing eco-friendly practices. Our dining venues are elegantly designed to be both inviting and refined, with outdoor options that showcase the natural beauty of our surroundings. Guests can enjoy interactive cooking experiences, themed dining events, and a curated selection of wines and signature cocktails. With a commitment to personalized service and health-conscious choices, Swiss Flora’s Food &amp; Beverage department ensures that every meal celebrates quality, innovation, and Swiss hospitality.",
+        "descriptionAR": "في فنادق ومنتجعات سويس فلورا، نقدم عروض الطعام والشراب التي تمتزج بسلاسة بين النكهات السويسرية الأصيلة والتأثيرات العالمية في فنون الطهي، مما يخلق تجربة تناول طعام متنوعة ولا تُنسى. نحن ملتزمون بالاستدامة من خلال توفير المكونات الطازجة والمحلية وتبني الممارسات الصديقة للبيئة. تم تصميم أماكن تناول الطعام لدينا بعناية لتكون أنيقة وترحيبية، مع خيارات تناول الطعام في الهواء الطلق التي تبرز جمال محيطنا الطبيعي. يمكن للضيوف الاستمتاع بتجارب الطهي التفاعلية، والفعاليات ذات الطابع الخاص، واستكشاف مجموعة مختارة من النبيذ والكوكتيلات المميزة. مع التركيز على الخدمة الشخصية والخيارات الصحية، تضمن قسم الطعام والشراب في سويس فلورا أن تكون كل وجبة احتفالًا بالجودة والابتكار والضيافة السويسرية",
+        "menus": [
+          {
+            "id": 15,
+            "categoryId": 0,
+            "titleAR": "خدمة الغرف على مدار الساعة",
+            "titleEN": "24/7 Room Service",
+            "descriptionAR": "<p style=\"text-align:right\"><strong>في فندق سويس فلورا إن الرياض،</strong> نقدم خدمة الغرف على مدار 24 ساعة لضمان راحتك وراحتك. استمتع بتشكيلة واسعة من الوجبات والمشروبات التي يتم توصيلها مباشرة إلى غرفتك في أي وقت من اليوم أو الليل. سواء كنت تشعر برغبة في تناول وجبة خفيفة في وقت متأخر من الليل أو وجبة كاملة، فإن قائمتنا المتنوعة تحتوي على شيء يرضي جميع الأذواق. استرخِ وتناول الطعام في راحة غرفتك مع خدمتنا السريعة والمحترفة</p><p style=\"text-align:right\"><strong>للطلب الرجاء الاتصال بالرقم: 222</strong></p>",
+            "descriptionEN": "<p><strong>At Swiss Flora Inn Hotel Riyadh,</strong> we offer 24-hour room service to ensure your convenience and comfort. Enjoy a wide variety of meals and beverages delivered directly to your room at any time of the day or night. Whether you're craving a late-night snack or a full meal, our extensive menu has something to satisfy every palate. Relax and dine in the comfort of your room with our prompt and professional room service.</p><p><strong>For order please Dial: 222</strong></p>",
+            "price": 0,
+            "path": "AttachmentPath\\RestaurantMenu/8433c1c8-5de8-4e3f-bcb5-06a496af1e38/download9.png",
+            "url": "8433c1c8-5de8-4e3f-bcb5-06a496af1e38",
+            "restaurantId": 1004
+          },
+          {
+            "id": 17,
+            "categoryId": 0,
+            "titleAR": "مطعم سويس فلورا",
+            "titleEN": "Swiss Flora Restaurant",
+            "descriptionAR": "<p style=\"text-align:right\">تذوّق مجموعة مختارة من الأطباق، كل منها مُعدّة بعناية لتقدم لك تنوعًا صحيًا دون التنازل عن النكهة. يُعرف مطعمنا، الذي يقوده طهاة محترفون، بمأكولاته الاستثنائية وأجوائه المميزة. تناول الطعام في غرفة الطعام الجميلة لدينا، حيث يمكنك مشاهدة فنون الطهي مباشرة في المطبخ المفتوح، سواء اخترت من قائمة الطعام حسب الطلب أو استكشفت عروض البوفيه المفتوح</p><p style=\"text-align:right\">تعرض قائمتنا مجموعة من النكهات العا��مية، تمزج بين التأثيرات الدولية ومجموعة مغرية من الأطباق الكلاسيكية والمبتكرة</p><p style=\"text-align:right\">&nbsp;:ساعات العمل</p><p style=\"text-align:right\">الإفطار: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 6:30 صباحًا إلى 10:30 صباحًا (يوميًا)</p><p style=\"text-align:right\">الغداء: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 12:00 ظهرًا إلى 3:30 مساءً (يوميًا)</p><p style=\"text-align:right\">العشاء: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 7:00 مساءً، وآخر طلب الساعة 12:30 صباحًا (يوميًا)</p>",
+            "descriptionEN": "<p><strong>Savor an exquisite selection of dishes,</strong> each crafted to offer a healthy variety without compromising on flavor. Our restaurant, led by professional chefs, is renowned for its exceptional cuisine and distinctive ambiance. Dine in our beautiful dining room, featuring a live kitchen where you can witness culinary artistry in action, whether you choose from our à la carte menu or explore the offerings at our open buffet.</p><p><strong>Hours</strong></p><p>Breakfast: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 6.30 am – 10.30 am (daily)</p><p>Lunch: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12.00 noon – 15.300 pm (daily)</p><p>Dinner: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 7.00 pm, last order at 12.30 am (daily)</p>",
+            "price": 0,
+            "path": "AttachmentPath\\RestaurantMenu/11d13acc-bb7a-45e8-bba7-764a4e2570af/downloadr.png",
+            "url": "11d13acc-bb7a-45e8-bba7-764a4e2570af",
+            "restaurantId": 1004
+          }
+        ]
+      }
+    ],
+    "restaurantSliders": [
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/b7d3dfe9-d3b4-4d7b-ac8f-9c6a3b4102f5/download.png",
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/b6253a49-1346-41a2-b6fd-ebecb4b751f8/download5.png",
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/efdfbde0-f0cb-4bb5-b8e5-6f054710a38e/download.png"
+    ],
+    "spa": [
+      {
+        "id": 2,
+        "titleEN": "Flora Fitness & Spa",
+        "titleAR": "فلورا جيم وسبا  ",
+        "phone": "+966555072806",
+        "descriptionEN": "Flora Fitness &amp; Spa is a luxurious retreat designed to rejuvenate both body and mind, located at our sister property, Swiss Flora Royal Hotel Riyadh. It offers a range of wellness facilities, including: Spa Treatments : Enjoy therapeutic and beauty treatments such as massages, facials, body scrubs, and wraps, all performed by skilled professionals. Sauna and Steam Rooms : Detoxify and relax in our state-of-the-art sauna and steam rooms. Fitness Center : Stay fit with modern equipment in our fully equipped gym. Swimming Pool : Relax or exercise in our beautifully designed pool. Relaxation Lounges : Unwind in comfortable lounges before or after your treatments. Health Bar : Choose from nutritious snacks, smoothies, and herbal teas to complement your wellness journey.",
+        "descriptionAR": ":فلورا جيم وسبا هو ملاذ فاخر مصمم لتقديم تجربة تجديدية للجسم والعقل ويقع في فندقنا الشقيق سويس فلورا رويال الرياض. يتضمن مجموعة من مرافق العافية، بما في ذلك ·علاجات السبا: مجموعة متنوعة من العلاجات العلاجية والتجميلية، بما في ذلك التدليك، والعلاجات الوجهية، وتقشير الجسم، والأغطية، جميعها تتم على يد محترفين مهر * ·الساونا وغرف البخار: ساونا وغرف بخار حديثة لإزالة السموم والاسترخاء * · مركز اللياقة البدنية: صالة رياضية مجهزة بالكامل بأحدث معدات اللياقة البدنية لتدريب شامل * .المسبح: مسبح مصمم بشكل جميل للاسترخاء والتمارين، مثالي للسباحة المريحة أو النشاط البدني * ·بار الصحة: يقدم مجموعة من الوجبات الخفيفة الصحية، والعصائر الطازجة، والشاي العشبي لتكملة رحلة العافية الخاصة بك * يجمع فلورا جيم وسبا بين المرافق الحديثة والبيئة الهادئة لخلق تجربة شاملة، مما يضمن أن يشعر الضيوف بالانتعاش والتجديد",
+        "areas": []
+      }
+    ],
+    "spaSliders": [
+      "https://api.swissflorahotels.com/wwwroot/AttachmentPath/SliderImages/08330696-109f-416c-b105-08c4a3091616/spa3.jpg"
+    ],
+    "meeting": [],
+    "meetingSliders": [],
+    "destinations": [
+      {
+        "titleEN": "King Khalid International Airport",
+        "titleAR": "مطار الملك خالد الدولي",
+        "distanceKm": 15
+      },
+      {
+        "titleEN": "Boulevard World & City",
+        "titleAR": "عالم ومدينة البوليفار",
+        "distanceKm": 4
+      },
+      {
+        "titleEN": "King Abdullah Financial District (KAFD)",
+        "titleAR": "مركز الملك عبدالله المالي (كافد)",
+        "distanceKm": 6
+      },
+      {
+        "titleEN": "Saudi German Hospital - Riyadh",
+        "titleAR": "المستشفى السعودي الألماني - الرياض",
+        "distanceKm": 1
+      },
+      {
+        "titleEN": "Riyadh Park Mall",
+        "titleAR": "مول الرياض بارك",
+        "distanceKm": 7
+      },
+      {
+        "titleEN": "Dr. Sulaiman Alhabib Hospital, Al Sahafah",
+        "titleAR": "مستشفى الدكتور سليمان الحبيب، الصحافة",
+        "distanceKm": 1
+      }
+    ],
+    "gallery": [
+      {
+        "id": 29,
+        "categoryId": 2,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/4f9975d9-e955-4987-8620-5956852eb97c/_22A7519.JPG"
+      },
+      {
+        "id": 30,
+        "categoryId": 2,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/3b72ea23-db73-404b-b70b-ab2d0305f46d/_22A7568.JPG"
+      },
+      {
+        "id": 31,
+        "categoryId": 3,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/65ba78b7-c518-4120-8cbd-086fabf1fed9/_22A7855.JPG"
+      },
+      {
+        "id": 32,
+        "categoryId": 2,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/2f7f0e8e-1329-460d-9a82-613a8dfa2bf0/_22A7568.JPG"
+      },
+      {
+        "id": 33,
+        "categoryId": 2,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/2f7f0e8e-1329-460d-9a82-613a8dfa2bf0/_22A7519.JPG"
+      },
+      {
+        "id": 34,
+        "categoryId": 2,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/2f7f0e8e-1329-460d-9a82-613a8dfa2bf0/_22A7672.JPG"
+      },
+      {
+        "id": 35,
+        "categoryId": 2,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/2f7f0e8e-1329-460d-9a82-613a8dfa2bf0/_22A7680.JPG"
+      },
+      {
+        "id": 49,
+        "categoryId": 4,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/4cd12aee-bd87-4428-818e-55b544ab82cd/istockphoto-511790714-612x612.jpg"
+      },
+      {
+        "id": 50,
+        "categoryId": 4,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/4cd12aee-bd87-4428-818e-55b544ab82cd/79195922-workshop-florist-making-bouquets-and-flower-arrangements-woman-collecting-a-bouquet-of-flowers-soft.jpg"
+      },
+      {
+        "id": 51,
+        "categoryId": 4,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/4cd12aee-bd87-4428-818e-55b544ab82cd/private-car-service.jpg"
+      },
+      {
+        "id": 75,
+        "categoryId": 3,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/2002cdd1-43d5-48bd-b6d3-dccd024598b6/_22A7839.JPG"
+      },
+      {
+        "id": 76,
+        "categoryId": 3,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/ea5e52e2-cd45-4fa1-9350-259a707b58de/_22A7865.JPG"
+      },
+      {
+        "id": 77,
+        "categoryId": 1,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/466413d3-acb4-4402-a2bb-5be673241294/Swiss Flora Inn .jpeg"
+      },
+      {
+        "id": 78,
+        "categoryId": 1,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/2ae8bc33-741e-46c3-9e02-c831051f733e/WhatsApp Image 2024-12-25 at 21.40.02 (2).jpeg"
+      },
+      {
+        "id": 79,
+        "categoryId": 1,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/e8dc18b1-e405-462a-8b67-42be2e1c3ade/WhatsApp Image 2024-12-31 at 17.07.54.jpeg"
+      },
+      {
+        "id": 80,
+        "categoryId": 5,
+        "imageUrl": "https://api.swissflorahotels.com/wwwroot/AttachmentPath/Gallery/f68e67b2-4030-4c60-8fa0-1deeb941b291/Front Massage Room 2.jpg"
+      }
+    ]
+  }
+}

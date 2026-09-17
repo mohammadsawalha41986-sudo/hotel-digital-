@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+:root {
+  --hotel-primary: #8b6f4e;
+  --hotel-secondary: #2b2621;
+  --hotel-accent: #c49b66;
+  --hotel-background: #faf8f5;
+  --hotel-surface: #ffffff;
+  --hotel-text: #1c1917;
+  --hotel-muted: #78716c;
+  --hotel-border: #e7e5e4;
+  --hotel-button: #8b6f4e;
+  --hotel-radius: 12px;
+}
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: var(--hotel-background, #faf8f5);
+    color: var(--hotel-text, #1c1917);
+  }
+
+  [dir="rtl"], [lang="ar"] {
+    font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;
+  }
+  
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .font-serif {
+    font-family: 'Playfair Display', serif;
+  }
+
+  [dir="rtl"] .font-serif {
+    font-family: 'Cairo', serif;
+    font-weight: 700;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Touch targets and luxury animations */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
