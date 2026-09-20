@@ -6,13 +6,11 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  Save,
   X,
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
   Calendar,
-  Sparkles,
 } from 'lucide-react';
 import { Hotel, HotelOffer } from '../../../types/hotel';
 import { AdminUser, canEditHotelContent } from '../../../types/auth';
@@ -145,10 +143,12 @@ export const OffersManagerView: React.FC<OffersManagerViewProps> = ({
       badge_en: badgeEn.trim(),
       badge_ar: badgeAr.trim(),
       image_url: imageUrl.trim(),
-      original_price: originalPrice ? Number(originalPrice) : undefined,
-      offer_price: offerPrice ? Number(offerPrice) : undefined,
+      original_price: Number(originalPrice) || 0,
+      offer_price: Number(offerPrice) || 0,
       currency: hotel.currency || 'SAR',
       valid_until: validUntil.trim(),
+      terms_en: editingOffer?.terms_en || '',
+      terms_ar: editingOffer?.terms_ar || '',
       cta_text_en: ctaTextEn.trim(),
       cta_text_ar: ctaTextAr.trim(),
       is_featured: isFeatured,

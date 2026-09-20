@@ -6,12 +6,10 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  Save,
   X,
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
-  Clock,
   Zap,
 } from 'lucide-react';
 import { Hotel } from '../../../types/hotel';

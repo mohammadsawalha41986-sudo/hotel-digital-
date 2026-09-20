@@ -4,7 +4,6 @@ import {
   ExternalLink,
   Shield,
   Building2,
-  UploadCloud,
   CheckCircle2,
   LogOut,
   UserCheck,
@@ -37,8 +36,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   onChangeRole,
   currentUser,
   onSignOut,
-  hasUnpublishedChanges,
-  onPublishChanges,
+  hasUnpublishedChanges: _hasUnpublishedChanges,
+  onPublishChanges: _onPublishChanges,
   onViewLivePortal,
   onOpenMobileSidebar,
 }) => {
@@ -109,22 +108,10 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
       {/* Right side: Publish changes pill & Live preview */}
       <div className="flex items-center gap-3 text-xs">
-        {/* Publish Changes Workflow */}
-        {hasUnpublishedChanges ? (
-          <button
-            onClick={onPublishChanges}
-            className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3 py-1.5 rounded-lg shadow-sm transition-all cursor-pointer animate-pulse"
-            title="Publish drafted updates to live guest portal"
-          >
-            <UploadCloud size={14} />
-            <span>Publish Updates</span>
-          </button>
-        ) : (
-          <div className="hidden sm:flex items-center gap-1.5 text-stone-400 bg-stone-800/60 px-2.5 py-1 rounded-lg border border-stone-800 text-[11px]">
-            <CheckCircle2 size={12} className="text-emerald-400" />
-            <span>All Changes Live</span>
-          </div>
-        )}
+        <div className="hidden sm:flex items-center gap-1.5 text-stone-400 bg-stone-800/60 px-2.5 py-1 rounded-lg border border-stone-800 text-[11px]">
+          <CheckCircle2 size={12} className="text-emerald-400" />
+          <span>Changes Save Immediately</span>
+        </div>
 
         {/* View Live Portal */}
         <button

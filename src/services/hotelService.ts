@@ -6,6 +6,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   onSnapshot,
@@ -89,8 +90,9 @@ export async function hydrateHotelFromDoc(docSnap: any): Promise<Hotel> {
           };
         }
       }
-    } catch {
-      // Gracefully retain root branding if subcollection read fails
+    } catch (error) {
+      console.warn(`[HotelService] Failed to load branding for ${hotelId}:`, error);
+      throw error;
     }
 
     try {
@@ -98,8 +100,9 @@ export async function hydrateHotelFromDoc(docSnap: any): Promise<Hotel> {
       if (configSnap.exists()) {
         portal_config = { ...portal_config, ...configSnap.data() } as HotelPortalConfig;
       }
-    } catch {
-      // Gracefully retain root portal_config
+    } catch (error) {
+      console.warn(`[HotelService] Failed to load portal configuration for ${hotelId}:`, error);
+      throw error;
     }
   }
 
@@ -158,7 +161,7 @@ export async function hydrateHotelFromDoc(docSnap: any): Promise<Hotel> {
     website_url: data.website_url || '',
     timezone: data.timezone || 'Asia/Riyadh',
     wifi_name: data.wifi_name || data.policies?.wifiSsid || '',
-    wifi_password: data.wifi_password || data.policies?.wifiPassword || '',
+    wifi_password: '',
     wifi_public_enabled: data.wifi_public_enabled === true,
     social_links: data.social_links || {},
     check_in_time: data.check_in_time || data.policies?.checkInTime || '15:00',
@@ -181,6 +184,7 @@ export async function getHotel(hotelId: string): Promise<Hotel | null> {
       }
     } catch (err) {
       console.warn(`[HotelService] Failed to load hotel ${hotelId} from Firestore:`, err);
+      throw err;
     }
   }
 
@@ -198,6 +202,7 @@ export async function getHotelBySlug(slug: string): Promise<Hotel | null> {
   const resolvedSlug = cleanSlug === '11' ? 'swiss-flora-royal' : cleanSlug;
 
   if (isFirebaseConfigured && db) {
+    let directPermissionError: unknown = null;
     try {
       // 1. Direct document ID lookup
       const directRef = doc(db, 'hotels', resolvedSlug);
@@ -205,13 +210,29 @@ export async function getHotelBySlug(slug: string): Promise<Hotel | null> {
       if (directSnap.exists()) {
         return await hydrateHotelFromDoc(directSnap);
       }
+    } catch (err) {
+      const isPermissionDenied =
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as { code?: string }).code === 'permission-denied';
+      if (!isPermissionDenied) throw err;
+      directPermissionError = err;
+    }
 
-      // 2. Query by slug field
-      const q = query(collection(db, 'hotels'), where('slug', '==', resolvedSlug));
+    try {
+      // 2. Public slug lookup must constrain the query to published documents
+      // so Firestore can prove that every possible result is guest-readable.
+      const q = query(
+        collection(db, 'hotels'),
+        where('slug', '==', resolvedSlug),
+        where('is_published', '==', true)
+      );
       const querySnap = await getDocs(q);
       if (!querySnap.empty) {
         return await hydrateHotelFromDoc(querySnap.docs[0]);
       }
+      if (directPermissionError) throw directPermissionError;
     } catch (err) {
       console.warn(`[HotelService] Failed to resolve hotel slug "${slug}" from Firestore:`, err);
       // Do not collapse an authorization failure into "not found". Firestore
@@ -352,7 +373,7 @@ export async function getRooms(hotelId: string): Promise<RoomType[]> {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() } as RoomType));
   } catch (e) {
     console.warn(`[HotelService] getRooms failed for ${hotelId}:`, e);
-    return [];
+    throw e;
   }
 }
 
@@ -363,7 +384,7 @@ export async function getOutlets(hotelId: string): Promise<FBOutlet[]> {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FBOutlet));
   } catch (e) {
     console.warn(`[HotelService] getOutlets failed for ${hotelId}:`, e);
-    return [];
+    throw e;
   }
 }
 
@@ -374,7 +395,7 @@ export async function getOffers(hotelId: string): Promise<HotelOffer[]> {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() } as HotelOffer));
   } catch (e) {
     console.warn(`[HotelService] getOffers failed for ${hotelId}:`, e);
-    return [];
+    throw e;
   }
 }
 
@@ -385,7 +406,7 @@ export async function getWellness(hotelId: string): Promise<WellnessService[]> {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() } as WellnessService));
   } catch (e) {
     console.warn(`[HotelService] getWellness failed for ${hotelId}:`, e);
-    return [];
+    throw e;
   }
 }
 
@@ -396,7 +417,7 @@ export async function getLaundry(hotelId: string): Promise<any[]> {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   } catch (e) {
     console.warn(`[HotelService] getLaundry failed for ${hotelId}:`, e);
-    return [];
+    throw e;
   }
 }
 
@@ -407,7 +428,7 @@ export async function getGuestServices(hotelId: string): Promise<any[]> {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   } catch (e) {
     console.warn(`[HotelService] getGuestServices failed for ${hotelId}:`, e);
-    return [];
+    throw e;
   }
 }
 
@@ -429,6 +450,7 @@ export async function getPublicConfig(hotelId: string): Promise<HotelPortalConfi
     if (snap.exists()) return snap.data() as HotelPortalConfig;
   } catch (e) {
     console.warn(`[HotelService] getPublicConfig failed for ${hotelId}:`, e);
+    throw e;
   }
   return null;
 }
@@ -563,6 +585,14 @@ export async function updateHotel(hotelId: string, updates: Partial<Hotel>): Pro
   // Prevent overriding the primary tenant identity
   delete data.id;
   delete data.createdAt;
+  // Legacy hotel documents stored this secret on the publicly readable root.
+  // Every metadata update also removes that field while the canonical value
+  // lives under /private/guestAccess.
+  data.wifi_password = deleteField();
+  if (data.policies && typeof data.policies === 'object') {
+    data.policies = { ...data.policies };
+    delete data.policies.wifiPassword;
+  }
 
   await updateDoc(docRef, data);
 }
@@ -736,12 +766,12 @@ export async function deleteGuestService(hotelId: string, serviceId: string): Pr
 }
 
 /**
- * Retrieves department WhatsApp routing configuration from /hotels/{hotelId}/publicConfig/departmentRouting
+ * Retrieves private department WhatsApp routing configuration.
  */
 export async function getDepartmentRouting(hotelId: string): Promise<any | null> {
   if (!isFirebaseConfigured || !db || !hotelId) return null;
   try {
-    const snap = await getDoc(doc(db, 'hotels', hotelId, 'publicConfig', 'departmentRouting'));
+    const snap = await getDoc(doc(db, 'hotels', hotelId, 'private', 'departmentRouting'));
     if (snap.exists()) return snap.data();
   } catch (e) {
     console.warn(`[HotelService] getDepartmentRouting failed for ${hotelId}:`, e);
@@ -750,13 +780,39 @@ export async function getDepartmentRouting(hotelId: string): Promise<any | null>
 }
 
 /**
- * Saves department WhatsApp routing configuration under /hotels/{hotelId}/publicConfig/departmentRouting
+ * Saves private department WhatsApp routing configuration.
  */
 export async function saveDepartmentRouting(hotelId: string, routing: any): Promise<void> {
   if (!isFirebaseConfigured || !db || !hotelId) return;
-  const docRef = doc(db, 'hotels', hotelId, 'publicConfig', 'departmentRouting');
+  const docRef = doc(db, 'hotels', hotelId, 'private', 'departmentRouting');
   await setDoc(docRef, {
     ...routing,
+    hotel_id: hotelId,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+export async function getPrivateHotelSettings(hotelId: string): Promise<{ wifi_password?: string } | null> {
+  if (!isFirebaseConfigured || !db || !hotelId) return null;
+  const snap = await getDoc(doc(db, 'hotels', hotelId, 'private', 'guestAccess'));
+  return snap.exists() ? (snap.data() as { wifi_password?: string }) : null;
+}
+
+export async function savePrivateHotelSettings(
+  hotelId: string,
+  settings: { wifi_password?: string }
+): Promise<void> {
+  if (!isFirebaseConfigured || !db || !hotelId) return;
+  await setDoc(doc(db, 'hotels', hotelId, 'private', 'guestAccess'), {
+    ...settings,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+export async function saveRoomInventory(hotelId: string, room: Record<string, any>): Promise<void> {
+  if (!isFirebaseConfigured || !db || !hotelId || !room.id) return;
+  await setDoc(doc(db, 'hotels', hotelId, 'privateRoomInventory', room.id), {
+    ...room,
     hotel_id: hotelId,
     updatedAt: serverTimestamp(),
   }, { merge: true });

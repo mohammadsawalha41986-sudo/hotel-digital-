@@ -119,6 +119,10 @@ export interface HotelOffer {
   target_action?: 'book_room' | 'reserve_dining' | 'book_spa' | 'request_service';
   room_id?: string;
   is_active: boolean;
+  cta_text_en?: string;
+  cta_text_ar?: string;
+  is_featured?: boolean;
+  sort_order?: number;
 }
 
 export interface HotelReview {
@@ -211,6 +215,14 @@ export interface PortalSectionConfig {
   order: number;
   custom_content_en?: string;
   custom_content_ar?: string;
+  subtitle_en?: string;
+  subtitle_ar?: string;
+  image_url?: string;
+  badge_en?: string;
+  badge_ar?: string;
+  cta_label_en?: string;
+  cta_label_ar?: string;
+  cta_url?: string;
 }
 
 export interface PortalNavigationItem {
@@ -231,6 +243,16 @@ export interface HotelPortalConfig {
     text_en: string;
     text_ar: string;
     type: 'info' | 'promo' | 'alert';
+  };
+  hero_custom?: {
+    headline_en?: string;
+    headline_ar?: string;
+    sub_en?: string;
+    sub_ar?: string;
+    bg_url?: string;
+    cta_en?: string;
+    cta_ar?: string;
+    cta_target?: string;
   };
 }
 

@@ -12,7 +12,6 @@ import {
   Trash2,
   Edit2,
   AlertTriangle,
-  ExternalLink,
   Link as LinkIcon,
 } from 'lucide-react';
 import { Hotel, HotelPortalConfig, PortalNavigationItem } from '../../../types/hotel';

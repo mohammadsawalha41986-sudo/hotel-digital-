@@ -6,16 +6,14 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  Save,
   X,
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
   Clock,
-  DollarSign,
 } from 'lucide-react';
 import { Hotel } from '../../../types/hotel';
-import { WellnessService, TreatmentItem } from '../../../types/department';
+import { WellnessService } from '../../../types/department';
 import { AdminUser, canEditHotelContent } from '../../../types/auth';
 import { getWellness, saveWellness, deleteWellness } from '../../../services/hotelService';
 
@@ -99,11 +97,11 @@ export const WellnessManagerView: React.FC<WellnessManagerViewProps> = ({
     setEditingItem(item);
     setNameEn(item.name_en || '');
     setNameAr(item.name_ar || '');
-    setFacilityType(item.facility_type || 'spa');
-    setDescEn(item.description_en || '');
-    setDescAr(item.description_ar || '');
-    setHoursEn(item.operating_hours_en || '');
-    setHoursAr(item.operating_hours_ar || '');
+    setFacilityType(item.service_type || 'spa');
+    setDescEn(item.full_description_en || item.short_description_en || '');
+    setDescAr(item.full_description_ar || item.short_description_ar || '');
+    setHoursEn(item.operating_info?.opening_hours_en || '');
+    setHoursAr(item.operating_info?.opening_hours_ar || '');
     setHeroImage(item.hero_image || '');
     setDurationMins(item.duration_minutes || 60);
     setPrice(item.price || 0);
@@ -126,23 +124,39 @@ export const WellnessManagerView: React.FC<WellnessManagerViewProps> = ({
     const payload: WellnessService = {
       id: facilityId,
       hotel_id: hotel.id,
+      service_code: facilityId,
       slug: facilityId,
-      facility_type: facilityType as any,
+      service_type: facilityType as WellnessService['service_type'],
       name_en: nameEn.trim(),
       name_ar: nameAr.trim(),
-      description_en: descEn.trim(),
-      description_ar: descAr.trim(),
-      operating_hours_en: hoursEn.trim(),
-      operating_hours_ar: hoursAr.trim(),
+      short_description_en: descEn.trim(),
+      short_description_ar: descAr.trim(),
+      full_description_en: descEn.trim(),
+      full_description_ar: descAr.trim(),
       hero_image: heroImage.trim(),
       gallery: editingItem?.gallery || [],
+      location: editingItem?.location || {
+        building_en: '', building_ar: '', floor_en: '', floor_ar: '',
+        internal_text_en: '', internal_text_ar: '',
+      },
+      operating_info: {
+        opening_hours_en: hoursEn.trim(),
+        opening_hours_ar: hoursAr.trim(),
+        periods: editingItem?.operating_info?.periods || [],
+      },
+      contact: editingItem?.contact || {
+        phone: '', extension: '', whatsapp_number: '', whatsapp_enabled: false,
+        default_message_en: '', default_message_ar: '',
+      },
       duration_minutes: Number(durationMins) || 60,
       price: Number(price) || 0,
       currency: hotel.currency || 'SAR',
+      availability_en: hoursEn.trim(),
+      availability_ar: hoursAr.trim(),
       is_active: isActive,
       booking_enabled: true,
+      audience: editingItem?.audience || 'BOTH',
       sort_order: editingItem?.sort_order || 1,
-      treatments: editingItem?.treatments || [],
     };
 
     try {
@@ -280,7 +294,7 @@ export const WellnessManagerView: React.FC<WellnessManagerViewProps> = ({
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                      {fac.facility_type}
+                      {fac.service_type}
                     </span>
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
@@ -296,8 +310,8 @@ export const WellnessManagerView: React.FC<WellnessManagerViewProps> = ({
                   <h3 className="text-sm font-bold text-white">{fac.name_en}</h3>
                   <p className="text-xs text-stone-400 font-serif" dir="rtl">{fac.name_ar}</p>
 
-                  {fac.description_en && (
-                    <p className="text-xs text-stone-400 line-clamp-2 mt-2">{fac.description_en}</p>
+                  {fac.short_description_en && (
+                    <p className="text-xs text-stone-400 line-clamp-2 mt-2">{fac.short_description_en}</p>
                   )}
 
                   <div className="flex items-center justify-between text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-800">

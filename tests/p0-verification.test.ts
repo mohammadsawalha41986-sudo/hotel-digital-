@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   getOutletsForHotel,
@@ -1016,7 +1017,7 @@ test('Acceptance: Request engine enforces hotel-specific department routing with
 // ---------------------------------------------------------------------------
 // 10. HOTEL INFORMATION CMS PERSISTENCE & MULTI-TENANT ISOLATION TESTS
 // ---------------------------------------------------------------------------
-test('Hotel Information: hydrateHotelFromDoc preserves all bilingual metadata, coordinates, operating policies and social links', async () => {
+test('Hotel Information: hydrateHotelFromDoc preserves public metadata without exposing private Wi-Fi credentials', async () => {
   const mockDocSnap = {
     id: 'the-grand-oasis',
     data: () => ({
@@ -1083,7 +1084,7 @@ test('Hotel Information: hydrateHotelFromDoc preserves all bilingual metadata, c
   assert.equal(hydrated.phone, '+966138000000');
   assert.equal(hydrated.email, 'concierge@grandoasis.sa');
   assert.equal(hydrated.wifi_name, 'GrandOasis-Guest');
-  assert.equal(hydrated.wifi_password, 'oasis-welcome-2026');
+  assert.equal(hydrated.wifi_password, '');
   assert.equal(hydrated.wifi_public_enabled, true);
   assert.equal(hydrated.social_links?.instagram, 'https://instagram.com/grandoasis');
   assert.equal(hydrated.check_in_time, '16:00');
@@ -1338,6 +1339,27 @@ test('Phase 18: Hotel Content Subcollections - CRUD payload contracts conform to
   };
   assert.equal(serviceDoc.hotel_id, hotelId);
   assert.equal(serviceDoc.price, 0);
+});
+
+test('CMS regression: Guest Portal reads canonical Firestore catalogs without production static imports', () => {
+  const source = readFileSync(new URL('../src/pages/GuestPortalPage.tsx', import.meta.url), 'utf8');
+  assert.match(source, /getRooms, getOutlets, getOffers, getWellness, getLaundry, getGuestServices/);
+  assert.doesNotMatch(source, /departmentData|mockHotels|MOCK_OFFERS/);
+
+  const appSource = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(appSource, /^import .*mockHotels/m);
+  assert.match(appSource, /import\.meta\.env\.DEV/);
+});
+
+test('Security regression: operational routing and Wi-Fi credentials are excluded from public reads', () => {
+  const serviceSource = readFileSync(new URL('../src/services/hotelService.ts', import.meta.url), 'utf8');
+  const rulesSource = readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8');
+
+  assert.match(serviceSource, /'private', 'departmentRouting'/);
+  assert.match(serviceSource, /'private', 'guestAccess'/);
+  assert.match(serviceSource, /wifi_password: ''/);
+  assert.match(rulesSource, /itemId != 'departmentRouting'/);
+  assert.match(rulesSource, /match \/privateRoomInventory\/\{docId=\*\*\}/);
 });
 
 

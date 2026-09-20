@@ -86,8 +86,18 @@ service cloud.firestore {
     match /hotels/{hotelId} {
       // Public read strictly restricted to published properties; unpublished properties require staff access
       allow read: if (resource.data.is_published == true) || isHotelStaff(hotelId);
-      // Write restricted to authorized management or Super Admin
-      allow write: if isHotelStaff(hotelId) && (isSuperAdmin() || request.auth.token.role == 'HOTEL_ADMIN');
+      // Property creation/deletion and publication remain management-only.
+      allow create, delete: if isHotelStaff(hotelId) && (isSuperAdmin() || request.auth.token.role == 'HOTEL_ADMIN');
+      allow update: if isHotelStaff(hotelId) && (
+        isSuperAdmin() ||
+        request.auth.token.role == 'HOTEL_ADMIN' ||
+        (
+          request.auth.token.role == 'CONTENT_EDITOR' &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'id', 'hotelId', 'slug', 'is_published'
+          ])
+        )
+      );
 
       // Helper function: Catalog content is only readable if property is published or requester is staff
       function isHotelPubliclyReadable() {
@@ -140,15 +150,23 @@ service cloud.firestore {
         allow read: if isHotelPubliclyReadable();
         allow write: if canEditHotelContent(hotelId);
       }
-      match /publicConfig/{itemId=**} {
-        allow read: if isHotelPubliclyReadable();
+      match /publicConfig/{itemId} {
+        // Legacy operational routing must never be exposed to guests.
+        allow read: if itemId != 'departmentRouting' && isHotelPubliclyReadable();
+        allow write: if canEditHotelContent(hotelId);
+      }
+      match /publicConfig/{itemId}/{nested=**} {
+        allow read: if itemId != 'departmentRouting' && isHotelPubliclyReadable();
         allow write: if canEditHotelContent(hotelId);
       }
 
       // 1C. Explicit Private & Internal Hotel Collections
       // Guests CANNOT read or write private hotel settings, internal notes, or audit logs!
       match /private/{docId=**} {
-        allow read, write: if isHotelStaff(hotelId);
+        allow read, write: if canEditHotelContent(hotelId);
+      }
+      match /privateRoomInventory/{docId=**} {
+        allow read, write: if canEditHotelContent(hotelId);
       }
       match /internal/{docId=**} {
         allow read, write: if isHotelStaff(hotelId);

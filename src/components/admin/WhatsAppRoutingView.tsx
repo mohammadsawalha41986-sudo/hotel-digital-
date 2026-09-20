@@ -275,7 +275,7 @@ export const WhatsAppRoutingView: React.FC<WhatsAppRoutingViewProps> = ({
       {saveSuccess && (
         <div className="fixed bottom-6 end-6 z-50 bg-stone-900 border border-emerald-500/40 text-emerald-300 text-xs px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 size={16} className="text-emerald-400" />
-          <span>WhatsApp operational lines routing saved to Firestore (/hotels/{hotel.id}/publicConfig/departmentRouting)</span>
+          <span>WhatsApp operational routing saved securely (/hotels/{hotel.id}/private/departmentRouting)</span>
         </div>
       )}
 

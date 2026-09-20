@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useMemo, useEffect, useCallback } from 'react';
 import { RouteDefinition, ROUTE_REGISTRY } from './routes/routeRegistry';
 import { Header } from './components/Header';
 import { ParamSimulator } from './components/ParamSimulator';
@@ -8,12 +8,9 @@ import { HierarchyTreeView } from './components/HierarchyTreeView';
 import { WhatsAppRoutingMatrix } from './components/WhatsAppRoutingMatrix';
 import { LegacyMigrationView } from './components/LegacyMigrationView';
 import { Search, Filter, Sparkles, Check, Home, Shield, QrCode, Building2, EyeOff, Loader2 } from 'lucide-react';
-import { MOCK_HOTELS } from './data/mockHotels';
 import { Hotel, Language } from './types/hotel';
 import { TopLevelDepartment } from './types/department';
 import { applyHotelTheme } from './utils/theme';
-import { GuestPortalPage } from './pages/GuestPortalPage';
-import { AdminControlCenterPage } from './pages/AdminControlCenterPage';
 import { AdminLoginPage } from './components/admin/AdminLoginPage';
 import { parseCurrentRoute, pushAppRoute, buildGuestUrl, buildAdminUrl, findHotelBySlug } from './utils/urlRouter';
 import { RouteQRCodeModal } from './components/RouteQRCodeModal';
@@ -22,26 +19,22 @@ import { getCurrentAdminUser, onAuthStateChangedListener, signOutAdminUser } fro
 import {
   getHotelBySlug,
   subscribeToHotelsForAdmin,
-  updateHotel as updateFirestoreHotel,
 } from './services/hotelService';
 import { isFirebaseConfigured, defaultHotelSlug } from './services/firebase';
 
-const STORAGE_KEY_ACTIVE = 'hotel_hub_active_hotel_id_v4_swissflora';
-const STORAGE_KEY_HOTELS = 'hotel_hub_hotels_list_v4';
+const GuestPortalPage = lazy(() =>
+  import('./pages/GuestPortalPage').then((module) => ({ default: module.GuestPortalPage }))
+);
+const AdminControlCenterPage = lazy(() =>
+  import('./pages/AdminControlCenterPage').then((module) => ({ default: module.AdminControlCenterPage }))
+);
 
 export default function App() {
-  // Dynamic Multi-Hotel State driven by Firestore (with dev fallback when unconfigured)
-  const [hotelsList, setHotelsList] = useState<Hotel[]>(() => {
-    if (!isFirebaseConfigured) return MOCK_HOTELS;
-    return [];
-  });
-
-  const [currentHotel, setCurrentHotel] = useState<Hotel | null>(() => {
-    if (!isFirebaseConfigured) return MOCK_HOTELS[0];
-    return null;
-  });
-
-  const [isHotelLoading, setIsHotelLoading] = useState<boolean>(isFirebaseConfigured);
+  // Firestore is the only production source. Demo fixtures are lazy-loaded in
+  // development only when Firebase has intentionally not been configured.
+  const [hotelsList, setHotelsList] = useState<Hotel[]>([]);
+  const [currentHotel, setCurrentHotel] = useState<Hotel | null>(null);
+  const [isHotelLoading, setIsHotelLoading] = useState<boolean>(true);
   const [isHotelUnpublished, setIsHotelUnpublished] = useState<boolean>(false);
   const [isHotelNotFound, setIsHotelNotFound] = useState<boolean>(false);
 
@@ -118,6 +111,13 @@ export default function App() {
     setIsHotelNotFound(false);
 
     if (!isFirebaseConfigured) {
+      if (!import.meta.env.DEV) {
+        setIsHotelNotFound(true);
+        setCurrentHotel(null);
+        setIsHotelLoading(false);
+        return;
+      }
+      const { MOCK_HOTELS } = await import('./data/mockHotels');
       const localMatch = findHotelBySlug(MOCK_HOTELS, targetSlug);
       if (localMatch) {
         setCurrentHotel(localMatch);
@@ -204,7 +204,13 @@ export default function App() {
   useEffect(() => {
     if (!adminUser) return;
     if (!isFirebaseConfigured) {
-      setHotelsList(MOCK_HOTELS);
+      if (import.meta.env.DEV) {
+        let active = true;
+        import('./data/mockHotels').then(({ MOCK_HOTELS }) => {
+          if (active) setHotelsList(MOCK_HOTELS);
+        });
+        return () => { active = false; };
+      }
       return;
     }
 
@@ -220,25 +226,6 @@ export default function App() {
 
     return () => unsubscribe();
   }, [adminUser]);
-
-  // Persist hotelsList to localStorage whenever modified
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_HOTELS, JSON.stringify(hotelsList));
-    } catch (e) {
-      console.warn('Failed to persist hotels list to storage', e);
-    }
-  }, [hotelsList]);
-
-  // Persist active property selection to localStorage
-  useEffect(() => {
-    if (!currentHotel) return;
-    try {
-      localStorage.setItem(STORAGE_KEY_ACTIVE, currentHotel.id);
-    } catch (e) {
-      // ignore
-    }
-  }, [currentHotel?.id]);
 
   // Apply dynamic theme branding variables, typography, and document direction
   useEffect(() => {
@@ -263,16 +250,9 @@ export default function App() {
     showToast(`Switched active property to: ${language === 'ar' ? hotel.name_ar : hotel.name_en}`);
   };
 
-  const handleUpdateHotel = async (updated: Hotel) => {
+  const handleUpdateHotel = (updated: Hotel) => {
     setHotelsList((prev) => prev.map((h) => (h.id === updated.id ? updated : h)));
     setCurrentHotel(updated);
-    if (isFirebaseConfigured) {
-      try {
-        await updateFirestoreHotel(updated.id, updated);
-      } catch (err) {
-        console.warn('Failed to update hotel in Firestore:', err);
-      }
-    }
     showToast(`Saved configuration for: ${updated.name_en}`);
   };
 
@@ -395,19 +375,21 @@ ${mdRows}
           </div>
         )}
 
-        <AdminControlCenterPage
-          hotels={hotelsList}
-          currentHotel={currentHotel}
-          currentUser={adminUser}
-          onSelectHotel={handleSelectHotel}
-          onUpdateHotel={handleUpdateHotel}
-          onHotelCreated={handleHotelCreated}
-          onViewLivePortal={handleViewLivePortal}
-          onSignOut={async () => {
-            await signOutAdminUser();
-            setAdminUser(null);
-          }}
-        />
+        <Suspense fallback={<div className="min-h-screen grid place-items-center text-amber-400"><Loader2 className="animate-spin" /></div>}>
+          <AdminControlCenterPage
+            hotels={hotelsList}
+            currentHotel={currentHotel}
+            currentUser={adminUser}
+            onSelectHotel={handleSelectHotel}
+            onUpdateHotel={handleUpdateHotel}
+            onHotelCreated={handleHotelCreated}
+            onViewLivePortal={handleViewLivePortal}
+            onSignOut={async () => {
+              await signOutAdminUser();
+              setAdminUser(null);
+            }}
+          />
+        </Suspense>
       </div>
     );
   }
@@ -517,14 +499,16 @@ ${mdRows}
           </div>
         )}
 
-        <GuestPortalPage
-          currentHotel={currentHotel}
-          language={language}
-          onToggleLanguage={toggleLanguage}
-          roomNumber={roomNumber}
-          onSetRoomNumber={setRoomNumber}
-          initialDepartment={initialDepartment}
-        />
+        <Suspense fallback={<div className="min-h-screen grid place-items-center bg-stone-950 text-amber-400"><Loader2 className="animate-spin" /></div>}>
+          <GuestPortalPage
+            currentHotel={currentHotel}
+            language={language}
+            onToggleLanguage={toggleLanguage}
+            roomNumber={roomNumber}
+            onSetRoomNumber={setRoomNumber}
+            initialDepartment={initialDepartment}
+          />
+        </Suspense>
       </div>
     );
   }

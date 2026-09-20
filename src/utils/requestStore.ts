@@ -181,6 +181,12 @@ const INITIAL_REQUESTS: OperationalRequest[] = [
 ];
 
 export function getStoredRequests(hotelId?: string): OperationalRequest[] {
+  if (typeof localStorage === 'undefined') {
+    return hotelId
+      ? INITIAL_REQUESTS.filter((request) => request.hotel_id === hotelId)
+      : INITIAL_REQUESTS;
+  }
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     let list: OperationalRequest[] = raw ? JSON.parse(raw) : INITIAL_REQUESTS;
@@ -200,6 +206,8 @@ export function getStoredRequests(hotelId?: string): OperationalRequest[] {
 export function saveOperationalRequest(req: OperationalRequest): OperationalRequest {
   const existing = getStoredRequests();
   const updated = [req, ...existing.filter((r) => r.id !== req.id)];
+  if (typeof localStorage === 'undefined') return req;
+
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   } catch (e) {
@@ -227,6 +235,8 @@ export function updateOperationalRequestStatus(
     }
     return r;
   });
+
+  if (typeof localStorage === 'undefined') return foundReq;
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));

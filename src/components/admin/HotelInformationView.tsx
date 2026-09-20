@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Hotel, HotelSocialLinks } from '../../types/hotel';
 import { AdminUser, canEditHotelContent, canManageHotels } from '../../types/auth';
-import { updateHotel, getHotel } from '../../services/hotelService';
+import { updateHotel, getHotel, getPrivateHotelSettings, savePrivateHotelSettings } from '../../services/hotelService';
 
 interface HotelInformationViewProps {
   hotel: Hotel;
@@ -41,6 +41,8 @@ export const HotelInformationView: React.FC<HotelInformationViewProps> = ({
   const isSuperAdmin = useMemo(() => {
     return canManageHotels(currentUser || null);
   }, [currentUser]);
+
+  const canPublishHotel = isSuperAdmin || currentUser?.role === 'HOTEL_ADMIN';
 
   // Form State
   const [nameEn, setNameEn] = useState(hotel.name_en || '');
@@ -97,9 +99,10 @@ export const HotelInformationView: React.FC<HotelInformationViewProps> = ({
   const [wifiName, setWifiName] = useState(
     hotel.wifi_name || hotel.policies?.wifiSsid || ''
   );
-  const [wifiPassword, setWifiPassword] = useState(
-    hotel.wifi_password || hotel.policies?.wifiPassword || ''
-  );
+  const [wifiPassword, setWifiPassword] = useState('');
+  const [persistedWifiPassword, setPersistedWifiPassword] = useState('');
+  const [privateSettingsLoaded, setPrivateSettingsLoaded] = useState(false);
+  const [privateSettingsError, setPrivateSettingsError] = useState(false);
   const [wifiPublicEnabled, setWifiPublicEnabled] = useState(
     hotel.wifi_public_enabled === true
   );
@@ -146,12 +149,37 @@ export const HotelInformationView: React.FC<HotelInformationViewProps> = ({
     setCheckOutTime(hotel.check_out_time || hotel.policies?.checkOutTime || '12:00');
     setTimezone(hotel.timezone || 'Asia/Riyadh');
     setWifiName(hotel.wifi_name || hotel.policies?.wifiSsid || '');
-    setWifiPassword(hotel.wifi_password || hotel.policies?.wifiPassword || '');
+    setWifiPassword('');
+    setPersistedWifiPassword('');
+    setPrivateSettingsLoaded(false);
+    setPrivateSettingsError(false);
     setWifiPublicEnabled(hotel.wifi_public_enabled === true);
     setSocialLinks(hotel.social_links || {});
     setSaveSuccess(false);
     setErrorMessage(null);
     setValidationErrors({});
+  }, [hotel.id]);
+
+  useEffect(() => {
+    let active = true;
+    getPrivateHotelSettings(hotel.id)
+      .then((settings) => {
+        if (!active) return;
+        const password = settings?.wifi_password || '';
+        setWifiPassword(password);
+        setPersistedWifiPassword(password);
+        setPrivateSettingsLoaded(true);
+        setPrivateSettingsError(false);
+      })
+      .catch(() => {
+        if (active) {
+          setWifiPassword('');
+          setPersistedWifiPassword('');
+          setPrivateSettingsLoaded(false);
+          setPrivateSettingsError(true);
+        }
+      });
+    return () => { active = false; };
   }, [hotel.id]);
 
   // Dirty State Detection
@@ -185,7 +213,7 @@ export const HotelInformationView: React.FC<HotelInformationViewProps> = ({
     if (checkOutTime !== (hotel.check_out_time || hotel.policies?.checkOutTime || '12:00')) return true;
     if (timezone !== (hotel.timezone || 'Asia/Riyadh')) return true;
     if (wifiName !== (hotel.wifi_name || hotel.policies?.wifiSsid || '')) return true;
-    if (wifiPassword !== (hotel.wifi_password || hotel.policies?.wifiPassword || '')) return true;
+    if (wifiPassword !== persistedWifiPassword) return true;
     if (wifiPublicEnabled !== (hotel.wifi_public_enabled === true)) return true;
     if (JSON.stringify(socialLinks) !== JSON.stringify(hotel.social_links || {})) return true;
     return false;
@@ -221,6 +249,7 @@ export const HotelInformationView: React.FC<HotelInformationViewProps> = ({
     timezone,
     wifiName,
     wifiPassword,
+    persistedWifiPassword,
     wifiPublicEnabled,
     socialLinks,
   ]);
@@ -314,7 +343,6 @@ export const HotelInformationView: React.FC<HotelInformationViewProps> = ({
         website_url: websiteUrl.trim(),
         timezone: timezone.trim(),
         wifi_name: wifiName.trim(),
-        wifi_password: wifiPassword.trim(),
         wifi_public_enabled: wifiPublicEnabled,
         social_links: socialLinks,
         check_in_time: checkInTime.trim(),
@@ -324,12 +352,17 @@ export const HotelInformationView: React.FC<HotelInformationViewProps> = ({
           checkInTime: checkInTime.trim(),
           checkOutTime: checkOutTime.trim(),
           wifiSsid: wifiName.trim(),
-          wifiPassword: wifiPassword.trim(),
         },
       };
 
       // Persist to Firestore /hotels/{activeHotelId}
       await updateHotel(hotel.id, updatePayload);
+      if (privateSettingsLoaded || wifiPassword.trim()) {
+        await savePrivateHotelSettings(hotel.id, { wifi_password: wifiPassword.trim() });
+        setPersistedWifiPassword(wifiPassword.trim());
+        setPrivateSettingsLoaded(true);
+        setPrivateSettingsError(false);
+      }
 
       // Propagate updated object to parent state
       const updatedHotel: Hotel = {
@@ -606,7 +639,7 @@ export const HotelInformationView: React.FC<HotelInformationViewProps> = ({
               <select
                 value={stars}
                 onChange={(e) => setStars(Number(e.target.value))}
-                disabled={!hasEditPermission || isSaving}
+                disabled={!canPublishHotel || isSaving}
                 className="bg-stone-950 border border-stone-800 focus:border-amber-500 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none transition-colors w-full"
               >
                 <option value={5}>5 Stars — Luxury Hotel & Resort</option>
@@ -630,7 +663,7 @@ export const HotelInformationView: React.FC<HotelInformationViewProps> = ({
                 checked={isPublished}
                 onChange={(e) => setIsPublished(e.target.checked)}
                 disabled={!hasEditPermission || isSaving}
-                className="w-4 h-4 text-amber-500 rounded border-stone-700 bg-stone-900 focus:ring-amber-500 cursor-pointer"
+                className="w-4 h-4 text-amber-500 rounded border-stone-700 bg-stone-900 focus:ring-amber-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
               />
               <label htmlFor="isPublishedCheck" className="text-xs text-stone-300 cursor-pointer">
                 <strong>Publish Property to Live Guest Portal</strong>
@@ -1127,10 +1160,16 @@ export const HotelInformationView: React.FC<HotelInformationViewProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white">Guest Wi-Fi Connectivity</h2>
-              <p className="text-xs text-stone-400">Configure in-room & public Wi-Fi network credentials displayed to guests</p>
+              <p className="text-xs text-stone-400">Configure the public network name and securely store private access instructions</p>
             </div>
           </div>
         </div>
+
+        {privateSettingsError && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+            Private Wi-Fi settings could not be loaded. They will not be overwritten unless you enter a new password.
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
@@ -1167,9 +1206,9 @@ export const HotelInformationView: React.FC<HotelInformationViewProps> = ({
               className="w-4 h-4 text-amber-500 rounded border-stone-700 bg-stone-900 focus:ring-amber-500 cursor-pointer"
             />
             <label htmlFor="wifiPublicCheck" className="text-xs text-stone-300 cursor-pointer">
-              <strong>Display Wi-Fi Credentials Publicly on Stay Hub</strong>
+              <strong>Display the Wi-Fi Network Name on the Stay Hub</strong>
               <p className="text-[11px] text-stone-500 mt-0.5">
-                Enable only if you want Wi-Fi access details displayed immediately to in-house guests without requiring staff contact.
+                The password remains in protected hotel settings and is never included in the public hotel document.
               </p>
             </label>
           </div>

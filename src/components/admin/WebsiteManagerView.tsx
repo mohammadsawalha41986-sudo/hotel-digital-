@@ -12,7 +12,7 @@ import {
   RefreshCw,
   AlertTriangle,
 } from 'lucide-react';
-import { Hotel, HotelPortalConfig, PortalSectionConfig } from '../../types/hotel';
+import { Hotel, HotelPortalConfig } from '../../types/hotel';
 import { getPublicConfig, savePublicConfig } from '../../services/hotelService';
 import { createDefaultPortalConfig } from '../../utils/portalConfig';
 
@@ -48,7 +48,6 @@ interface WebsiteManagerViewProps {
 
 export const WebsiteManagerView: React.FC<WebsiteManagerViewProps> = ({
   hotel,
-  onUpdateHotel,
   onMarkUnpublishedChanges,
 }) => {
   const [sections, setSections] = useState<SectionConfigItem[]>(DEFAULT_CORE_SECTIONS);

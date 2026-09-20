@@ -31,6 +31,7 @@ interface InRoomServicesHubPageProps {
   roomNumber: string;
   onSetRoomNumber: (room: string) => void;
   onNavigateToDining?: () => void;
+  services?: InRoomServiceItem[];
 }
 
 export const InRoomServicesHubPage: React.FC<InRoomServicesHubPageProps> = ({
@@ -39,6 +40,7 @@ export const InRoomServicesHubPage: React.FC<InRoomServicesHubPageProps> = ({
   roomNumber,
   onSetRoomNumber,
   onNavigateToDining,
+  services,
 }) => {
   const isAr = language === 'ar';
   const NextArrow = isAr ? ArrowLeft : ArrowRight;
@@ -55,26 +57,43 @@ export const InRoomServicesHubPage: React.FC<InRoomServicesHubPageProps> = ({
 
   // All active services
   const allServices: InRoomServiceItem[] = useMemo(() => {
-    return INITIAL_IN_ROOM_SERVICES.filter((s) => s.active);
-  }, []);
+    return (services ?? INITIAL_IN_ROOM_SERVICES).filter((s) => s.active);
+  }, [services]);
 
   // All active categories with at least 1 active service (Requirement 18: Hide empty categories)
   const activeCategories: InRoomServiceCategoryItem[] = useMemo(() => {
-    return INITIAL_IN_ROOM_CATEGORIES.filter((category) => {
+    const configured = services
+      ? Array.from(new Set(allServices.map((service) => service.categoryId || service.category))).map((id, index) => {
+          const known = INITIAL_IN_ROOM_CATEGORIES.find((category) => category.id === id);
+          return known || {
+            id,
+            hotelId: hotel.id,
+            nameAr: id,
+            nameEn: id.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()),
+            descriptionAr: '',
+            descriptionEn: '',
+            icon: 'sparkles',
+            sortOrder: index + 1,
+            active: true,
+          };
+        })
+      : INITIAL_IN_ROOM_CATEGORIES;
+
+    return configured.filter((category) => {
       if (!category.active) return false;
       const count = allServices.filter(
         (s) => s.categoryId === category.id || s.category === category.id
       ).length;
       return count > 0;
     }).sort((a, b) => a.sortOrder - b.sortOrder);
-  }, [allServices]);
+  }, [allServices, hotel.id, services]);
 
   // Map category ID to category object
   const categoryMap = useMemo(() => {
     const map = new Map<string, InRoomServiceCategoryItem>();
-    INITIAL_IN_ROOM_CATEGORIES.forEach((c) => map.set(c.id, c));
+    activeCategories.forEach((c) => map.set(c.id, c));
     return map;
-  }, []);
+  }, [activeCategories]);
 
   // Calculate dynamic service count per category
   const getCategoryServiceCount = (categoryId: string): number => {

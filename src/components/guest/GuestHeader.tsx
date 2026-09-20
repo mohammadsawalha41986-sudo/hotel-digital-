@@ -46,8 +46,17 @@ export const GuestHeader: React.FC<GuestHeaderProps> = ({
     return found ? found.is_enabled : true;
   };
 
-  // Nav links strictly filtered by enabled sections in portal config
-  const navLinks = [
+  const configuredNavLinks = (currentHotel.portal_config?.navigation_items || [])
+    .filter((item) => item.is_enabled)
+    .sort((a, b) => a.order - b.order)
+    .map((item) => ({
+      href: item.target_section.startsWith('#') ? item.target_section : `#${item.target_section}`,
+      label: isAr ? item.label_ar : item.label_en,
+    }));
+
+  // Use the persisted navigation menu when configured; otherwise retain the
+  // platform defaults filtered by section visibility.
+  const defaultNavLinks = [
     { href: '#top', label: isAr ? 'الرئيسية' : 'Home' },
     ...(isSectionEnabled('offers') ? [{ href: '#hotel-offers', label: t('nav_offers') }] : []),
     ...(isSectionEnabled('about') ? [{ href: '#about-hotel', label: isAr ? 'عن الفندق' : 'About' }] : []),
@@ -58,6 +67,7 @@ export const GuestHeader: React.FC<GuestHeaderProps> = ({
     ...(isSectionEnabled('services') ? [{ href: '#hotel-services', label: t('nav_services') }] : []),
     ...(isSectionEnabled('contact') ? [{ href: '#contact-location', label: t('nav_contact') }] : []),
   ];
+  const navLinks = configuredNavLinks.length > 0 ? configuredNavLinks : defaultNavLinks;
 
   const handleNavClick = (_e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     setMobileMenuOpen(false);

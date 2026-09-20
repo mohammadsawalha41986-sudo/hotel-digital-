@@ -12,13 +12,6 @@ import {
   AlertTriangle,
   RefreshCw,
   Clock,
-  Sparkles,
-  Wrench,
-  Shirt,
-  Coffee,
-  Key,
-  HelpCircle,
-  Tag,
 } from 'lucide-react';
 import { Hotel, HotelServiceCatalogItem } from '../../../types/hotel';
 import { AdminUser, canEditHotelContent } from '../../../types/auth';

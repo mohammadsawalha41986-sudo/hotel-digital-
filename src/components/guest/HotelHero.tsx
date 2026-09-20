@@ -20,6 +20,7 @@ interface HotelHeroProps {
   onToggleLanguage?: () => void;
   onExploreOffers: () => void;
   onExploreServices: () => void;
+  primaryCtaLabel?: string;
 }
 
 export const HotelHero: React.FC<HotelHeroProps> = ({
@@ -29,6 +30,7 @@ export const HotelHero: React.FC<HotelHeroProps> = ({
   onToggleLanguage,
   onExploreOffers,
   onExploreServices,
+  primaryCtaLabel,
 }) => {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const isAr = language === 'ar';
@@ -184,7 +186,7 @@ export const HotelHero: React.FC<HotelHeroProps> = ({
               }}
             >
               <Compass size={16} />
-              <span>{isAr ? 'استكشف أقسام الفندق' : 'Explore Hotel Departments'}</span>
+              <span>{primaryCtaLabel || (isAr ? 'استكشف أقسام الفندق' : 'Explore Hotel Departments')}</span>
               <NextIcon size={14} className="group-hover:translate-x-0.5 transition-transform rtl:group-hover:-translate-x-0.5" />
             </button>
 

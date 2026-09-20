@@ -85,12 +85,10 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
   // 1. DATA MERGING & CATEGORY NORMALIZATION
   // -------------------------------------------------------------------------
   const allGarments: LaundryGarmentItem[] = useMemo(() => {
-    // If props items are provided, merge or match them into the category-first schema
-    if (propItems && propItems.length > 0) {
+    // A provided collection is authoritative, including an explicitly empty
+    // collection. Static fixtures are only used when the prop is omitted.
+    if (propItems !== undefined) {
       const mergedMap = new Map<string, LaundryGarmentItem>();
-
-      // Populate with default rich catalog
-      DEFAULT_LAUNDRY_GARMENTS.forEach((g) => mergedMap.set(g.id, g));
 
       // Overwrite or add prop items
       propItems.forEach((pi) => {
@@ -104,12 +102,12 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
         else if (cLower.includes('under') || cLower.includes('sleep') || cLower.includes('sock')) catId = 'underwear_sleepwear';
         else if (cLower.includes('dress') || cLower.includes('gown')) catId = 'dresses_special';
 
-        const existing = mergedMap.get(pi.id);
         mergedMap.set(pi.id, {
-          ...(existing || {}),
           ...pi,
-          category_id: existing?.category_id || catId,
-        });
+          category_id: catId,
+          category_en: pi.category_en || 'Other Items',
+          category_ar: pi.category_ar || 'أصناف أخرى',
+        } as LaundryGarmentItem);
       });
 
       return Array.from(mergedMap.values()).filter((g) => g.is_active);
@@ -771,7 +769,7 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
           className="flex gap-4 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {DEFAULT_LAUNDRY_OFFERS.filter((off) => off.active).map((offer) => (
+          {(propItems === undefined ? DEFAULT_LAUNDRY_OFFERS.filter((off) => off.active) : []).map((offer) => (
             <div
               key={offer.id}
               id={`laundry-offer-card-${offer.id}`}
