@@ -279,6 +279,29 @@ export interface Hotel {
   is_published: boolean;
   general_guest_whatsapp?: string;
   show_room_price?: boolean;
+  default_language?: 'en' | 'ar';
+  enabled_languages?: ('en' | 'ar')[];
+  google_maps_url?: string;
+  latitude?: number;
+  longitude?: number;
+  website_url?: string;
+  timezone?: string;
+  wifi_name?: string;
+  wifi_password?: string;
+  wifi_public_enabled?: boolean;
+  social_links?: HotelSocialLinks;
+  check_in_time?: string;
+  check_out_time?: string;
+}
+
+export interface HotelSocialLinks {
+  instagram?: string;
+  facebook?: string;
+  tiktok?: string;
+  twitter?: string;
+  snapchat?: string;
+  linkedin?: string;
+  youtube?: string;
 }
 
 export interface RoomBookingRequest {

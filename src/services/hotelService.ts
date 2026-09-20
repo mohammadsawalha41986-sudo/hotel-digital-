@@ -150,6 +150,19 @@ export async function hydrateHotelFromDoc(docSnap: any): Promise<Hotel> {
     services: Array.isArray(data.services) ? data.services : [],
     currency: data.currency || 'SAR',
     is_published: data.is_published === true,
+    default_language: data.default_language || 'en',
+    enabled_languages: Array.isArray(data.enabled_languages) ? data.enabled_languages : ['en', 'ar'],
+    google_maps_url: data.google_maps_url || '',
+    latitude: typeof data.latitude === 'number' ? data.latitude : undefined,
+    longitude: typeof data.longitude === 'number' ? data.longitude : undefined,
+    website_url: data.website_url || '',
+    timezone: data.timezone || 'Asia/Riyadh',
+    wifi_name: data.wifi_name || data.policies?.wifiSsid || '',
+    wifi_password: data.wifi_password || data.policies?.wifiPassword || '',
+    wifi_public_enabled: data.wifi_public_enabled === true,
+    social_links: data.social_links || {},
+    check_in_time: data.check_in_time || data.policies?.checkInTime || '15:00',
+    check_out_time: data.check_out_time || data.policies?.checkOutTime || '12:00',
   };
 }
 
@@ -201,6 +214,17 @@ export async function getHotelBySlug(slug: string): Promise<Hotel | null> {
       }
     } catch (err) {
       console.warn(`[HotelService] Failed to resolve hotel slug "${slug}" from Firestore:`, err);
+      // Do not collapse an authorization failure into "not found". Firestore
+      // intentionally denies anonymous reads for unpublished hotels, and the
+      // caller needs that distinction to render the staging/authentication UI.
+      if (
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as { code?: string }).code === 'permission-denied'
+      ) {
+        throw err;
+      }
     }
   }
 
@@ -669,3 +693,71 @@ export async function savePublicConfig(hotelId: string, config: HotelPortalConfi
   }, { merge: true });
 }
 
+/**
+ * Saves or updates a laundry item under /hotels/{hotelId}/laundry/{itemId}
+ */
+export async function saveLaundry(hotelId: string, item: any): Promise<void> {
+  if (!isFirebaseConfigured || !db || !hotelId || !item.id) return;
+  const docRef = doc(db, 'hotels', hotelId, 'laundry', item.id);
+  await setDoc(docRef, {
+    ...item,
+    hotel_id: hotelId,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+/**
+ * Deletes a laundry item from /hotels/{hotelId}/laundry/{itemId}
+ */
+export async function deleteLaundry(hotelId: string, itemId: string): Promise<void> {
+  if (!isFirebaseConfigured || !db || !hotelId || !itemId) return;
+  await deleteDoc(doc(db, 'hotels', hotelId, 'laundry', itemId));
+}
+
+/**
+ * Saves or updates a guest service item under /hotels/{hotelId}/guestServices/{serviceId}
+ */
+export async function saveGuestService(hotelId: string, service: any): Promise<void> {
+  if (!isFirebaseConfigured || !db || !hotelId || !service.id) return;
+  const docRef = doc(db, 'hotels', hotelId, 'guestServices', service.id);
+  await setDoc(docRef, {
+    ...service,
+    hotel_id: hotelId,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+/**
+ * Deletes a guest service item from /hotels/{hotelId}/guestServices/{serviceId}
+ */
+export async function deleteGuestService(hotelId: string, serviceId: string): Promise<void> {
+  if (!isFirebaseConfigured || !db || !hotelId || !serviceId) return;
+  await deleteDoc(doc(db, 'hotels', hotelId, 'guestServices', serviceId));
+}
+
+/**
+ * Retrieves department WhatsApp routing configuration from /hotels/{hotelId}/publicConfig/departmentRouting
+ */
+export async function getDepartmentRouting(hotelId: string): Promise<any | null> {
+  if (!isFirebaseConfigured || !db || !hotelId) return null;
+  try {
+    const snap = await getDoc(doc(db, 'hotels', hotelId, 'publicConfig', 'departmentRouting'));
+    if (snap.exists()) return snap.data();
+  } catch (e) {
+    console.warn(`[HotelService] getDepartmentRouting failed for ${hotelId}:`, e);
+  }
+  return null;
+}
+
+/**
+ * Saves department WhatsApp routing configuration under /hotels/{hotelId}/publicConfig/departmentRouting
+ */
+export async function saveDepartmentRouting(hotelId: string, routing: any): Promise<void> {
+  if (!isFirebaseConfigured || !db || !hotelId) return;
+  const docRef = doc(db, 'hotels', hotelId, 'publicConfig', 'departmentRouting');
+  await setDoc(docRef, {
+    ...routing,
+    hotel_id: hotelId,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}

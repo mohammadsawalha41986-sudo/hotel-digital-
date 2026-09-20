@@ -152,7 +152,21 @@ export default function App() {
       }
     } catch (err) {
       console.warn('Failed to load hotel from Firestore:', err);
-      setIsHotelNotFound(true);
+      const isPermissionDenied =
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as { code?: string }).code === 'permission-denied';
+
+      if (isPermissionDenied) {
+        setCurrentHotel(null);
+        setIsHotelUnpublished(true);
+        setIsHotelNotFound(false);
+      } else {
+        setCurrentHotel(null);
+        setIsHotelUnpublished(false);
+        setIsHotelNotFound(true);
+      }
     } finally {
       setIsHotelLoading(false);
     }
@@ -403,7 +417,7 @@ ${mdRows}
     if (isHotelLoading) {
       return (
         <div
-          className="min-h-screen bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center"
+          className="min-h-screen w-full bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center"
           dir={language === 'ar' ? 'rtl' : 'ltr'}
         >
           <Loader2 size={36} className="text-amber-400 animate-spin mb-4" />
@@ -417,7 +431,7 @@ ${mdRows}
     if (isHotelUnpublished) {
       return (
         <div
-          className="min-h-screen bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center"
+          className="min-h-screen w-full bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center"
           dir={language === 'ar' ? 'rtl' : 'ltr'}
         >
           <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-6 shadow-inner">
@@ -464,7 +478,7 @@ ${mdRows}
     if (isHotelNotFound || !currentHotel) {
       return (
         <div
-          className="min-h-screen bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center"
+          className="min-h-screen w-full bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center"
           dir={language === 'ar' ? 'rtl' : 'ltr'}
         >
           <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-6">

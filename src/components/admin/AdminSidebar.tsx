@@ -27,6 +27,7 @@ import { Hotel } from '../../types/hotel';
 export type AdminSectionTab =
   | 'portfolio'
   | 'dashboard'
+  | 'hotel_info'
   | 'website_manager'
   | 'homepage_sections'
   | 'navigation'
@@ -103,6 +104,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     {
       title: 'WEBSITE & CMS',
       items: [
+        { id: 'hotel_info', label: 'Hotel Information', icon: Building2 },
         { id: 'website_manager', label: 'Website Manager', icon: Globe },
         { id: 'homepage_sections', label: 'Homepage Sections', icon: Layers },
         { id: 'navigation', label: 'Navigation Menu', icon: ChevronRight },

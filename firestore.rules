@@ -112,48 +112,48 @@ service cloud.firestore {
 
       // 1B. Explicit Public Catalog Sub-collections
       // Only readable if property is published or requester is staff
-      match /outlets/{itemId} {
+      match /outlets/{itemId=**} {
         allow read: if isHotelPubliclyReadable();
         allow write: if canEditHotelContent(hotelId);
       }
-      match /wellness/{itemId} {
+      match /wellness/{itemId=**} {
         allow read: if isHotelPubliclyReadable();
         allow write: if canEditHotelContent(hotelId);
       }
-      match /rooms/{itemId} {
+      match /rooms/{itemId=**} {
         allow read: if isHotelPubliclyReadable();
         allow write: if canEditHotelContent(hotelId);
       }
-      match /offers/{itemId} {
+      match /offers/{itemId=**} {
         allow read: if isHotelPubliclyReadable();
         allow write: if canEditHotelContent(hotelId);
       }
-      match /laundry/{itemId} {
+      match /laundry/{itemId=**} {
         allow read: if isHotelPubliclyReadable();
         allow write: if canEditHotelContent(hotelId);
       }
-      match /guestServices/{itemId} {
+      match /guestServices/{itemId=**} {
         allow read: if isHotelPubliclyReadable();
         allow write: if canEditHotelContent(hotelId);
       }
-      match /branding/{itemId} {
+      match /branding/{itemId=**} {
         allow read: if isHotelPubliclyReadable();
         allow write: if canEditHotelContent(hotelId);
       }
-      match /publicConfig/{itemId} {
+      match /publicConfig/{itemId=**} {
         allow read: if isHotelPubliclyReadable();
         allow write: if canEditHotelContent(hotelId);
       }
 
       // 1C. Explicit Private & Internal Hotel Collections
       // Guests CANNOT read or write private hotel settings, internal notes, or audit logs!
-      match /private/{docId} {
+      match /private/{docId=**} {
         allow read, write: if isHotelStaff(hotelId);
       }
-      match /internal/{docId} {
+      match /internal/{docId=**} {
         allow read, write: if isHotelStaff(hotelId);
       }
-      match /settings/{docId} {
+      match /settings/{docId=**} {
         allow read, write: if isHotelStaff(hotelId);
       }
     }

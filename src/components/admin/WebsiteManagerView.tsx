@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Layers,
   Eye,
@@ -9,8 +9,12 @@ import {
   Trash2,
   CheckCircle2,
   Save,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
-import { Hotel } from '../../types/hotel';
+import { Hotel, HotelPortalConfig, PortalSectionConfig } from '../../types/hotel';
+import { getPublicConfig, savePublicConfig } from '../../services/hotelService';
+import { createDefaultPortalConfig } from '../../utils/portalConfig';
 
 export interface SectionConfigItem {
   id: string;
@@ -38,41 +42,79 @@ const DEFAULT_CORE_SECTIONS: SectionConfigItem[] = [
 
 interface WebsiteManagerViewProps {
   hotel: Hotel;
-  onUpdateHotel: (updated: Hotel) => void;
-  onMarkUnpublishedChanges: () => void;
+  onUpdateHotel?: (updated: Hotel) => void;
+  onMarkUnpublishedChanges?: () => void;
 }
 
 export const WebsiteManagerView: React.FC<WebsiteManagerViewProps> = ({
   hotel,
-  onUpdateHotel: _onUpdateHotel,
+  onUpdateHotel,
   onMarkUnpublishedChanges,
 }) => {
   const [sections, setSections] = useState<SectionConfigItem[]>(DEFAULT_CORE_SECTIONS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveToast, setSaveToast] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Add Custom Section Modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [customNameEn, setCustomNameEn] = useState('');
   const [customNameAr, setCustomNameAr] = useState('');
   const [customDescEn, setCustomDescEn] = useState('');
   const [customAudience, setCustomAudience] = useState<'ALL' | 'IN_HOUSE' | 'EXTERNAL'>('ALL');
-  const [saveToast, setSaveToast] = useState(false);
 
-  const handleToggleSection = (id: string) => {
-    setSections((prev) =>
-      prev.map((s) => {
-        if (s.id === id) {
-          const nextEnabled = !s.is_enabled;
-          return {
-            ...s,
-            is_enabled: nextEnabled,
-            status: nextEnabled ? 'VISIBLE' : 'HIDDEN',
-          };
-        }
-        return s;
-      })
-    );
-    onMarkUnpublishedChanges();
+  const loadConfig = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const config = await getPublicConfig(hotel.id);
+      if (config && Array.isArray((config as any).architecture_sections) && (config as any).architecture_sections.length > 0) {
+        setSections((config as any).architecture_sections);
+      } else if (config && Array.isArray(config.sections) && config.sections.length > 0) {
+        const mapped: SectionConfigItem[] = config.sections.map((s, idx) => ({
+          id: s.id || s.code,
+          name_en: s.title_en,
+          name_ar: s.title_ar,
+          type: 'core',
+          status: s.is_enabled ? 'VISIBLE' : 'HIDDEN',
+          is_enabled: s.is_enabled,
+          order: s.order || idx + 1,
+          audience: 'ALL',
+        }));
+        setSections(mapped);
+      } else {
+        setSections(DEFAULT_CORE_SECTIONS);
+      }
+    } catch (err: any) {
+      console.error('[WebsiteManagerView] Load error:', err);
+      setErrorMessage('Failed to load website configuration from Firestore.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleMove = (index: number, direction: 'up' | 'down') => {
+  useEffect(() => {
+    loadConfig();
+  }, [hotel.id]);
+
+  const handleToggleSection = async (id: string) => {
+    const updated = sections.map((s) => {
+      if (s.id === id) {
+        const nextEnabled = !s.is_enabled;
+        return {
+          ...s,
+          is_enabled: nextEnabled,
+          status: (nextEnabled ? 'VISIBLE' : 'HIDDEN') as SectionConfigItem['status'],
+        };
+      }
+      return s;
+    });
+    setSections(updated);
+    await persistToFirestore(updated);
+  };
+
+  const handleMove = async (index: number, direction: 'up' | 'down') => {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= sections.length) return;
 
@@ -81,13 +123,12 @@ export const WebsiteManagerView: React.FC<WebsiteManagerViewProps> = ({
     updated[index] = updated[targetIndex];
     updated[targetIndex] = temp;
 
-    // re-assign order property
     const reordered = updated.map((item, idx) => ({ ...item, order: idx + 1 }));
     setSections(reordered);
-    onMarkUnpublishedChanges();
+    await persistToFirestore(reordered);
   };
 
-  const handleAddCustomSection = () => {
+  const handleAddCustomSection = async () => {
     if (!customNameEn.trim()) return;
     const newId = `custom-${Date.now()}`;
     const newSec: SectionConfigItem = {
@@ -101,48 +142,87 @@ export const WebsiteManagerView: React.FC<WebsiteManagerViewProps> = ({
       order: sections.length + 1,
       audience: customAudience,
     };
-    setSections([...sections, newSec]);
+    const updated = [...sections, newSec];
+    setSections(updated);
     setIsAddModalOpen(false);
     setCustomNameEn('');
     setCustomNameAr('');
     setCustomDescEn('');
-    onMarkUnpublishedChanges();
+    await persistToFirestore(updated);
   };
 
-  const handleDeleteSection = (id: string) => {
-    setSections((prev) => prev.filter((s) => s.id !== id));
-    onMarkUnpublishedChanges();
+  const handleDeleteSection = async (id: string) => {
+    const updated = sections.filter((s) => s.id !== id);
+    setSections(updated);
+    await persistToFirestore(updated);
   };
 
-  const handleSaveSections = () => {
-    setSaveToast(true);
-    setTimeout(() => setSaveToast(false), 3000);
-    onMarkUnpublishedChanges();
+  const persistToFirestore = async (newSections: SectionConfigItem[]) => {
+    setIsSaving(true);
+    setErrorMessage(null);
+    try {
+      const currentConfig = (await getPublicConfig(hotel.id)) || createDefaultPortalConfig();
+      const updatedConfig: HotelPortalConfig = {
+        ...currentConfig,
+        sections: newSections.map((s) => ({
+          id: s.id,
+          code: (s.id as any),
+          title_en: s.name_en,
+          title_ar: s.name_ar,
+          is_enabled: s.is_enabled,
+          order: s.order,
+        })),
+        ...( { architecture_sections: newSections } as any ),
+      };
+
+      await savePublicConfig(hotel.id, updatedConfig);
+      onMarkUnpublishedChanges?.();
+      setSaveToast(true);
+      setTimeout(() => setSaveToast(false), 3000);
+    } catch (err: any) {
+      console.error('[WebsiteManagerView] Persist failed:', err);
+      setErrorMessage(err.message || 'Failed to persist website architecture to Firestore.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       {/* Toast Notification */}
       {saveToast && (
-        <div className="fixed bottom-6 end-6 z-50 bg-stone-900 border border-emerald-500/40 text-emerald-300 text-xs px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 animate-in fade-in">
+        <div className="fixed bottom-6 end-6 z-50 bg-stone-900 border border-emerald-500/40 text-emerald-300 text-xs px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2">
           <CheckCircle2 size={16} className="text-emerald-400" />
-          <span>Section layout and visibility saved to drafts</span>
+          <span>Section architecture saved to Firestore (/hotels/{hotel.id}/publicConfig/portal)</span>
         </div>
       )}
 
       {/* Top Banner */}
       <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+              /hotels/{hotel.id}/publicConfig/portal
+            </span>
+          </div>
           <h1 className="text-lg font-bold text-white flex items-center gap-2">
             <Layers className="text-amber-400" size={20} />
             <span>Website Manager & Homepage Section Architecture</span>
           </h1>
           <p className="text-xs text-stone-400 mt-0.5">
-            Control the exact order, visibility state, and audience access of all sections for {hotel.name_en}.
+            Control the layout order, visibility state, and audience access of all homepage sections for {hotel.name_en}.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={loadConfig}
+            disabled={isLoading}
+            className="p-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs cursor-pointer"
+            title="Refresh from Firestore"
+          >
+            <RefreshCw size={14} className={isLoading ? 'animate-spin text-amber-400' : ''} />
+          </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -151,14 +231,22 @@ export const WebsiteManagerView: React.FC<WebsiteManagerViewProps> = ({
             <span>Add Custom Section</span>
           </button>
           <button
-            onClick={handleSaveSections}
-            className="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-stone-700"
+            onClick={() => persistToFirestore(sections)}
+            disabled={isSaving}
+            className="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-stone-700 disabled:opacity-50"
           >
             <Save size={13} />
-            <span>Save Order</span>
+            <span>{isSaving ? 'Saving...' : 'Save Order'}</span>
           </button>
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-300 text-xs">
+          <AlertTriangle size={18} className="shrink-0 text-rose-400" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
       {/* Sections Table & Reorder Board */}
       <div className="bg-stone-900/90 border border-stone-800 rounded-2xl overflow-hidden shadow-xs">
@@ -171,85 +259,74 @@ export const WebsiteManagerView: React.FC<WebsiteManagerViewProps> = ({
           </span>
         </div>
 
-        <div className="divide-y divide-stone-800/80">
-          {sections.map((sec, idx) => (
+        <div className="divide-y divide-stone-800">
+          {sections.map((section, index) => (
             <div
-              key={sec.id}
-              className={`p-4 flex items-center justify-between gap-4 transition-colors ${
-                sec.is_enabled ? 'hover:bg-stone-850/50' : 'bg-stone-950/40 opacity-60'
+              key={section.id}
+              className={`p-4 flex items-center justify-between transition-colors ${
+                section.is_enabled ? 'bg-stone-900/40 hover:bg-stone-850/60' : 'bg-stone-950/60 opacity-60'
               }`}
             >
-              {/* Order index + Section Name */}
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="w-6 text-center font-mono text-xs font-bold text-amber-400">
-                  {idx + 1}
-                </span>
-
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-stone-800 flex items-center justify-center font-mono text-xs font-bold text-stone-400">
+                  {section.order}
+                </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white">{sec.name_en}</span>
-                    {sec.type === 'custom' && (
-                      <span className="text-[9px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded font-bold uppercase">
+                    <span className="text-sm font-semibold text-white">{section.name_en}</span>
+                    <span className="text-xs text-stone-400 font-serif" dir="rtl">{section.name_ar}</span>
+                    {section.type === 'custom' && (
+                      <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded">
                         Custom
                       </span>
                     )}
-                    <span
-                      className={`text-[9px] px-1.5 py-0.5 rounded font-semibold uppercase ${
-                        sec.status === 'VISIBLE'
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                          : 'bg-stone-800 text-stone-400 border border-stone-700'
-                      }`}
-                    >
-                      {sec.status}
-                    </span>
                   </div>
-                  <div className="text-[11px] text-stone-400 flex items-center gap-2 mt-0.5" dir="rtl">
-                    <span>{sec.name_ar}</span>
-                  </div>
+                  <span className="text-[11px] text-stone-400 mt-0.5 block">
+                    Audience: {section.audience || 'ALL'} • Status: {section.is_enabled ? 'Visible' : 'Hidden'}
+                  </span>
                 </div>
               </div>
 
-              {/* Controls: Move up/down, Show/Hide, Delete (if custom) */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                {/* Reorder Arrows */}
+              <div className="flex items-center gap-2">
+                {/* Reorder Buttons */}
                 <button
-                  disabled={idx === 0}
-                  onClick={() => handleMove(idx, 'up')}
-                  className="p-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 disabled:opacity-30 text-stone-300 transition-colors cursor-pointer"
-                  title="Move section up"
+                  onClick={() => handleMove(index, 'up')}
+                  disabled={index === 0}
+                  className="p-1.5 rounded-lg bg-stone-800 text-stone-300 hover:text-white disabled:opacity-30 cursor-pointer"
+                  title="Move Up"
                 >
-                  <ArrowUp size={13} />
+                  <ArrowUp size={14} />
                 </button>
                 <button
-                  disabled={idx === sections.length - 1}
-                  onClick={() => handleMove(idx, 'down')}
-                  className="p-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 disabled:opacity-30 text-stone-300 transition-colors cursor-pointer"
-                  title="Move section down"
+                  onClick={() => handleMove(index, 'down')}
+                  disabled={index === sections.length - 1}
+                  className="p-1.5 rounded-lg bg-stone-800 text-stone-300 hover:text-white disabled:opacity-30 cursor-pointer"
+                  title="Move Down"
                 >
-                  <ArrowDown size={13} />
+                  <ArrowDown size={14} />
                 </button>
 
-                {/* Visibility Toggle */}
+                {/* Show/Hide Toggle */}
                 <button
-                  onClick={() => handleToggleSection(sec.id)}
-                  className={`p-1.5 rounded-lg border text-xs transition-colors cursor-pointer ${
-                    sec.is_enabled
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
-                      : 'bg-stone-800 border-stone-700 text-stone-500 hover:text-stone-300'
+                  onClick={() => handleToggleSection(section.id)}
+                  className={`p-1.5 rounded-lg cursor-pointer ${
+                    section.is_enabled
+                      ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                      : 'bg-stone-800 text-stone-500 hover:text-stone-300'
                   }`}
-                  title={sec.is_enabled ? 'Section is visible on guest portal' : 'Section is hidden'}
+                  title={section.is_enabled ? 'Hide Section' : 'Show Section'}
                 >
-                  {sec.is_enabled ? <Eye size={14} /> : <EyeOff size={14} />}
+                  {section.is_enabled ? <Eye size={14} /> : <EyeOff size={14} />}
                 </button>
 
-                {/* Custom Section Delete */}
-                {sec.type === 'custom' && (
+                {/* Delete if custom */}
+                {section.type === 'custom' && (
                   <button
-                    onClick={() => handleDeleteSection(sec.id)}
-                    className="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition-colors cursor-pointer"
-                    title="Delete custom section"
+                    onClick={() => handleDeleteSection(section.id)}
+                    className="p-1.5 rounded-lg bg-stone-800 text-stone-500 hover:text-rose-400 cursor-pointer"
+                    title="Delete Custom Section"
                   >
-                    <Trash2 size={13} />
+                    <Trash2 size={14} />
                   </button>
                 )}
               </div>
@@ -261,83 +338,63 @@ export const WebsiteManagerView: React.FC<WebsiteManagerViewProps> = ({
       {/* Add Custom Section Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-stone-900 border border-stone-800 rounded-2xl w-full max-w-md p-5 text-stone-200 text-xs space-y-4 shadow-2xl">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <Plus size={16} className="text-amber-400" />
-              <span>Create Custom Hotel Section</span>
-            </h2>
-
-            <div className="space-y-3">
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-4 border-b border-stone-800 flex items-center justify-between bg-stone-850">
+              <h2 className="text-sm font-bold text-white">Add Custom Homepage Section</h2>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-stone-400 hover:text-white">
+                <Trash2 size={14} className="rotate-45" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
               <div>
-                <label className="block text-[11px] text-stone-400 mb-1 font-semibold">
-                  Section Title (English) *
-                </label>
+                <label className="block text-xs font-semibold text-stone-300 mb-1">Section Title (EN) *</label>
                 <input
                   type="text"
-                  placeholder="e.g. Royal Kids Club & Nursery"
                   value={customNameEn}
                   onChange={(e) => setCustomNameEn(e.target.value)}
-                  className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  placeholder="e.g. Executive Cigar Lounge"
+                  className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-xs text-white"
                 />
               </div>
-
               <div>
-                <label className="block text-[11px] text-stone-400 mb-1 font-semibold text-end" dir="rtl">
-                  عنوان القسم (بالعربية) *
-                </label>
+                <label className="block text-xs font-semibold text-stone-300 mb-1 text-right" dir="rtl">عنوان القسم (بالعربية)</label>
                 <input
                   type="text"
                   dir="rtl"
-                  placeholder="مثال: نادي الأطفال الملكي والحضانة"
                   value={customNameAr}
                   onChange={(e) => setCustomNameAr(e.target.value)}
-                  className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-200 focus:outline-none focus:ring-1 focus:ring-amber-500 text-end"
+                  placeholder="مثال: صالة السيجار التنفيذية"
+                  className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-xs text-white text-right"
                 />
               </div>
-
               <div>
-                <label className="block text-[11px] text-stone-400 mb-1 font-semibold">
-                  Brief Description
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Enter guest-facing highlight summary..."
-                  value={customDescEn}
-                  onChange={(e) => setCustomDescEn(e.target.value)}
-                  className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] text-stone-400 mb-1 font-semibold">
-                  Target Audience
-                </label>
+                <label className="block text-xs font-semibold text-stone-300 mb-1">Audience</label>
                 <select
                   value={customAudience}
                   onChange={(e) => setCustomAudience(e.target.value as any)}
-                  className="w-full bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-stone-200 focus:outline-none"
+                  className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-xs text-white"
                 >
-                  <option value="ALL">All Visitors & Guests</option>
-                  <option value="IN_HOUSE">In-House Guests Only (Room QR)</option>
-                  <option value="EXTERNAL">External Visitors Only</option>
+                  <option value="ALL">All Guests (Public & In-House)</option>
+                  <option value="IN_HOUSE">In-House Guests Only</option>
+                  <option value="EXTERNAL">External / Day Visitors Only</option>
                 </select>
               </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-300 font-semibold rounded-xl cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddCustomSection}
-                disabled={!customNameEn.trim()}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-bold rounded-xl cursor-pointer"
-              >
-                Create Section
-              </button>
+              <div className="border-t border-stone-800 pt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-3 py-1.5 rounded-lg bg-stone-800 text-xs text-stone-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddCustomSection}
+                  className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs"
+                >
+                  Add Section
+                </button>
+              </div>
             </div>
           </div>
         </div>

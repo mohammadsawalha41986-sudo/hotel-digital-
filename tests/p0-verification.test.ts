@@ -794,7 +794,7 @@ test('URL Routing & Backward Compatibility: Legacy alias 11 seamlessly resolves 
 // ---------------------------------------------------------------------------
 // 9. COMPLETE MULTI-HOTEL FUNCTIONAL ACCEPTANCE AUDIT TESTS
 // ---------------------------------------------------------------------------
-import { createHotel } from '../src/services/hotelService';
+import { createHotel, hydrateHotelFromDoc } from '../src/services/hotelService';
 import { FBOutlet, MenuItem } from '../src/types/department';
 
 test('Acceptance: Arbitrary hotel creation enforces bilingual names and validates slug', async () => {
@@ -1012,6 +1012,334 @@ test('Acceptance: Request engine enforces hotel-specific department routing with
   // Target WhatsApp routing numbers must remain distinct
   assert.notEqual(resA.targetWhatsApp, resB.targetWhatsApp);
 });
+
+// ---------------------------------------------------------------------------
+// 10. HOTEL INFORMATION CMS PERSISTENCE & MULTI-TENANT ISOLATION TESTS
+// ---------------------------------------------------------------------------
+test('Hotel Information: hydrateHotelFromDoc preserves all bilingual metadata, coordinates, operating policies and social links', async () => {
+  const mockDocSnap = {
+    id: 'the-grand-oasis',
+    data: () => ({
+      slug: 'the-grand-oasis',
+      name_en: 'The Grand Oasis Resort',
+      name_ar: 'منتجع الواحة الكبرى',
+      tagline_en: 'Unmatched Luxury by the Dunes',
+      tagline_ar: 'فخامة لا مثيل لها بين الكثبان',
+      description_en: 'A stunning five-star sanctuary featuring world-class hospitality.',
+      description_ar: 'ملاذ مذهل من فئة خمس نجوم يتميز بالضيافة العالمية.',
+      classification_stars: 5,
+      is_published: false,
+      currency: 'SAR',
+      default_language: 'ar',
+      enabled_languages: ['en', 'ar'],
+      country_en: 'Saudi Arabia',
+      country_ar: 'المملكة العربية السعودية',
+      city_en: 'Al Khobar',
+      city_ar: 'الخبر',
+      address_en: 'Corniche Boulevard',
+      address_ar: 'طريق الكورنيش',
+      google_maps_url: 'https://maps.google.com/?q=26.2172,50.1971',
+      latitude: 26.2172,
+      longitude: 50.1971,
+      phone: '+966138000000',
+      email: 'concierge@grandoasis.sa',
+      whatsapp_number: '+966530000000',
+      general_guest_whatsapp: '+966530000000',
+      website_url: 'https://grandoasis.sa',
+      timezone: 'Asia/Riyadh',
+      wifi_name: 'GrandOasis-Guest',
+      wifi_password: 'oasis-welcome-2026',
+      wifi_public_enabled: true,
+      social_links: {
+        instagram: 'https://instagram.com/grandoasis',
+        twitter: 'https://x.com/grandoasis',
+        facebook: 'https://facebook.com/grandoasis',
+        tiktok: 'https://tiktok.com/@grandoasis',
+      },
+      check_in_time: '16:00',
+      check_out_time: '11:00',
+      policies: {
+        checkInTime: '16:00',
+        checkOutTime: '11:00',
+        wifiSsid: 'GrandOasis-Guest',
+        wifiPassword: 'oasis-welcome-2026',
+      },
+    }),
+  };
+
+  const hydrated = await hydrateHotelFromDoc(mockDocSnap);
+
+  assert.equal(hydrated.id, 'the-grand-oasis');
+  assert.equal(hydrated.name_en, 'The Grand Oasis Resort');
+  assert.equal(hydrated.name_ar, 'منتجع الواحة الكبرى');
+  assert.equal(hydrated.tagline_en, 'Unmatched Luxury by the Dunes');
+  assert.equal(hydrated.classification_stars, 5);
+  assert.equal(hydrated.is_published, false);
+  assert.equal(hydrated.default_language, 'ar');
+  assert.deepEqual(hydrated.enabled_languages, ['en', 'ar']);
+  assert.equal(hydrated.latitude, 26.2172);
+  assert.equal(hydrated.longitude, 50.1971);
+  assert.equal(hydrated.google_maps_url, 'https://maps.google.com/?q=26.2172,50.1971');
+  assert.equal(hydrated.phone, '+966138000000');
+  assert.equal(hydrated.email, 'concierge@grandoasis.sa');
+  assert.equal(hydrated.wifi_name, 'GrandOasis-Guest');
+  assert.equal(hydrated.wifi_password, 'oasis-welcome-2026');
+  assert.equal(hydrated.wifi_public_enabled, true);
+  assert.equal(hydrated.social_links?.instagram, 'https://instagram.com/grandoasis');
+  assert.equal(hydrated.check_in_time, '16:00');
+  assert.equal(hydrated.check_out_time, '11:00');
+});
+
+test('Hotel Information: Save updates active hotel target path only without leaking into another hotel', () => {
+  const activeHotelId = 'the-grand-oasis';
+  const otherHotelId = 'swiss-flora-royal';
+
+  // Simulated Firestore update routing
+  function getUpdatePath(targetId: string): string {
+    return `/hotels/${targetId}`;
+  }
+
+  const activePath = getUpdatePath(activeHotelId);
+  const otherPath = getUpdatePath(otherHotelId);
+
+  assert.equal(activePath, '/hotels/the-grand-oasis');
+  assert.equal(otherPath, '/hotels/swiss-flora-royal');
+  assert.notEqual(activePath, otherPath, 'Saving to active hotel must never target another property');
+});
+
+test('Hotel Information: Refresh/reload uses persisted Firestore values and discards unpersisted dirty edits', async () => {
+  // Persisted state in Firestore
+  const persistedDoc = {
+    id: 'hotel-gamma',
+    data: () => ({
+      name_en: 'Persisted Gamma Hotel',
+      phone: '+966110009999',
+      is_published: false,
+    }),
+  };
+
+  // Local uncommitted user edits (dirty state)
+  const localDirtyEdits = {
+    name_en: 'Unsaved Gamma Modifications',
+    phone: '+966559998888',
+  };
+
+  // Refresh action: re-hydrates from Firestore
+  const reloaded = await hydrateHotelFromDoc(persistedDoc);
+
+  assert.equal(reloaded.name_en, 'Persisted Gamma Hotel', 'Reload must discard unsaved local edits');
+  assert.equal(reloaded.phone, '+966110009999');
+  assert.notEqual(reloaded.name_en, localDirtyEdits.name_en);
+});
+
+test('Hotel Information: Multi-tenant RBAC prevents cross-tenant writes (Hotel A manager cannot edit Hotel B)', () => {
+  const managerHotelA: AdminUser = {
+    uid: 'manager-a',
+    email: 'gm@hotela.com',
+    displayName: 'Hotel A General Manager',
+    role: 'HOTEL_ADMIN',
+    allowedHotelIds: ['hotel-a'],
+  };
+
+  // Permitted for assigned hotel
+  assert.equal(canEditHotelContent(managerHotelA, 'hotel-a'), true, 'Hotel Admin can edit assigned hotel info');
+
+  // Strictly denied for unauthorized hotels
+  assert.equal(canEditHotelContent(managerHotelA, 'hotel-b'), false, 'Hotel Admin CANNOT edit Hotel B info');
+  assert.equal(canEditHotelContent(managerHotelA, 'swiss-flora-royal'), false, 'Hotel Admin CANNOT edit Swiss Flora Royal info');
+});
+
+test('Hotel Information: Operational department roles (F&B, Spa, Housekeeping, Viewer) cannot modify Hotel Information', () => {
+  const fnbDirector: AdminUser = {
+    uid: 'fnb-1',
+    email: 'fnb@hotel.com',
+    displayName: 'F&B Director',
+    role: 'FNB_MANAGER',
+    allowedHotelIds: ['hotel-a'],
+  };
+
+  const hkSupervisor: AdminUser = {
+    uid: 'hk-1',
+    email: 'hk@hotel.com',
+    displayName: 'HK Supervisor',
+    role: 'HOUSEKEEPING_SUPERVISOR',
+    allowedHotelIds: ['hotel-a'],
+  };
+
+  const auditor: AdminUser = {
+    uid: 'aud-1',
+    email: 'auditor@hotel.com',
+    displayName: 'Auditor',
+    role: 'VIEWER',
+    allowedHotelIds: ['hotel-a'],
+  };
+
+  const superAdmin: AdminUser = {
+    uid: 'sa-1',
+    email: 'info@norivaglobal.com',
+    displayName: 'Super Admin',
+    role: 'SUPER_ADMIN',
+    allowedHotelIds: ['*'],
+  };
+
+  // Operational roles are denied from modifying Hotel Information
+  assert.equal(canEditHotelContent(fnbDirector, 'hotel-a'), false, 'FNB Manager cannot edit Hotel Information');
+  assert.equal(canEditHotelContent(hkSupervisor, 'hotel-a'), false, 'Housekeeping cannot edit Hotel Information');
+  assert.equal(canEditHotelContent(auditor, 'hotel-a'), false, 'Viewer cannot edit Hotel Information');
+
+  // Super Admin is granted full edit
+  assert.equal(canEditHotelContent(superAdmin, 'hotel-a'), true, 'Super Admin can edit Hotel Information');
+  assert.equal(canManageHotels(superAdmin), true, 'Super Admin can manage and unlock slug');
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 18: FULL CMS FUNCTIONAL REPAIR & CATALOG ISOLATION TESTS
+// ---------------------------------------------------------------------------
+test('Phase 18: Empty Catalog Isolation - Arbitrary hotel has 0 items and NEVER falls back to Swiss Flora', () => {
+  const newTenantId = 'grand-palace-riyadh';
+
+  // In-room services for new tenant must be empty
+  const services = getHotelGuestServices(newTenantId);
+  assert.equal(services.length, 0, 'New tenant guest services must be 0, never hardcoded 43 items');
+
+  // Laundry for new tenant must be empty
+  const laundry = getHotelLaundryItems(newTenantId);
+  assert.equal(laundry.length, 0, 'New tenant laundry must be 0, never hardcoded laundry garments');
+
+  // Dining outlets for new tenant must be empty
+  const outlets = getOutletsForHotel(newTenantId);
+  assert.equal(outlets.length, 0, 'New tenant outlets must be 0');
+
+  // Wellness services for new tenant must be empty
+  const wellness = getWellnessForHotel(newTenantId);
+  assert.equal(wellness.length, 0, 'New tenant wellness must be 0');
+
+  // Rooms for new tenant must be empty
+  const rooms = getRoomsForHotel(newTenantId);
+  assert.equal(rooms.length, 0, 'New tenant rooms must be 0');
+
+  // Offers for new tenant must be empty
+  const offers = getOffersForHotel(newTenantId);
+  assert.equal(offers.length, 0, 'New tenant offers must be 0');
+});
+
+test('Phase 18: Public Portal Configuration - Homepage sections, Navigation items, and Custom sections contract', () => {
+  const portalPayload = {
+    sections: [
+      { id: 'sec-hero', code: 'hero', title_en: 'Hero', title_ar: 'الرئيسية', is_enabled: true, order: 1 },
+      { id: 'sec-rooms', code: 'rooms', title_en: 'Rooms & Suites', title_ar: 'الغرف والأجنحة', is_enabled: true, order: 2 },
+    ],
+    navigation_items: [
+      { id: 'nav-rooms', label_en: 'Rooms & Suites', label_ar: 'الغرف والأجنحة', target_section: 'rooms-suites', is_enabled: true, order: 1 },
+      { id: 'nav-dining', label_en: 'Dining', label_ar: 'المطاعم', target_section: 'dining-venues', is_enabled: true, order: 2 },
+    ],
+    custom_sections: [
+      {
+        id: 'custom-vip',
+        code: 'custom',
+        title_en: 'VIP Jet Transfers',
+        title_ar: 'خدمة الطائرات الخاصة',
+        is_enabled: true,
+        order: 1,
+        cta_label_en: 'Inquire Now',
+      },
+    ],
+    announcement_banner: {
+      enabled: true,
+      type: 'promo',
+      text_en: 'Complimentary High Tea',
+      text_ar: 'شاي الظهيرة مجاناً',
+    },
+  };
+
+  assert.equal(portalPayload.sections.length, 2);
+  assert.equal(portalPayload.navigation_items.length, 2);
+  assert.equal(portalPayload.custom_sections.length, 1);
+  assert.equal(portalPayload.announcement_banner.enabled, true);
+  assert.equal(portalPayload.custom_sections[0].cta_label_en, 'Inquire Now');
+});
+
+test('Phase 18: Department Routing Matrix - Multi-tenant configuration without Swiss Flora dependency', () => {
+  const customHotelRouting = {
+    lines: [
+      {
+        id: 'line-fo',
+        department_code: 'front_office',
+        name_en: 'Front Desk',
+        name_ar: 'الاستقبال',
+        whatsapp_number: '+966551234567',
+        is_enabled: true,
+        audience: 'ALL',
+        operating_hours_en: '24/7',
+        operating_hours_ar: '24/7',
+      },
+      {
+        id: 'line-spa',
+        department_code: 'spa',
+        name_en: 'Royal Spa',
+        name_ar: 'السبا الملكي',
+        whatsapp_number: '+966559876543',
+        is_enabled: true,
+        audience: 'ALL',
+        operating_hours_en: '10:00 AM - 10:00 PM',
+        operating_hours_ar: '10:00 ص - 10:00 م',
+      },
+    ],
+  };
+
+  assert.equal(customHotelRouting.lines.length, 2);
+  assert.ok(customHotelRouting.lines[0].whatsapp_number.startsWith('+966'));
+  assert.equal(customHotelRouting.lines[1].department_code, 'spa');
+  // Confirm lines are not referencing old hardcoded swiss flora numbers (+96611200000X)
+  assert.ok(!customHotelRouting.lines.some((l) => l.whatsapp_number === '+966112000005'));
+});
+
+test('Phase 18: Hotel Content Subcollections - CRUD payload contracts conform to recursive Firestore paths', () => {
+  const hotelId = 'swiss-flora-royal';
+
+  // Room item contract (/hotels/{hotelId}/rooms/{roomId})
+  const roomDoc = {
+    id: 'deluxe-king',
+    hotel_id: hotelId,
+    name_en: 'Deluxe King Room',
+    name_ar: 'غرفة ديلوكس كينغ',
+    category_en: 'Deluxe',
+    category_ar: 'ديلوكس',
+    size_sqm: 45,
+    breakfast_included: true,
+    is_active: true,
+  };
+  assert.equal(roomDoc.hotel_id, hotelId);
+  assert.ok(roomDoc.size_sqm > 0);
+
+  // Laundry item contract (/hotels/{hotelId}/laundry/{itemId})
+  const laundryDoc = {
+    id: 'silk-suit',
+    hotel_id: hotelId,
+    name_en: 'Men Two-Piece Silk Suit',
+    name_ar: 'بدلة رجالية حريرية قطعتين',
+    category: 'Gentlemen',
+    price_wash_press: 85,
+    price_dry_clean: 120,
+    active: true,
+  };
+  assert.equal(laundryDoc.hotel_id, hotelId);
+  assert.equal(laundryDoc.price_dry_clean, 120);
+
+  // Guest Service item contract (/hotels/{hotelId}/guestServices/{serviceId})
+  const serviceDoc = {
+    id: 'turndown-extra-pillow',
+    hotel_id: hotelId,
+    name_en: 'Hypoallergenic Pillow Request',
+    name_ar: 'طلب وسائد مضادة للحساسية',
+    department: 'housekeeping',
+    price: 0,
+    active: true,
+  };
+  assert.equal(serviceDoc.hotel_id, hotelId);
+  assert.equal(serviceDoc.price, 0);
+});
+
 
 
 

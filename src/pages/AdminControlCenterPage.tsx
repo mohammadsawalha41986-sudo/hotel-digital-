@@ -8,7 +8,15 @@ import { AdminHeader, StaffRole } from '../components/admin/AdminHeader';
 import { DashboardView } from '../components/admin/DashboardView';
 import { OperationsView } from '../components/admin/OperationsView';
 import { WebsiteManagerView } from '../components/admin/WebsiteManagerView';
-import { HotelContentView, ContentSubTab } from '../components/admin/HotelContentView';
+import { RoomsManagerView } from '../components/admin/content/RoomsManagerView';
+import { FnbManagerView } from '../components/admin/content/FnbManagerView';
+import { WellnessManagerView } from '../components/admin/content/WellnessManagerView';
+import { LaundryManagerView } from '../components/admin/content/LaundryManagerView';
+import { GuestServicesManagerView } from '../components/admin/content/GuestServicesManagerView';
+import { OffersManagerView } from '../components/admin/content/OffersManagerView';
+import { HomepageSectionsView } from '../components/admin/cms/HomepageSectionsView';
+import { NavigationMenuView } from '../components/admin/cms/NavigationMenuView';
+import { CustomSectionsView } from '../components/admin/cms/CustomSectionsView';
 import { WhatsAppRoutingView } from '../components/admin/WhatsAppRoutingView';
 import { QRCodeStudioView } from '../components/admin/QRCodeStudioView';
 import { MediaLibraryView } from '../components/admin/MediaLibraryView';
@@ -20,6 +28,7 @@ import { HotelCreationWizard } from '../components/admin/HotelCreationWizard';
 import { AdminReviewsManager } from '../components/admin/AdminReviewsManager';
 import { AdminFeedbackManager } from '../components/admin/AdminFeedbackManager';
 import { HotelPortfolioView } from '../components/admin/HotelPortfolioView';
+import { HotelInformationView } from '../components/admin/HotelInformationView';
 import { ShieldAlert, Building2 } from 'lucide-react';
 import { AdminUser, canAccessHotel } from '../types/auth';
 import { subscribeToHotelRequests } from '../services/requestService';
@@ -332,11 +341,18 @@ export const AdminControlCenterPage: React.FC<AdminControlCenterPageProps> = ({
               />
             )}
 
+            {/* HOTEL INFORMATION CMS VIEW */}
+            {activeTab === 'hotel_info' && (
+              <HotelInformationView
+                hotel={currentHotel}
+                currentUser={currentUser}
+                onUpdateHotel={onUpdateHotel}
+                onMarkUnpublishedChanges={() => setHasUnpublishedChanges(true)}
+              />
+            )}
+
             {/* 3. WEBSITE & CMS: SECTIONS, HOMEPAGE, NAVIGATION */}
-            {(activeTab === 'website_manager' ||
-              activeTab === 'homepage_sections' ||
-              activeTab === 'navigation' ||
-              activeTab === 'custom_sections') && (
+            {activeTab === 'website_manager' && (
               <WebsiteManagerView
                 hotel={currentHotel}
                 onUpdateHotel={onUpdateHotel}
@@ -344,19 +360,66 @@ export const AdminControlCenterPage: React.FC<AdminControlCenterPageProps> = ({
               />
             )}
 
-            {/* 4. CONTENT: ROOMS, FNB, WELLNESS, LAUNDRY, SERVICES, OFFERS */}
-            {(activeTab === 'rooms_content' ||
-              activeTab === 'fnb_content' ||
-              activeTab === 'wellness_content' ||
-              activeTab === 'laundry_content' ||
-              activeTab === 'services_content' ||
-              activeTab === 'offers_content') && (
-              <HotelContentView
+            {activeTab === 'homepage_sections' && (
+              <HomepageSectionsView
                 hotel={currentHotel}
-                activeSubTab={getContentSubTab()}
-                onSelectSubTab={(sub) => {
-                  setActiveTab(`${sub}_content` as AdminSectionTab);
-                }}
+                onMarkUnpublishedChanges={() => setHasUnpublishedChanges(true)}
+              />
+            )}
+
+            {activeTab === 'navigation' && (
+              <NavigationMenuView
+                hotel={currentHotel}
+                onMarkUnpublishedChanges={() => setHasUnpublishedChanges(true)}
+              />
+            )}
+
+            {activeTab === 'custom_sections' && (
+              <CustomSectionsView
+                hotel={currentHotel}
+                onMarkUnpublishedChanges={() => setHasUnpublishedChanges(true)}
+              />
+            )}
+
+            {/* 4. CONTENT: ROOMS, FNB, WELLNESS, LAUNDRY, SERVICES, OFFERS */}
+            {activeTab === 'rooms_content' && (
+              <RoomsManagerView
+                hotel={currentHotel}
+                onMarkUnpublishedChanges={() => setHasUnpublishedChanges(true)}
+              />
+            )}
+
+            {activeTab === 'fnb_content' && (
+              <FnbManagerView
+                hotel={currentHotel}
+                onMarkUnpublishedChanges={() => setHasUnpublishedChanges(true)}
+              />
+            )}
+
+            {activeTab === 'wellness_content' && (
+              <WellnessManagerView
+                hotel={currentHotel}
+                onMarkUnpublishedChanges={() => setHasUnpublishedChanges(true)}
+              />
+            )}
+
+            {activeTab === 'laundry_content' && (
+              <LaundryManagerView
+                hotel={currentHotel}
+                onMarkUnpublishedChanges={() => setHasUnpublishedChanges(true)}
+              />
+            )}
+
+            {activeTab === 'services_content' && (
+              <GuestServicesManagerView
+                hotel={currentHotel}
+                onMarkUnpublishedChanges={() => setHasUnpublishedChanges(true)}
+              />
+            )}
+
+            {activeTab === 'offers_content' && (
+              <OffersManagerView
+                hotel={currentHotel}
                 onMarkUnpublishedChanges={() => setHasUnpublishedChanges(true)}
               />
             )}
