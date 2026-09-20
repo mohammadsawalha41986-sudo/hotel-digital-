@@ -25,15 +25,7 @@ import {
 } from 'lucide-react';
 import { WellnessService, WellnessBookingRequest } from '../../types/department';
 import { Language, HotelOffer } from '../../types/hotel';
-import {
-  WellnessServiceItem,
-  WellnessOffer,
-} from '../../types/wellness';
-import {
-  DEFAULT_WELLNESS_CATEGORIES,
-  DEFAULT_WELLNESS_SERVICES,
-  DEFAULT_WELLNESS_OFFERS,
-} from '../../data/wellnessHubData';
+import { WellnessCategory, WellnessServiceItem, WellnessOffer } from '../../types/wellness';
 import { WellnessBookingModal } from './WellnessBookingModal';
 import { buildEncodedWhatsAppUrl } from '../../utils/whatsappMessageBuilder';
 
@@ -53,6 +45,7 @@ export const WellnessHubPage: React.FC<WellnessHubPageProps> = ({
   hotelId,
   hotelNameEn,
   hotelNameAr,
+  services = [],
   currency = 'SAR',
   language,
   roomNumber = '',
@@ -70,9 +63,70 @@ export const WellnessHubPage: React.FC<WellnessHubPageProps> = ({
   // Offers Slider Ref
   const offersSliderRef = useRef<HTMLDivElement>(null);
 
-  const categories = DEFAULT_WELLNESS_CATEGORIES.filter((c) => c.active);
-  const allServices = DEFAULT_WELLNESS_SERVICES.filter((s) => s.active);
-  const offers = DEFAULT_WELLNESS_OFFERS.filter((o) => o.active);
+  const allServices: WellnessServiceItem[] = services
+    .filter((service) => service.is_active)
+    .map((service) => ({
+      id: service.id,
+      hotelId: service.hotel_id,
+      categoryId: service.service_type,
+      nameAr: service.name_ar,
+      nameEn: service.name_en,
+      descriptionAr: service.full_description_ar || service.short_description_ar,
+      descriptionEn: service.full_description_en || service.short_description_en,
+      image: service.hero_image,
+      icon: service.service_type,
+      durationMinutes: service.duration_minutes,
+      price: service.offer_price ?? service.price,
+      oldPrice: service.offer_price ? service.price : undefined,
+      currency: service.currency,
+      complimentary: service.price <= 0,
+      bookingMode: service.booking_enabled ? 'BOOKING_REQUIRED' : 'INFORMATION_ONLY',
+      whatsappNumber: service.contact.whatsapp_number,
+      phoneNumber: service.contact.phone,
+      openingHoursEn: service.operating_info.opening_hours_en,
+      openingHoursAr: service.operating_info.opening_hours_ar,
+      locationEn: service.location.floor_en,
+      locationAr: service.location.floor_ar,
+      rulesEn: service.rules_en,
+      rulesAr: service.rules_ar,
+      active: service.is_active,
+      sortOrder: service.sort_order,
+    }));
+
+  const categoryLabels: Record<string, { en: string; ar: string }> = {
+    health_club: { en: 'Health Club', ar: 'النادي الصحي' },
+    spa: { en: 'Spa', ar: 'السبا' },
+    massage: { en: 'Massage', ar: 'التدليك' },
+    gym: { en: 'Gym', ar: 'النادي الرياضي' },
+    pool: { en: 'Pool', ar: 'المسبح' },
+    sauna: { en: 'Sauna', ar: 'الساونا' },
+    steam: { en: 'Steam Room', ar: 'غرفة البخار' },
+    other: { en: 'Other Services', ar: 'خدمات أخرى' },
+  };
+  const categories: WellnessCategory[] = Array.from(new Set(allServices.map((service) => service.categoryId))).map((id, index) => {
+    const categoryServices = allServices.filter((service) => service.categoryId === id);
+    const first = categoryServices[0];
+    const label = categoryLabels[id] || categoryLabels.other;
+    return {
+      id,
+      hotelId: hotelId || first.hotelId,
+      nameEn: label.en,
+      nameAr: label.ar,
+      descriptionEn: first.descriptionEn,
+      descriptionAr: first.descriptionAr,
+      icon: id,
+      image: first.image,
+      type: 'mixed',
+      active: true,
+      sortOrder: index,
+      serviceCountLabelEn: `${categoryServices.length} services`,
+      serviceCountLabelAr: `${categoryServices.length.toLocaleString('ar-SA')} خدمات`,
+      whatsappNumber: first.whatsappNumber,
+      phoneNumber: first.phoneNumber,
+    };
+  });
+  const offers: WellnessOffer[] = [];
+  const primaryService = services[0];
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
   const categoryServices = allServices.filter(
@@ -118,7 +172,7 @@ export const WellnessHubPage: React.FC<WellnessHubPageProps> = ({
           price: offer.price ?? 0,
           oldPrice: offer.oldPrice,
           durationMinutes: 60,
-          whatsappNumber: '+966555072806',
+          whatsappNumber: primaryService?.contact.whatsapp_number,
         });
       }
     } else {
@@ -127,7 +181,8 @@ export const WellnessHubPage: React.FC<WellnessHubPageProps> = ({
   };
 
   const handleDirectWhatsApp = (whatsappNumber?: string, prefillEn?: string, prefillAr?: string) => {
-    const targetWa = whatsappNumber || '+966555072806';
+    const targetWa = whatsappNumber || primaryService?.contact.whatsapp_number || '';
+    if (!targetWa) return;
     const text = isAr
       ? (prefillAr || 'مرحباً بمركز السبا والعافية في سويس فلورا، أود الاستفسار عن المواعيد والخدمات المتاحة.')
       : (prefillEn || 'Hello Swiss Flora Wellness & Spa, I would like to inquire about appointments and facilities.');
@@ -204,13 +259,14 @@ export const WellnessHubPage: React.FC<WellnessHubPageProps> = ({
           )}
 
           <div className="flex items-center gap-3 text-xs">
-            <span className="hidden sm:inline-flex items-center gap-1.5 bg-stone-800 text-stone-300 px-2.5 py-1 rounded-full border border-stone-700">
+            {primaryService?.operating_info && <span className="hidden sm:inline-flex items-center gap-1.5 bg-stone-800 text-stone-300 px-2.5 py-1 rounded-full border border-stone-700">
               <Clock size={12} className="text-amber-400" />
-              <span>{isAr ? '07:00 ص - 11:00 م يومياً' : '07:00 - 23:00 Daily'}</span>
-            </span>
+              <span>{isAr ? primaryService.operating_info.opening_hours_ar : primaryService.operating_info.opening_hours_en}</span>
+            </span>}
 
             <button
-              onClick={() => handleDirectWhatsApp('+966555072806')}
+              onClick={() => handleDirectWhatsApp(primaryService?.contact.whatsapp_number)}
+              disabled={!primaryService?.contact.whatsapp_number}
               className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-medium transition-all shadow-sm cursor-pointer"
             >
               <MessageSquare size={13} />
@@ -230,7 +286,7 @@ export const WellnessHubPage: React.FC<WellnessHubPageProps> = ({
             <div
               className="absolute inset-0 bg-cover bg-center opacity-25 scale-105 transition-transform duration-1000"
               style={{
-                backgroundImage: `url('https://api.swissflorahotels.com/wwwroot/AttachmentPath/Spa/a1d28670-ddb6-42fc-9b26-38a6200ba872/Massage.jpg')`,
+                backgroundImage: primaryService?.hero_image ? `url('${primaryService.hero_image}')` : undefined,
               }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/70 to-stone-900/80" />
@@ -255,16 +311,16 @@ export const WellnessHubPage: React.FC<WellnessHubPageProps> = ({
               <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5 text-xs text-stone-300">
                 <span className="flex items-center gap-1.5 bg-stone-800/80 backdrop-blur-sm border border-stone-700/80 px-3 py-1.5 rounded-full">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>{isAr ? 'مفتوح الآن للنزلاء' : 'Open Now for Residents'}</span>
+                  <span>{isAr ? `${services.length.toLocaleString('ar-SA')} خدمات منشورة` : `${services.length} published services`}</span>
                 </span>
-                <span className="flex items-center gap-1.5 bg-stone-800/80 backdrop-blur-sm border border-stone-700/80 px-3 py-1.5 rounded-full">
+                {primaryService?.location && <span className="flex items-center gap-1.5 bg-stone-800/80 backdrop-blur-sm border border-stone-700/80 px-3 py-1.5 rounded-full">
                   <MapPin size={13} className="text-amber-400" />
-                  <span>{isAr ? 'الطابق الثالث - طابق العافية' : '3rd Floor - Wellness Deck'}</span>
-                </span>
-                <span className="flex items-center gap-1.5 bg-stone-800/80 backdrop-blur-sm border border-stone-700/80 px-3 py-1.5 rounded-full">
+                  <span>{isAr ? primaryService.location.floor_ar : primaryService.location.floor_en}</span>
+                </span>}
+                {primaryService?.contact.extension && <span className="flex items-center gap-1.5 bg-stone-800/80 backdrop-blur-sm border border-stone-700/80 px-3 py-1.5 rounded-full">
                   <Phone size={13} className="text-amber-400" />
-                  <span>{isAr ? 'تحويلة 330 / 332' : 'Ext. 330 / 332'}</span>
-                </span>
+                  <span>{isAr ? `تحويلة ${primaryService.contact.extension}` : `Ext. ${primaryService.contact.extension}`}</span>
+                </span>}
               </div>
             </div>
           </div>
@@ -368,7 +424,7 @@ export const WellnessHubPage: React.FC<WellnessHubPageProps> = ({
                       <button
                         onClick={() =>
                           handleDirectWhatsApp(
-                            '+966555072806',
+                            primaryService?.contact.whatsapp_number,
                             `Hello, I would like to inquire about the offer: ${offer.titleEn}`,
                             `مرحباً، أود الاستفسار عن عرض: ${offer.titleAr}`
                           )

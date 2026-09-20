@@ -11,6 +11,7 @@ import {
   GuestServiceCatalogItem,
   LaundryCatalogItem,
   WellnessService,
+  DepartmentContact,
 } from '../types/department';
 import { getRooms, getOutlets, getOffers, getWellness, getLaundry, getGuestServices } from '../services/hotelService';
 import { InRoomServiceItem } from '../types/inRoomServices';
@@ -156,7 +157,22 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
   const hotelWellnessServices = portalWellness;
   const hotelLaundryItems = portalLaundry;
   const hotelGuestServices = portalServices;
-  const laundryContact = undefined;
+  const laundryContact: DepartmentContact = {
+    id: `${currentHotel.id}-laundry-contact`,
+    department_code: 'laundry',
+    name_en: 'Hotel Laundry',
+    name_ar: 'مغسلة الفندق',
+    phone: currentHotel.phone || '',
+    extension: '',
+    whatsapp_number: currentHotel.whatsapp_number || '',
+    whatsapp_enabled: Boolean(currentHotel.whatsapp_number),
+    default_message_en: 'Hello, I would like to request laundry service.',
+    default_message_ar: 'مرحباً، أود طلب خدمة المغسلة.',
+    email: currentHotel.email,
+    hours_en: '',
+    hours_ar: '',
+    is_active: true,
+  };
 
   const inRoomServices = useMemo<InRoomServiceItem[]>(() => portalServices.map((service) => ({
     id: service.id,
@@ -233,6 +249,27 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
     badge_ar: service.sla_target_ar,
   }));
 
+  const availableDepartments = useMemo<TopLevelDepartment[]>(() => {
+    const departments: TopLevelDepartment[] = ['overview'];
+    if (portalServices.length > 0) departments.push('stay', 'services');
+    if (portalOutlets.length > 0) departments.push('dining');
+    if (portalWellness.length > 0) departments.push('wellness');
+    if (portalLaundry.length > 0) departments.push('laundry');
+    if (portalOffers.length > 0) departments.push('offers');
+    return departments;
+  }, [portalLaundry.length, portalOffers.length, portalOutlets.length, portalServices.length, portalWellness.length]);
+
+  const availableSectionIds = useMemo(() => {
+    const ids = ['top', 'hotel-info', 'contact-location'];
+    if (portalOffers.length > 0) ids.push('hotel-offers');
+    if (portalRooms.length > 0) ids.push('rooms-suites');
+    if (diningPreview.length > 0) ids.push('dining-venues');
+    if (wellnessPreview.length > 0) ids.push('wellness-spa');
+    if (roomServicePreview.length > 0) ids.push('room-service-cafe');
+    if (servicesPreview.length > 0) ids.push('hotel-services');
+    return ids;
+  }, [diningPreview.length, portalOffers.length, portalRooms.length, roomServicePreview.length, servicesPreview.length, wellnessPreview.length]);
+
   const heroCustom = currentHotel.portal_config?.hero_custom;
   const portalHotel: Hotel = {
     ...currentHotel,
@@ -294,9 +331,21 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
   }
 
   const handleSelectDepartment = (dept: TopLevelDepartment) => {
+    if (!availableDepartments.includes(dept)) return;
     setActiveDepartment(dept);
     setSelectedFBOutlet(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleNavigateSection = (href: string) => {
+    const sectionId = href.replace(/^#/, '');
+    setActiveDepartment('overview');
+    setSelectedFBOutlet(null);
+    window.setTimeout(() => {
+      const target = document.getElementById(sectionId);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      else window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 0);
   };
 
   const handleSelectOffer = (offer: HotelOffer) => {
@@ -343,6 +392,8 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
         onToggleLanguage={onToggleLanguage}
         roomNumber={roomNumber}
         onSetRoomNumber={onSetRoomNumber}
+        onNavigateSection={handleNavigateSection}
+        availableSectionIds={availableSectionIds}
       />
 
       {/* 2. Top-Level Department Navigation Bar (Desktop & Tablet) */}
@@ -350,6 +401,15 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
         activeDepartment={activeDepartment}
         onSelectDepartment={handleSelectDepartment}
         language={language}
+        availableDepartments={availableDepartments}
+        counts={{
+          stay: portalServices.length,
+          dining: portalOutlets.length,
+          wellness: portalWellness.length,
+          laundry: portalLaundry.length,
+          services: portalServices.length,
+          offers: portalOffers.length,
+        }}
       />
 
       {/* 3. Breadcrumb Navigation (Showing full hierarchy) */}
@@ -392,11 +452,16 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
                 }}
                 onExploreServices={() => {
-                  const target = heroCustom?.cta_target?.replace(/^#/, '') || 'hotel-services';
+                  const configuredTarget = heroCustom?.cta_target?.replace(/^#/, '') || 'hotel-services';
+                  const target = availableSectionIds.includes(configuredTarget)
+                    ? configuredTarget
+                    : availableSectionIds.find((id) => !['top', 'hotel-info', 'contact-location'].includes(id)) || 'hotel-info';
                   const el = document.getElementById(target);
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
                 }}
                 primaryCtaLabel={isAr ? heroCustom?.cta_ar : heroCustom?.cta_en}
+                showServicesCta={servicesPreview.length + diningPreview.length + wellnessPreview.length + roomServicePreview.length > 0}
+                showOffersCta={hotelOffers.length > 0}
               />
             </div>
           )}
@@ -493,7 +558,7 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
           )}
 
           {/* 4. GUEST REVIEWS (Moderated review system) */}
-          <div style={{ order: 7.2 }}>
+          <div style={{ order: 80 }}>
               <GuestReviewsSection
                 hotelId={currentHotel.id}
                 hotelName={isAr ? currentHotel.name_ar : currentHotel.name_en}
@@ -505,14 +570,14 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
 
           {/* 5. HOTEL GALLERY (Visual tour & lightbox) */}
           {portalHotel.hero_images.length > 0 && (
-            <div style={{ order: 7.4 }}>
+            <div style={{ order: 90 }}>
               <HotelGallerySection language={language} heroImages={portalHotel.hero_images} />
             </div>
           )}
 
           {/* 6. HOTEL INFORMATION & GUEST ASSISTANCE (Information, Contacts, Feedback, Safety) */}
           {isSectionEnabled('info') && (
-            <div style={{ order: sectionOrder('info', 8) }}>
+            <div style={{ order: 100 }}>
               <div id="hotel-info" className="scroll-mt-28">
                 <HotelInfoContactSection hotel={portalHotel} language={language} roomNumber={roomNumber} />
               </div>
@@ -521,7 +586,7 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
 
           {/* 7. GENERAL WHATSAPP (Reception & Concierge helpline with room context) */}
           {isSectionEnabled('contact') && (
-            <div style={{ order: sectionOrder('contact', 9) }}>
+            <div style={{ order: 110 }}>
               <div id="contact-location" className="scroll-mt-28">
                 <GeneralWhatsAppSection hotel={portalHotel} language={language} roomNumber={roomNumber} />
               </div>
@@ -672,6 +737,8 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
         hotel={currentHotel}
         language={language}
         onToggleLanguage={onToggleLanguage}
+        onNavigateSection={handleNavigateSection}
+        availableSectionIds={availableSectionIds}
       />
 
       {/* 11. Mobile Bottom Navigation Bar (Persistent on QR/Mobile Viewports) */}
@@ -680,6 +747,9 @@ export const GuestPortalPage: React.FC<GuestPortalPageProps> = ({
         onSelectTab={handleSelectDepartment}
         language={language}
         offersCount={hotelOffers.length}
+        availableDepartments={availableDepartments.filter((department) =>
+          ['overview', 'stay', 'dining', 'wellness', 'offers'].includes(department)
+        )}
       />
     </div>
     </Suspense>

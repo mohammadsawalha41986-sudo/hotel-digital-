@@ -233,9 +233,9 @@ export const GuestServicesHubPage: React.FC<GuestServicesHubPageProps> = ({
             </h1>
 
             <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
-              {isAr
-                ? 'فريق الضيافة والصيانة في خدمتك على مدار الساعة. اطلب مستلزمات الغرف الإضافية، صيانة التكييف، نقل الحقائب، أو خدمة فتح الأغطية المسائية بضغطة زر وبزمن استجابة قياسي.'
-                : 'Round-the-clock rapid dispatch for housekeeping amenities, engineering diagnostics, luggage transport, and personalized comfort items with guaranteed SLA targets.'}
+              {services.length > 0
+                ? (isAr ? 'اختر إحدى الخدمات المنشورة وأرسل طلبك مباشرة إلى القسم المسؤول.' : 'Choose a published service and send your request directly to the responsible department.')
+                : (isAr ? 'لم تنشر إدارة الفندق خدمات للطلب المباشر بعد.' : 'The hotel has not published any direct-request services yet.')}
             </p>
           </div>
         </div>

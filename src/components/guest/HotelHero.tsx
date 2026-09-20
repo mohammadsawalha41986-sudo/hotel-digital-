@@ -21,6 +21,8 @@ interface HotelHeroProps {
   onExploreOffers: () => void;
   onExploreServices: () => void;
   primaryCtaLabel?: string;
+  showServicesCta?: boolean;
+  showOffersCta?: boolean;
 }
 
 export const HotelHero: React.FC<HotelHeroProps> = ({
@@ -31,6 +33,8 @@ export const HotelHero: React.FC<HotelHeroProps> = ({
   onExploreOffers,
   onExploreServices,
   primaryCtaLabel,
+  showServicesCta = true,
+  showOffersCta = true,
 }) => {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const isAr = language === 'ar';
@@ -53,6 +57,11 @@ export const HotelHero: React.FC<HotelHeroProps> = ({
       className="relative min-h-[580px] sm:min-h-[660px] flex items-end justify-start overflow-hidden bg-stone-950 text-white"
     >
       {/* Background Image Carousel with Cinematic Overlay */}
+      {hotel.hero_images.length === 0 && (
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(217,119,6,0.24),transparent_34%),radial-gradient(circle_at_18%_74%,rgba(120,53,15,0.22),transparent_38%),linear-gradient(135deg,#1c1917_0%,#0c0a09_58%,#292524_100%)]">
+          <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(110deg,transparent_35%,rgba(255,255,255,.8)_50%,transparent_65%)]" />
+        </div>
+      )}
       {hotel.hero_images.map((slide, idx) => (
         <div
           key={slide.url}
@@ -143,7 +152,7 @@ export const HotelHero: React.FC<HotelHeroProps> = ({
                 <img
                   src={hotel.logo_url}
                   alt={isAr ? hotel.name_ar : hotel.name_en}
-                  className="h-9 sm:h-11 w-auto max-w-[130px] object-contain"
+                className="h-10 sm:h-12 w-auto max-w-[170px] object-contain"
                 />
               </div>
             )}
@@ -164,20 +173,24 @@ export const HotelHero: React.FC<HotelHeroProps> = ({
             <h1 className="text-3xl sm:text-5xl font-serif font-bold tracking-tight text-white leading-tight">
               {isAr ? hotel.name_ar : hotel.name_en}
             </h1>
-            <p className="text-sm sm:text-base font-serif italic text-amber-200/90 font-medium">
-              {isAr ? hotel.tagline_ar : hotel.tagline_en}
-            </p>
+            {(isAr ? hotel.tagline_ar : hotel.tagline_en) && (
+              <p className="text-sm sm:text-base font-serif italic text-amber-200/90 font-medium">
+                {isAr ? hotel.tagline_ar : hotel.tagline_en}
+              </p>
+            )}
           </div>
 
           {/* Short Welcome Message (Concise, not overloaded) */}
-          <p className="text-xs sm:text-sm text-stone-300 leading-relaxed max-w-2xl font-normal line-clamp-3 sm:line-clamp-none">
-            {isAr ? hotel.description_ar : hotel.description_en}
-          </p>
+          {(isAr ? hotel.description_ar : hotel.description_en) && (
+            <p className="text-xs sm:text-sm text-stone-300 leading-relaxed max-w-2xl font-normal line-clamp-3 sm:line-clamp-none">
+              {isAr ? hotel.description_ar : hotel.description_en}
+            </p>
+          )}
 
           {/* Clean Primary Action Buttons (No Room Booking) */}
           <div className="pt-2 flex flex-wrap items-center gap-3">
             {/* 1. Explore Hotel Services */}
-            <button
+            {showServicesCta && <button
               id="hero-explore-services-btn"
               onClick={onExploreServices}
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white text-xs sm:text-sm font-semibold shadow-lg transition-all cursor-pointer touch-target group"
@@ -188,17 +201,17 @@ export const HotelHero: React.FC<HotelHeroProps> = ({
               <Compass size={16} />
               <span>{primaryCtaLabel || (isAr ? 'استكشف أقسام الفندق' : 'Explore Hotel Departments')}</span>
               <NextIcon size={14} className="group-hover:translate-x-0.5 transition-transform rtl:group-hover:-translate-x-0.5" />
-            </button>
+            </button>}
 
             {/* 2. Hotel Offers */}
-            <button
+            {showOffersCta && <button
               id="hero-explore-offers-btn"
               onClick={onExploreOffers}
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/15 hover:bg-white/25 active:bg-white/30 backdrop-blur-md text-white border border-white/25 text-xs sm:text-sm font-semibold transition-all cursor-pointer touch-target"
             >
               <Tag size={15} className="text-amber-300" />
               <span>{isAr ? 'عروض الفندق الحصرية' : 'Exclusive Hotel Offers'}</span>
-            </button>
+            </button>}
           </div>
         </div>
       </div>

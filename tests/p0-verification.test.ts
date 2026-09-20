@@ -1351,6 +1351,23 @@ test('CMS regression: Guest Portal reads canonical Firestore catalogs without pr
   assert.match(appSource, /import\.meta\.env\.DEV/);
 });
 
+test('Guest portal UX regression: published navigation exposes only configured catalog content', () => {
+  const portalSource = readFileSync(new URL('../src/pages/GuestPortalPage.tsx', import.meta.url), 'utf8');
+  const tabsSource = readFileSync(new URL('../src/components/guest/DepartmentTabBar.tsx', import.meta.url), 'utf8');
+  const diningSource = readFileSync(new URL('../src/components/guest/FoodAndBeverageHubPage.tsx', import.meta.url), 'utf8');
+  const wellnessSource = readFileSync(new URL('../src/components/guest/WellnessHubPage.tsx', import.meta.url), 'utf8');
+  const laundrySource = readFileSync(new URL('../src/components/guest/LaundryHubPage.tsx', import.meta.url), 'utf8');
+
+  assert.match(portalSource, /availableDepartments/);
+  assert.match(portalSource, /availableSectionIds/);
+  assert.doesNotMatch(portalSource, /order:\s*7\.2|order:\s*7\.4/);
+  assert.doesNotMatch(tabsSource, /5 Outlets|٥ منافذ|Pool & Gym/);
+  assert.doesNotMatch(diningSource, /DEFAULT_DINING_OFFERS/);
+  assert.doesNotMatch(wellnessSource, /DEFAULT_WELLNESS_(CATEGORIES|SERVICES|OFFERS)/);
+  assert.doesNotMatch(wellnessSource, /\+966555072806|Ext\. 330|تحويلة 330/);
+  assert.doesNotMatch(laundrySource, /\+966539201105/);
+});
+
 test('Security regression: operational routing and Wi-Fi credentials are excluded from public reads', () => {
   const serviceSource = readFileSync(new URL('../src/services/hotelService.ts', import.meta.url), 'utf8');
   const rulesSource = readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8');

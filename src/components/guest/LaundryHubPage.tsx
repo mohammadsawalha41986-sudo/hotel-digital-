@@ -337,8 +337,7 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
   // -------------------------------------------------------------------------
   // 6. WHATSAPP & OPERATIONAL SUBMISSION
   // -------------------------------------------------------------------------
-  const valetWhatsApp =
-    contact?.whatsapp_number || '+966539201105'; // Configured Valet Laundry number
+  const valetWhatsApp = contact?.whatsapp_number || '';
 
   const handlePlaceLaundryRequest = () => {
     if (totalItemCount === 0) return;
@@ -704,20 +703,20 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
 
             <p className="text-stone-300 text-sm sm:text-base leading-relaxed max-w-2xl">
               {isAr
-                ? 'عناية فائقة بملابسك الرسمية والتراثية بأيدي خبراء متخصصين. اختر نوع المعالجة، حدد قطع الملابس، واستلمها جاهزة ومعقمة في موعدك المحدد.'
-                : 'Master garment care for bespoke suits, traditional wear, and daily apparel. Choose your service, select pieces, and schedule room valet collection.'}
+                ? 'اختر القطع والخدمة المطلوبة من قائمة المغسلة المنشورة من إدارة الفندق.'
+                : 'Choose garments and services from the laundry catalog published by the hotel.'}
             </p>
 
             {/* Quick Status Badges */}
             <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-stone-400">
               <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-emerald-400" />
-                <span>{isAr ? 'ساعات الاستلام: 07:00 ص – 09:00 م' : 'Valet Hours: 07:00 AM – 09:00 PM'}</span>
+                <span>{isAr ? `${allGarments.length.toLocaleString('ar-SA')} قطعة منشورة` : `${allGarments.length} published items`}</span>
               </div>
-              <div className="flex items-center gap-1.5">
+              {contact?.hours_en && <div className="flex items-center gap-1.5">
                 <Zap className="w-4 h-4 text-amber-400" />
-                <span>{isAr ? 'الخدمة السريعة (4 ساعات): متاحة 24/7' : 'Express (4-Hr Return): 24/7'}</span>
-              </div>
+                <span>{isAr ? contact.hours_ar : contact.hours_en}</span>
+              </div>}
             </div>
           </div>
         </div>
@@ -726,7 +725,7 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
       {/* =====================================================================
           2. FEATURED LAUNDRY OFFERS FIRST (SLIDER / BANNER)
       ====================================================================== */}
-      <section id="laundry-featured-offers" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+      {propItems === undefined && <section id="laundry-featured-offers" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="flex items-center gap-2">
@@ -837,7 +836,7 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
             </div>
           ))}
         </div>
-      </section>
+      </section>}
 
       {/* =====================================================================
           MAIN LAYOUT: 70% INTERACTIVE FLOW + 30% STICKY LAUNDRY BAG
