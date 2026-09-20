@@ -9,18 +9,23 @@ dist-ssr/
 
 # Environment and secrets
 .env
+.env.local
+.env.*.local
 .env.*
 !.env.example
 *.local
 
 # Firebase
 .firebase/
+.firebaserc
 firebase-debug.log*
 firestore-debug.log*
 ui-debug.log*
 firebase-applet-config*.json
 *service-account*.json
 *serviceAccount*.json
+serviceAccountKey.json
+firebase-adminsdk*.json
 
 # Logs
 logs

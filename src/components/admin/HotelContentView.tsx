@@ -19,7 +19,6 @@ import {
   getHotelFBOutlets,
   getHotelWellnessServices,
 } from '../../data/departmentData';
-import { MOCK_OFFERS } from '../../data/mockHotels';
 import { InRoomServiceItem, InRoomServiceCategory, InRoomServiceCategoryItem } from '../../types/inRoomServices';
 import { INITIAL_IN_ROOM_SERVICES, INITIAL_IN_ROOM_CATEGORIES, DEFAULT_DEPARTMENT_WHATSAPP_CONFIG } from '../../data/inRoomServicesData';
 import { ServiceIcon } from '../../utils/serviceIcons';
@@ -65,9 +64,8 @@ export const HotelContentView: React.FC<HotelContentViewProps> = ({
     dry_clean: 0,
     express_surcharge: 0,
   });
-  const [valetWhatsAppNumber, setValetWhatsAppNumber] = useState<string>('+966539201105');
-
-  const offers: HotelOffer[] = hotel.offers && hotel.offers.length > 0 ? hotel.offers : MOCK_OFFERS;
+  const [valetWhatsAppNumber, setValetWhatsAppNumber] = useState<string>(hotel.whatsapp_number || '+966114000000');
+  const offers: HotelOffer[] = hotel.offers || [];
   const fnbOutlets: FBOutlet[] = getHotelFBOutlets(hotel.id);
   const wellnessServices: WellnessService[] = getHotelWellnessServices(hotel.id);
 

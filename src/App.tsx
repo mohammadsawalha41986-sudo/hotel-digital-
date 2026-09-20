@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { RouteDefinition, ROUTE_REGISTRY } from './routes/routeRegistry';
 import { Header } from './components/Header';
 import { ParamSimulator } from './components/ParamSimulator';
@@ -7,7 +7,7 @@ import { RouteCard } from './components/RouteCard';
 import { HierarchyTreeView } from './components/HierarchyTreeView';
 import { WhatsAppRoutingMatrix } from './components/WhatsAppRoutingMatrix';
 import { LegacyMigrationView } from './components/LegacyMigrationView';
-import { Search, Filter, Sparkles, Check, Home, Shield, QrCode, Building2 } from 'lucide-react';
+import { Search, Filter, Sparkles, Check, Home, Shield, QrCode, Building2, EyeOff, Loader2 } from 'lucide-react';
 import { MOCK_HOTELS } from './data/mockHotels';
 import { Hotel, Language } from './types/hotel';
 import { TopLevelDepartment } from './types/department';
@@ -17,46 +17,33 @@ import { AdminControlCenterPage } from './pages/AdminControlCenterPage';
 import { AdminLoginPage } from './components/admin/AdminLoginPage';
 import { parseCurrentRoute, pushAppRoute, buildGuestUrl, buildAdminUrl, findHotelBySlug } from './utils/urlRouter';
 import { RouteQRCodeModal } from './components/RouteQRCodeModal';
-import { AdminUser } from './types/auth';
+import { AdminUser, canAccessHotel } from './types/auth';
 import { getCurrentAdminUser, onAuthStateChangedListener, signOutAdminUser } from './services/authService';
+import {
+  getHotelBySlug,
+  subscribeToHotelsForAdmin,
+  updateHotel as updateFirestoreHotel,
+} from './services/hotelService';
+import { isFirebaseConfigured, defaultHotelSlug } from './services/firebase';
 
-const STORAGE_KEY_HOTELS = 'hotel_hub_hotels_list_v4_swissflora';
 const STORAGE_KEY_ACTIVE = 'hotel_hub_active_hotel_id_v4_swissflora';
+const STORAGE_KEY_HOTELS = 'hotel_hub_hotels_list_v4';
 
 export default function App() {
-  // Multi-Hotel Tenant State with Local Persistence
+  // Dynamic Multi-Hotel State driven by Firestore (with dev fallback when unconfigured)
   const [hotelsList, setHotelsList] = useState<Hotel[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_HOTELS);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.some((h) => h.id === '11')) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.warn('Could not restore hotels from localStorage', e);
-    }
-    return MOCK_HOTELS;
+    if (!isFirebaseConfigured) return MOCK_HOTELS;
+    return [];
   });
 
-  const [currentHotel, setCurrentHotel] = useState<Hotel>(() => {
-    const parsed = parseCurrentRoute();
-    if (parsed.hotelSlug) {
-      const match = findHotelBySlug(MOCK_HOTELS, parsed.hotelSlug);
-      if (match) return match;
-    }
-    try {
-      const activeId = localStorage.getItem(STORAGE_KEY_ACTIVE);
-      if (activeId) {
-        const found = findHotelBySlug(MOCK_HOTELS, activeId);
-        if (found) return found;
-      }
-    } catch (e) {
-      // ignore
-    }
-    return MOCK_HOTELS[0]; // Swiss Flora Royal Hotel Riyadh
+  const [currentHotel, setCurrentHotel] = useState<Hotel | null>(() => {
+    if (!isFirebaseConfigured) return MOCK_HOTELS[0];
+    return null;
   });
+
+  const [isHotelLoading, setIsHotelLoading] = useState<boolean>(isFirebaseConfigured);
+  const [isHotelUnpublished, setIsHotelUnpublished] = useState<boolean>(false);
+  const [isHotelNotFound, setIsHotelNotFound] = useState<boolean>(false);
 
   // Language & Direction State (Bilingual AR / EN with dynamic RTL / LTR)
   const [language, setLanguage] = useState<Language>(() => {
@@ -92,16 +79,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Unknown Hotel Not Found handling
-  const [isHotelNotFound, setIsHotelNotFound] = useState<boolean>(() => {
-    const parsed = parseCurrentRoute();
-    if (parsed.hotelSlug) {
-      const match = findHotelBySlug(MOCK_HOTELS, parsed.hotelSlug);
-      return !match;
-    }
-    return false;
-  });
-
   // Primary Application View: 'guest_portal' | 'admin_portal' | 'route_registry'
   const [appView, setAppView] = useState<'guest_portal' | 'admin_portal' | 'route_registry'>(() => {
     const parsed = parseCurrentRoute();
@@ -119,52 +96,116 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [selectedRouteForQR, setSelectedRouteForQR] = useState<RouteDefinition | null>(null);
 
-  // Sync browser popstate and hashchange routing
-  useEffect(() => {
-    const handleUrlChange = () => {
-      const parsed = parseCurrentRoute();
-      if (parsed.type === 'admin') {
-        setAppView('admin_portal');
-        if (parsed.adminHotelId) {
-          const match = findHotelBySlug(hotelsList, parsed.adminHotelId);
-          if (match) setCurrentHotel(match);
+  // Synchronize route and load active hotel dynamically
+  const syncRouteAndHotel = useCallback(async () => {
+    const parsed = parseCurrentRoute();
+
+    if (parsed.type === 'admin') {
+      setAppView('admin_portal');
+      return;
+    }
+
+    if (parsed.type === 'dev_routes') {
+      setAppView('route_registry');
+      return;
+    }
+
+    setAppView('guest_portal');
+    const targetSlug = parsed.hotelSlug || defaultHotelSlug;
+
+    setIsHotelLoading(true);
+    setIsHotelUnpublished(false);
+    setIsHotelNotFound(false);
+
+    if (!isFirebaseConfigured) {
+      const localMatch = findHotelBySlug(MOCK_HOTELS, targetSlug);
+      if (localMatch) {
+        setCurrentHotel(localMatch);
+        const hasAccess = localMatch.is_published || (adminUser && canAccessHotel(adminUser, localMatch.id));
+        if (!hasAccess) {
+          setIsHotelUnpublished(true);
         }
-      } else if (parsed.type === 'dev_routes') {
-        setAppView('route_registry');
       } else {
-        setAppView('guest_portal');
-        if (parsed.hotelSlug) {
-          const match = findHotelBySlug(hotelsList, parsed.hotelSlug);
-          if (match) {
-            setCurrentHotel(match);
-            setIsHotelNotFound(false);
-          } else {
-            setIsHotelNotFound(true);
-          }
+        setIsHotelNotFound(true);
+        setCurrentHotel(null);
+      }
+      setIsHotelLoading(false);
+      return;
+    }
+
+    try {
+      const hotel = await getHotelBySlug(targetSlug);
+
+      if (!hotel) {
+        setIsHotelNotFound(true);
+        setCurrentHotel(null);
+      } else {
+        const hasAccess = hotel.is_published || (adminUser && canAccessHotel(adminUser, hotel.id));
+        if (!hasAccess) {
+          setIsHotelUnpublished(true);
+          setCurrentHotel(hotel);
         } else {
+          setCurrentHotel(hotel);
+          setIsHotelUnpublished(false);
           setIsHotelNotFound(false);
         }
-        if (parsed.roomNumber !== undefined) {
-          setRoomNumber(parsed.roomNumber);
-        }
-        if (parsed.subDepartment) {
-          setInitialDepartment(parsed.subDepartment);
-        }
-        if (typeof window !== 'undefined') {
-          const params = new URLSearchParams(window.location.search);
-          const l = params.get('lang');
-          if (l === 'ar' || l === 'en') setLanguage(l);
-        }
       }
+    } catch (err) {
+      console.warn('Failed to load hotel from Firestore:', err);
+      setIsHotelNotFound(true);
+    } finally {
+      setIsHotelLoading(false);
+    }
+  }, [adminUser]);
+
+  useEffect(() => {
+    syncRouteAndHotel();
+
+    const handleUrlChange = () => {
+      const parsed = parseCurrentRoute();
+      if (parsed.roomNumber !== undefined) {
+        setRoomNumber(parsed.roomNumber);
+      }
+      if (parsed.subDepartment) {
+        setInitialDepartment(parsed.subDepartment);
+      }
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const l = params.get('lang');
+        if (l === 'ar' || l === 'en') setLanguage(l);
+      }
+      syncRouteAndHotel();
     };
 
     window.addEventListener('popstate', handleUrlChange);
     window.addEventListener('hashchange', handleUrlChange);
+
     return () => {
       window.removeEventListener('popstate', handleUrlChange);
       window.removeEventListener('hashchange', handleUrlChange);
     };
-  }, [hotelsList]);
+  }, [syncRouteAndHotel]);
+
+  // Subscribe to real-time hotel portfolio for authenticated admin
+  useEffect(() => {
+    if (!adminUser) return;
+    if (!isFirebaseConfigured) {
+      setHotelsList(MOCK_HOTELS);
+      return;
+    }
+
+    const unsubscribe = subscribeToHotelsForAdmin(adminUser, (hotels) => {
+      setHotelsList(hotels);
+      setCurrentHotel((prev) => {
+        if (prev && hotels.some((h) => h.id === prev.id)) {
+          return hotels.find((h) => h.id === prev.id) || prev;
+        }
+        return hotels[0] || null;
+      });
+    });
+
+    return () => unsubscribe();
+  }, [adminUser]);
 
   // Persist hotelsList to localStorage whenever modified
   useEffect(() => {
@@ -177,16 +218,19 @@ export default function App() {
 
   // Persist active property selection to localStorage
   useEffect(() => {
+    if (!currentHotel) return;
     try {
       localStorage.setItem(STORAGE_KEY_ACTIVE, currentHotel.id);
     } catch (e) {
       // ignore
     }
-  }, [currentHotel.id]);
+  }, [currentHotel?.id]);
 
   // Apply dynamic theme branding variables, typography, and document direction
   useEffect(() => {
-    applyHotelTheme(currentHotel.branding, currentHotel.typography);
+    if (currentHotel) {
+      applyHotelTheme(currentHotel.branding, currentHotel.typography);
+    }
     document.documentElement.lang = language;
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
   }, [currentHotel, language]);
@@ -205,9 +249,16 @@ export default function App() {
     showToast(`Switched active property to: ${language === 'ar' ? hotel.name_ar : hotel.name_en}`);
   };
 
-  const handleUpdateHotel = (updated: Hotel) => {
+  const handleUpdateHotel = async (updated: Hotel) => {
     setHotelsList((prev) => prev.map((h) => (h.id === updated.id ? updated : h)));
     setCurrentHotel(updated);
+    if (isFirebaseConfigured) {
+      try {
+        await updateFirestoreHotel(updated.id, updated);
+      } catch (err) {
+        console.warn('Failed to update hotel in Firestore:', err);
+      }
+    }
     showToast(`Saved configuration for: ${updated.name_en}`);
   };
 
@@ -221,12 +272,17 @@ export default function App() {
   };
 
   const handleViewLivePortal = () => {
-    pushAppRoute(buildGuestUrl(currentHotel.slug || currentHotel.id, roomNumber || undefined));
+    const targetSlug = currentHotel?.slug || currentHotel?.id || defaultHotelSlug;
+    pushAppRoute(buildGuestUrl(targetSlug, roomNumber || undefined));
     setAppView('guest_portal');
   };
 
   const handleOpenAdmin = () => {
-    pushAppRoute(buildAdminUrl(currentHotel.id));
+    if (currentHotel?.id) {
+      pushAppRoute(buildAdminUrl(currentHotel.id));
+    } else {
+      pushAppRoute('/admin');
+    }
     setAppView('admin_portal');
   };
 
@@ -344,7 +400,68 @@ ${mdRows}
 
   // 2. Pure Guest Portal View (Strictly separated: No Admin, No Hotel Switcher, No Dev tools)
   if (appView === 'guest_portal') {
-    if (isHotelNotFound) {
+    if (isHotelLoading) {
+      return (
+        <div
+          className="min-h-screen bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center"
+          dir={language === 'ar' ? 'rtl' : 'ltr'}
+        >
+          <Loader2 size={36} className="text-amber-400 animate-spin mb-4" />
+          <p className="text-stone-400 text-sm font-medium">
+            {language === 'ar' ? 'جاري تحميل بوابة النزيل...' : 'Loading Guest Portal...'}
+          </p>
+        </div>
+      );
+    }
+
+    if (isHotelUnpublished) {
+      return (
+        <div
+          className="min-h-screen bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center"
+          dir={language === 'ar' ? 'rtl' : 'ltr'}
+        >
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-6 shadow-inner">
+            <EyeOff size={32} />
+          </div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-3">
+            <Shield size={13} />
+            <span>{language === 'ar' ? 'مسودة غير منشورة' : 'Unpublished Staging Property'}</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white mb-2">
+            {language === 'ar'
+              ? currentHotel?.name_ar || 'الفندق غير منشور حالياً'
+              : currentHotel?.name_en || 'Property Currently Unpublished'}
+          </h1>
+          <p className="text-stone-400 text-sm max-w-md mb-8 leading-relaxed">
+            {language === 'ar'
+              ? 'هذه المنشأة الفندقية لا تزال في مرحلة الإعداد المسبق ولم يتم نشرها للضيوف بعد. إذا كنت من موظفي الفندق أو الإدارة، يرجى تسجيل الدخول للوصول إلى لوحة التحكم والمعاينة.'
+              : 'This hotel property is currently in pre-launch staging and has not been published to guests yet. If you are authorized hotel staff or an administrator, please sign in to access the control center and preview.'}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={handleOpenAdmin}
+              className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-sm transition-all cursor-pointer shadow-lg inline-flex items-center justify-center gap-2"
+            >
+              <Shield size={16} />
+              <span>{language === 'ar' ? 'تسجيل دخول الموظفين / الإدارة' : 'Staff / Admin Sign In'}</span>
+            </button>
+            <button
+              onClick={() => {
+                setIsHotelUnpublished(false);
+                setIsHotelNotFound(false);
+                pushAppRoute(buildGuestUrl(defaultHotelSlug));
+              }}
+              className="px-6 py-3 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-medium text-sm transition-all cursor-pointer border border-stone-700 inline-flex items-center justify-center gap-2"
+            >
+              <Home size={16} />
+              <span>{language === 'ar' ? 'العودة للفندق الافتراضي' : 'Return to Default Hotel'}</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (isHotelNotFound || !currentHotel) {
       return (
         <div
           className="min-h-screen bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center"
@@ -365,12 +482,11 @@ ${mdRows}
             <button
               onClick={() => {
                 setIsHotelNotFound(false);
-                setCurrentHotel(hotelsList[0]);
-                pushAppRoute(buildGuestUrl(hotelsList[0].slug));
+                pushAppRoute(buildGuestUrl(defaultHotelSlug));
               }}
               className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-sm transition-all cursor-pointer shadow-lg"
             >
-              {language === 'ar' ? `الانتقال إلى ${hotelsList[0]?.name_ar}` : `Go to ${hotelsList[0]?.name_en}`}
+              {language === 'ar' ? 'الانتقال إلى الفندق الافتراضي' : 'Go to Default Hotel'}
             </button>
           </div>
         </div>
@@ -400,6 +516,17 @@ ${mdRows}
   }
 
   // 3. Developer & Operations Route Architecture View (Preserved completely)
+  const activeHotel = currentHotel || hotelsList[0] || null;
+
+  if (!activeHotel) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center">
+        <Loader2 size={36} className="text-amber-400 animate-spin mb-4" />
+        <p className="text-stone-400 text-sm font-medium">Loading Route Explorer...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col text-stone-900">
       {/* Toast Notification */}
@@ -489,7 +616,7 @@ ${mdRows}
 
         {/* Dynamic Parameter Simulator */}
         <ParamSimulator
-          hotelSlug={currentHotel.slug}
+          hotelSlug={activeHotel.slug}
           setHotelSlug={(slug) => {
             const found = hotelsList.find((h) => h.slug === slug);
             if (found) setCurrentHotel(found);
@@ -510,11 +637,11 @@ ${mdRows}
         />
 
         {/* View Mode Switching */}
-        {registrySubView === 'tree' && <HierarchyTreeView hotelSlug={currentHotel.slug} />}
+        {registrySubView === 'tree' && <HierarchyTreeView hotelSlug={activeHotel.slug} />}
 
         {registrySubView === 'whatsapp' && (
           <WhatsAppRoutingMatrix
-            hotelSlug={currentHotel.slug}
+            hotelSlug={activeHotel.slug}
             roomNumber={roomNumber}
             orderId={orderId}
           />
@@ -600,7 +727,7 @@ ${mdRows}
                   <RouteCard
                     key={route.id}
                     route={route}
-                    hotelSlug={currentHotel.slug}
+                    hotelSlug={activeHotel.slug}
                     roomNumber={roomNumber}
                     orderId={orderId}
                     onGenerateQR={(selectedRoute) => setSelectedRouteForQR(selectedRoute)}
@@ -630,7 +757,7 @@ ${mdRows}
       {selectedRouteForQR && (
         <RouteQRCodeModal
           initialRoute={selectedRouteForQR}
-          hotel={currentHotel}
+          hotel={activeHotel}
           hotelsList={hotelsList}
           defaultRoomNumber={roomNumber || '402'}
           defaultOrderId={orderId}

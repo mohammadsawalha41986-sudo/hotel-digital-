@@ -1716,8 +1716,8 @@ export function getHotelWellnessServices(hotelId: string): WellnessService[] {
 }
 
 export function getHotelLaundryItems(hotelId: string, customPhone?: string): LaundryCatalogItem[] {
-  const isRoyal = hotelId === '11' || hotelId.includes('royal');
-  const isInn = hotelId === '12' || hotelId.includes('inn');
+  const isRoyal = hotelId === '11' || hotelId === 'swiss-flora-royal';
+  const isInn = hotelId === '12' || hotelId === 'swiss-flora-inn';
 
   if (!isRoyal && !isInn) {
     return [];
@@ -1735,8 +1735,8 @@ export function getHotelLaundryItems(hotelId: string, customPhone?: string): Lau
 }
 
 export function getHotelGuestServices(hotelId: string, customPhone?: string): GuestServiceCatalogItem[] {
-  const isRoyal = hotelId === '11' || hotelId.includes('royal');
-  const isInn = hotelId === '12' || hotelId.includes('inn');
+  const isRoyal = hotelId === '11' || hotelId === 'swiss-flora-royal';
+  const isInn = hotelId === '12' || hotelId === 'swiss-flora-inn';
 
   if (!isRoyal && !isInn) {
     return [];

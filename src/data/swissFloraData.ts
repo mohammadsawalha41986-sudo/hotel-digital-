@@ -3273,10 +3273,10 @@ export const SWISS_FLORA_INN_HOTEL: Hotel = {
 // 7. HELPER FUNCTIONS FOR STRICT MULTI-HOTEL ISOLATION
 // =========================================================================
 export function getOutletsForHotel(hotelId: string): FBOutlet[] {
-  if (hotelId === '12' || hotelId.includes('inn')) {
+  if (hotelId === '12' || hotelId === 'swiss-flora-inn') {
     return SWISS_FLORA_INN_OUTLETS;
   }
-  if (hotelId === '11' || hotelId.includes('royal')) {
+  if (hotelId === '11' || hotelId === 'swiss-flora-royal') {
     return SWISS_FLORA_ROYAL_OUTLETS;
   }
   // Strict tenant isolation: never leak one hotel's outlets to an unknown hotel
@@ -3284,40 +3284,40 @@ export function getOutletsForHotel(hotelId: string): FBOutlet[] {
 }
 
 export function getWellnessForHotel(hotelId: string): WellnessService[] {
-  if (hotelId === '12' || hotelId.includes('inn')) {
+  if (hotelId === '12' || hotelId === 'swiss-flora-inn') {
     return SWISS_FLORA_INN_WELLNESS;
   }
-  if (hotelId === '11' || hotelId.includes('royal')) {
+  if (hotelId === '11' || hotelId === 'swiss-flora-royal') {
     return SWISS_FLORA_ROYAL_WELLNESS;
   }
   return [];
 }
 
 export function getContactsForHotel(hotelId: string): DepartmentContact[] {
-  if (hotelId === '12' || hotelId.includes('inn')) {
+  if (hotelId === '12' || hotelId === 'swiss-flora-inn') {
     return SWISS_FLORA_INN_CONTACTS;
   }
-  if (hotelId === '11' || hotelId.includes('royal')) {
+  if (hotelId === '11' || hotelId === 'swiss-flora-royal') {
     return SWISS_FLORA_ROYAL_CONTACTS;
   }
   return [];
 }
 
 export function getOffersForHotel(hotelId: string): HotelOffer[] {
-  if (hotelId === '12' || hotelId.includes('inn')) {
+  if (hotelId === '12' || hotelId === 'swiss-flora-inn') {
     return SWISS_FLORA_INN_OFFERS;
   }
-  if (hotelId === '11' || hotelId.includes('royal')) {
+  if (hotelId === '11' || hotelId === 'swiss-flora-royal') {
     return SWISS_FLORA_ROYAL_OFFERS;
   }
   return [];
 }
 
 export function getRoomsForHotel(hotelId: string): RoomType[] {
-  if (hotelId === '12' || hotelId.includes('inn')) {
+  if (hotelId === '12' || hotelId === 'swiss-flora-inn') {
     return SWISS_FLORA_INN_ROOMS;
   }
-  if (hotelId === '11' || hotelId.includes('royal')) {
+  if (hotelId === '11' || hotelId === 'swiss-flora-royal') {
     return SWISS_FLORA_ROYAL_ROOMS;
   }
   return [];

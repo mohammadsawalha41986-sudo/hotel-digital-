@@ -1,6 +1,4 @@
-import React from 'react';
 import { RoomType, Language, Hotel } from '../../types/hotel';
-import { SWISS_FLORA_ROYAL_HOTEL } from '../../data/swissFloraData';
 import { InRoomServicesHubPage } from './InRoomServicesHubPage';
 
 interface StayHubPageProps {
@@ -12,14 +10,14 @@ interface StayHubPageProps {
   hotelNameAr?: string;
   roomNumber?: string;
   onSetRoomNumber?: (room: string) => void;
-  hotel?: Hotel;
+  hotel: Hotel;
 }
 
 export const StayHubPage: React.FC<StayHubPageProps> = ({
   language,
   roomNumber = '',
   onSetRoomNumber = () => {},
-  hotel = SWISS_FLORA_ROYAL_HOTEL,
+  hotel,
 }) => {
   return (
     <InRoomServicesHubPage

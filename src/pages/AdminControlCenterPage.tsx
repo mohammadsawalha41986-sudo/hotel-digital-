@@ -19,13 +19,14 @@ import { LivePreviewModal } from '../components/admin/LivePreviewModal';
 import { HotelCreationWizard } from '../components/admin/HotelCreationWizard';
 import { AdminReviewsManager } from '../components/admin/AdminReviewsManager';
 import { AdminFeedbackManager } from '../components/admin/AdminFeedbackManager';
-import { ShieldAlert } from 'lucide-react';
+import { HotelPortfolioView } from '../components/admin/HotelPortfolioView';
+import { ShieldAlert, Building2 } from 'lucide-react';
 import { AdminUser, canAccessHotel } from '../types/auth';
 import { subscribeToHotelRequests } from '../services/requestService';
 
 interface AdminControlCenterPageProps {
   hotels: Hotel[];
-  currentHotel: Hotel;
+  currentHotel: Hotel | null;
   currentUser?: AdminUser | null;
   onSelectHotel: (hotel: Hotel) => void;
   onUpdateHotel: (hotel: Hotel) => void;
@@ -44,7 +45,9 @@ export const AdminControlCenterPage: React.FC<AdminControlCenterPageProps> = ({
   onViewLivePortal,
   onSignOut,
 }) => {
-  const [activeTab, setActiveTab] = useState<AdminSectionTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<AdminSectionTab>(
+    currentUser?.role === 'SUPER_ADMIN' ? 'portfolio' : 'dashboard'
+  );
   const [currentRole, setCurrentRole] = useState<StaffRole>(currentUser?.role || 'SUPER_ADMIN');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(false);
@@ -52,8 +55,68 @@ export const AdminControlCenterPage: React.FC<AdminControlCenterPageProps> = ({
   const [showCreationWizard, setShowCreationWizard] = useState(false);
   const [requests, setRequests] = useState<OperationalRequest[]>([]);
 
-  // Multi-Hotel Tenant Security Guard:
-  // If an authenticated user enters another hotel's URL or parameter without permission, block access immediately
+  // Load operational requests for the current hotel with real-time sync
+  useEffect(() => {
+    if (!currentHotel?.id) return;
+    const unsubscribe = subscribeToHotelRequests(currentHotel.id, (hotelRequests) => {
+      setRequests(hotelRequests);
+    });
+    return () => unsubscribe();
+  }, [currentHotel?.id]);
+
+  const refreshRequests = () => {
+    if (!currentHotel) return;
+    const all = getStoredRequests();
+    const hotelRequests = all.filter((r) => r.hotel_id === currentHotel.id || !r.hotel_id);
+    setRequests(hotelRequests);
+  };
+
+  // Guard 1: No property selected / empty portfolio
+  if (!currentHotel) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-6">
+          <Building2 size={32} />
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white mb-2">
+          Select or Onboard a Property
+        </h1>
+        <p className="text-stone-400 text-sm max-w-md mb-8 leading-relaxed">
+          No hotel property is currently selected. Choose a property from your portfolio or onboard a new hotel tenant.
+        </p>
+        <div className="flex gap-3">
+          {currentUser?.role === 'SUPER_ADMIN' && (
+            <button
+              onClick={() => setShowCreationWizard(true)}
+              className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-sm transition-all cursor-pointer shadow-lg"
+            >
+              Onboard New Property
+            </button>
+          )}
+          {onSignOut && (
+            <button
+              onClick={onSignOut}
+              className="px-6 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-sm transition-all cursor-pointer border border-stone-700"
+            >
+              Sign Out
+            </button>
+          )}
+        </div>
+        {showCreationWizard && (
+          <HotelCreationWizard
+            language="en"
+            onClose={() => setShowCreationWizard(false)}
+            onHotelCreated={(newHotel) => {
+              setShowCreationWizard(false);
+              onHotelCreated(newHotel);
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Guard 2: Multi-Hotel Tenant Security Guard
   if (currentUser && !canAccessHotel(currentUser, currentHotel.id)) {
     return (
       <div className="min-h-screen bg-stone-950 text-white flex flex-col items-center justify-center p-6 text-center">
@@ -79,21 +142,6 @@ export const AdminControlCenterPage: React.FC<AdminControlCenterPageProps> = ({
       </div>
     );
   }
-
-  // Load operational requests for the current hotel with real-time sync
-  const refreshRequests = () => {
-    const all = getStoredRequests();
-    const hotelRequests = all.filter((r) => r.hotel_id === currentHotel.id || !r.hotel_id);
-    setRequests(hotelRequests);
-  };
-
-  useEffect(() => {
-    // Connect to real-time subscription (Firestore onSnapshot or localStorage polling)
-    const unsubscribe = subscribeToHotelRequests(currentHotel.id, (hotelRequests) => {
-      setRequests(hotelRequests);
-    });
-    return () => unsubscribe();
-  }, [currentHotel.id]);
 
   const handlePublishChanges = () => {
     setHasUnpublishedChanges(false);
@@ -246,6 +294,22 @@ export const AdminControlCenterPage: React.FC<AdminControlCenterPageProps> = ({
         {/* Dynamic Center Stage Content View */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-stone-950">
           <div className="max-w-7xl mx-auto space-y-6">
+            {/* 0. HOTEL PORTFOLIO & MULTI-PROPERTY GOVERNANCE */}
+            {activeTab === 'portfolio' && (
+              <HotelPortfolioView
+                hotels={hotels}
+                currentHotel={currentHotel}
+                currentUser={currentUser}
+                onSelectHotel={(h) => {
+                  onSelectHotel(h);
+                  setActiveTab('dashboard');
+                }}
+                onOpenCreateWizard={() => setShowCreationWizard(true)}
+                onViewLivePortal={() => onViewLivePortal()}
+                onHotelUpdated={(updated) => onUpdateHotel(updated)}
+              />
+            )}
+
             {/* 1. DASHBOARD */}
             {activeTab === 'dashboard' && (
               <DashboardView

@@ -48,8 +48,16 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
-    storage = getStorage(app);
     isFirebaseConfigured = true;
+
+    // Decoupled Storage: Do not fail app or firestore initialization if Storage is unprovisioned
+    if (firebaseConfig.storageBucket) {
+      try {
+        storage = getStorage(app);
+      } catch (storageErr: any) {
+        console.info('[Firebase] Storage not provisioned or disabled; skipping storage initialization:', storageErr?.message);
+      }
+    }
   } catch (err: any) {
     firebaseInitError = err?.message || 'Failed to initialize Firebase SDK';
     console.warn('[Firebase] Initialization error:', firebaseInitError);
