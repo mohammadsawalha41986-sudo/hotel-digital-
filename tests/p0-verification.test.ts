@@ -1366,6 +1366,10 @@ test('Guest portal UX regression: published navigation exposes only configured c
   assert.doesNotMatch(wellnessSource, /DEFAULT_WELLNESS_(CATEGORIES|SERVICES|OFFERS)/);
   assert.doesNotMatch(wellnessSource, /\+966555072806|Ext\. 330|تحويلة 330/);
   assert.doesNotMatch(laundrySource, /\+966539201105/);
+
+  const heroSource = readFileSync(new URL('../src/components/guest/HotelHero.tsx', import.meta.url), 'utf8');
+  assert.match(heroSource, /hotel\.hero_images\.length > 0/);
+  assert.match(heroSource, /min-h-\[430px\].*items-center/);
 });
 
 test('Security regression: operational routing and Wi-Fi credentials are excluded from public reads', () => {

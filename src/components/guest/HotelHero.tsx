@@ -54,7 +54,11 @@ export const HotelHero: React.FC<HotelHeroProps> = ({
     <section
       id="top"
       aria-label="Hotel Hero and Property Highlights"
-      className="relative min-h-[580px] sm:min-h-[660px] flex items-end justify-start overflow-hidden bg-stone-950 text-white"
+      className={`relative flex justify-start overflow-hidden bg-stone-950 text-white ${
+        hotel.hero_images.length > 0
+          ? 'min-h-[580px] sm:min-h-[660px] items-end'
+          : 'min-h-[430px] sm:min-h-[500px] items-center'
+      }`}
     >
       {/* Background Image Carousel with Cinematic Overlay */}
       {hotel.hero_images.length === 0 && (
