@@ -96,8 +96,13 @@ export async function seedDemoCatalog(client: pg.PoolClient, hid: string) {
     ['[Demo] Dress', '[تجريبي] فستان', 'ladies', 20, 30, 12],
     ['[Demo] Abaya', '[تجريبي] عباية', 'ladies', 18, 25, 10],
   ];
+  const laundryCats = new Map(
+    (await q<{ id: string; code: string }>(`SELECT id, code FROM laundry_categories WHERE hotel_id = $1`, [hid], client)).map((r) => [r.code, r.id])
+  );
   for (const [en, ar, category, wash, dry, press] of laundry) {
-    await add('laundry_items', { name_en: en, name_ar: ar, category, wash_price: wash, dry_clean_price: dry, press_price: press, express_pct: 50 });
+    const parent = laundryCats.get(`LCAT-${category.toUpperCase()}`);
+    if (!parent) throw new Error(`Laundry category ${category} missing — run the base seed first`);
+    await add('laundry_items', { name_en: en, name_ar: ar, wash_price: wash, dry_clean_price: dry, press_price: press, express_pct: 50 }, parent);
   }
 
   // Offer

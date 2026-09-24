@@ -71,8 +71,22 @@ export interface SpaService extends ServiceRec {
   max_guests: number | null;
 }
 
+export interface LaundryCategory extends Rec {
+  turnaround_en?: string;
+  turnaround_ar?: string;
+  express_turnaround_en?: string;
+  express_turnaround_ar?: string;
+}
+
+export interface LaundryPackage extends Rec {
+  price: number;
+  includes_en?: string;
+  includes_ar?: string;
+  available: boolean;
+}
+
 export interface LaundryItem extends Rec {
-  category: string;
+  available: boolean;
   wash_price: number | null;
   dry_clean_price: number | null;
   press_price: number | null;
@@ -99,7 +113,9 @@ export interface PublicBundle {
     hotel_services: ServiceRec[];
     spa_categories: ServiceRec[];
     spa_services: SpaService[];
+    laundry_categories: LaundryCategory[];
     laundry_items: LaundryItem[];
+    laundry_packages: LaundryPackage[];
     info_items: Rec[];
   };
   preview: boolean;

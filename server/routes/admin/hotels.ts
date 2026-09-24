@@ -8,7 +8,7 @@ import { audit, diff } from '../../audit';
 import { requireHotelAccess, requireUser } from '../../auth';
 import { clientIp, type AppEnv, type Ctx } from '../../context';
 import { one, q, tx } from '../../db';
-import { badRequest, conflict, forbidden, notFound, validationError } from '../../errors';
+import { HttpError, badRequest, conflict, forbidden, notFound, validationError } from '../../errors';
 import { ensureDepartments, getHotelRow, hydrate, parseSite, splitProfile } from '../../repos/hotels';
 
 export const hotelRoutes = new Hono<AppEnv>();
@@ -71,46 +71,82 @@ hotelRoutes.get('/:hid', async (c) => {
   return c.json(adminView(await loadHotel(hid)));
 });
 
-hotelRoutes.put('/:hid/profile', async (c) => {
-  const hid = c.req.param('hid');
+/**
+ * Partial update of a JSON settings object: merges recognised keys over the
+ * stored value. An empty body or one without any known key is rejected
+ * (never a silent success), and an unchanged value reports changed=false.
+ */
+function mergePatch<T extends Record<string, unknown>>(current: T, patch: unknown, knownKeys: string[], what: string): T {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw badRequest('Expected a JSON object');
+  const keys = Object.keys(patch).filter((k) => knownKeys.includes(k));
+  if (!keys.length) {
+    throw new HttpError(422, 'no_changes', `Nothing to update: none of the fields sent (${Object.keys(patch).join(', ') || 'empty body'}) belong to ${what}.`);
+  }
+  const merged: Record<string, unknown> = { ...current };
+  for (const k of keys) merged[k] = (patch as Record<string, unknown>)[k];
+  return merged as T;
+}
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+async function updateProfile(c: Ctx) {
+  const hid = c.req.param('hid')!;
   const u = requireHotelAccess(c, hid, 'hotel');
   const row = await loadHotel(hid);
-  const parsed = hotelProfileSchema.safeParse(await body(c));
-  if (!parsed.success) throw validationError(parsed.error);
   const before = hydrate(row).profile;
+  const parsed = hotelProfileSchema.safeParse(mergePatch(before, await body(c), Object.keys(hotelProfileSchema.shape), 'the hotel profile'));
+  if (!parsed.success) throw validationError(parsed.error);
+  if (same(before, parsed.data)) return c.json({ ...adminView(row), changed: false });
   const { slug, name_en, name_ar, profile } = splitProfile(parsed.data);
   if (slug !== row.slug) {
     if (!u.global) throw forbidden('Only super admins can change a hotel address (it breaks printed QR codes)');
     if (await one('SELECT 1 FROM hotels WHERE slug = $1 AND id <> $2', [slug, hid])) throw conflict(`The address "${slug}" is already used`);
   }
-  await q('UPDATE hotels SET slug=$2, name_en=$3, name_ar=$4, profile=$5, updated_at=now() WHERE id=$1', [hid, slug, name_en, name_ar, JSON.stringify(profile)]);
-  const d = diff(before as never, parsed.data as never);
-  await audit({ hotelId: hid, user: u, action: 'update', entity: 'hotel_profile', entityId: hid, summary: `Updated ${Object.keys(d.after ?? {}).join(', ') || 'nothing'}`, ...d, ip: clientIp(c) });
-  return c.json(adminView((await getHotelRow(hid))!));
-});
+  await tx(async (client) => {
+    await q('UPDATE hotels SET slug=$2, name_en=$3, name_ar=$4, profile=$5, updated_at=now(), draft_updated_at=now() WHERE id=$1', [hid, slug, name_en, name_ar, JSON.stringify(profile)], client);
+    const d = diff(before as never, parsed.data as never);
+    await audit({ hotelId: hid, user: u, action: 'update', entity: 'hotel_profile', entityId: hid, summary: `Updated ${Object.keys(d.after ?? {}).join(', ')}`, ...d, ip: clientIp(c) }, client);
+  });
+  return c.json({ ...adminView((await getHotelRow(hid))!), changed: true });
+}
 
-hotelRoutes.put('/:hid/branding', async (c) => {
-  const hid = c.req.param('hid');
+async function updateBranding(c: Ctx) {
+  const hid = c.req.param('hid')!;
   const u = requireHotelAccess(c, hid, 'hotel');
   const row = await loadHotel(hid);
-  const parsed = brandingSchema.safeParse(await body(c));
+  const before = hydrate(row).branding;
+  const parsed = brandingSchema.safeParse(mergePatch(before, await body(c), Object.keys(brandingSchema.shape), 'branding'));
   if (!parsed.success) throw validationError(parsed.error);
-  await q('UPDATE hotels SET branding=$2, updated_at=now() WHERE id=$1', [hid, JSON.stringify(parsed.data)]);
-  const d = diff(hydrate(row).branding as never, parsed.data as never);
-  await audit({ hotelId: hid, user: u, action: 'update', entity: 'branding', entityId: hid, summary: `Branding: ${Object.keys(d.after ?? {}).join(', ')}`, ...d, ip: clientIp(c) });
-  return c.json(adminView((await getHotelRow(hid))!));
-});
+  if (same(before, parsed.data)) return c.json({ ...adminView(row), changed: false });
+  await tx(async (client) => {
+    await q('UPDATE hotels SET branding=$2, updated_at=now(), draft_updated_at=now() WHERE id=$1', [hid, JSON.stringify(parsed.data)], client);
+    const d = diff(before as never, parsed.data as never);
+    await audit({ hotelId: hid, user: u, action: 'update', entity: 'branding', entityId: hid, summary: `Branding: ${Object.keys(d.after ?? {}).join(', ')}`, ...d, ip: clientIp(c) }, client);
+  });
+  return c.json({ ...adminView((await getHotelRow(hid))!), changed: true });
+}
 
-hotelRoutes.put('/:hid/settings', async (c) => {
-  const hid = c.req.param('hid');
+async function updateSettings(c: Ctx) {
+  const hid = c.req.param('hid')!;
   const u = requireHotelAccess(c, hid, 'hotel');
   const row = await loadHotel(hid);
-  const parsed = settingsSchema.safeParse(await body(c));
+  const before = hydrate(row).settings;
+  const parsed = settingsSchema.safeParse(mergePatch(before, await body(c), Object.keys(settingsSchema.shape), 'hotel settings'));
   if (!parsed.success) throw validationError(parsed.error);
-  await q('UPDATE hotels SET settings=$2, updated_at=now() WHERE id=$1', [hid, JSON.stringify(parsed.data)]);
-  await audit({ hotelId: hid, user: u, action: 'update', entity: 'hotel_settings', entityId: hid, ...diff(hydrate(row).settings as never, parsed.data as never), ip: clientIp(c) });
-  return c.json(adminView((await getHotelRow(hid))!));
-});
+  if (same(before, parsed.data)) return c.json({ ...adminView(row), changed: false });
+  await tx(async (client) => {
+    await q('UPDATE hotels SET settings=$2, updated_at=now() WHERE id=$1', [hid, JSON.stringify(parsed.data)], client);
+    await audit({ hotelId: hid, user: u, action: 'update', entity: 'hotel_settings', entityId: hid, ...diff(before as never, parsed.data as never), ip: clientIp(c) }, client);
+  });
+  return c.json({ ...adminView((await getHotelRow(hid))!), changed: true });
+}
+
+// PUT is kept for existing clients; both verbs merge (a partial body never resets other fields).
+for (const verb of ['put', 'patch'] as const) {
+  hotelRoutes[verb]('/:hid/profile', updateProfile);
+  hotelRoutes[verb]('/:hid/branding', updateBranding);
+  hotelRoutes[verb]('/:hid/settings', updateSettings);
+}
 
 hotelRoutes.post('/:hid/publication', async (c) => {
   const hid = c.req.param('hid');

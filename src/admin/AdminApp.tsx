@@ -15,6 +15,7 @@ import { Reviews } from './pages/Reviews';
 import { Website } from './pages/Website';
 import { EntityPage } from './pages/EntityPage';
 import { Dining, OutletDetail } from './pages/Dining';
+import { LaundryAdmin } from './pages/LaundryAdmin';
 import { SpaAdmin } from './pages/SpaAdmin';
 import { HotelProfilePage } from './pages/HotelProfile';
 import { BrandingPage } from './pages/Branding';
@@ -112,7 +113,7 @@ function HotelScope() {
           <Route path="room-services" element={g('room_services', <EntityPage hid={hid} entity="room_services" description="Services for the guest's existing room. Requests are routed to the selected department." />)} />
           <Route path="hotel-services" element={g('hotel_services', <EntityPage hid={hid} entity="hotel_services" description="Transport, concierge and other services. Turn off “Guests can request it” for information-only entries." />)} />
           <Route path="spa" element={g('spa', <SpaAdmin hid={hid} />)} />
-          <Route path="laundry" element={g('laundry', <EntityPage hid={hid} entity="laundry_items" description="Price list per garment. Leave a price empty when the service is not offered for that item." />)} />
+          <Route path="laundry" element={g('laundry', <LaundryAdmin hid={hid} />)} />
           <Route path="info" element={g('hotel', <EntityPage hid={hid} entity="info_items" description="Check-in/out, Wi-Fi, policies, prayer, emergency and nearby information." />)} />
           <Route path="profile" element={g('hotel', <HotelProfilePage hid={hid} />)} />
           <Route path="branding" element={g('hotel', <BrandingPage hid={hid} />)} />

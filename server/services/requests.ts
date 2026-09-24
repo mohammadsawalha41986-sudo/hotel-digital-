@@ -79,7 +79,7 @@ function checkAnswers(fields: CustomField[], answers: Record<string, unknown>) {
 
 async function loadActive(name: Parameters<typeof getEntityRow>[0], hotelId: string, id: string, what: string) {
   const row = await getEntityRow(name, hotelId, id);
-  if (!row || !row.is_active) throw unavailable(`This ${what} is no longer available.`);
+  if (!row || !row.is_active || row.archived_at) throw unavailable(`This ${what} is no longer available.`);
   return { row, rec: toRecord(name, row) };
 }
 
@@ -100,7 +100,8 @@ async function buildOrder(hotel: Hotel, guest: GuestIdentity, p: Extract<ReturnT
        FROM menu_items i
        JOIN menu_categories c ON c.id = i.parent_id AND c.hotel_id = i.hotel_id
        JOIN menus m ON m.id = c.parent_id AND m.hotel_id = i.hotel_id
-      WHERE i.hotel_id = $1 AND m.parent_id = $2 AND i.id = ANY($3::uuid[])`,
+      WHERE i.hotel_id = $1 AND m.parent_id = $2 AND i.id = ANY($3::uuid[])
+        AND i.archived_at IS NULL AND c.archived_at IS NULL AND m.archived_at IS NULL`,
     [hotel.id, outlet.id, itemIds]
   );
   const byId = new Map(rows.map((r) => [r.id, r]));
@@ -204,7 +205,7 @@ async function buildSpa(hotel: Hotel, p: { service_id: string; date: string; tim
   const name = { en: String(rec.name_en), ar: String(rec.name_ar || rec.name_en) };
   if (rec.available === false || rec.bookable === false) throw unavailable(`${name.en} cannot be booked right now.`);
   const cat = row.parent_id ? await getEntityRow('spa_categories', hotel.id, row.parent_id) : null;
-  if (cat && !cat.is_active) throw unavailable(`${name.en} is no longer available.`);
+  if (cat && (!cat.is_active || cat.archived_at)) throw unavailable(`${name.en} is no longer available.`);
   const maxGuests = Number(rec.max_guests ?? 4);
   if (p.guests > maxGuests) throw new HttpError(422, 'validation_failed', `Maximum ${maxGuests} guests for this treatment`, { fields: { guests: `Maximum ${maxGuests}` } });
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: hotel.profile.timezone }).format(new Date());
@@ -236,7 +237,8 @@ async function buildSpa(hotel: Hotel, p: { service_id: string; date: string; tim
 async function buildLaundry(hotel: Hotel, guest: GuestIdentity, p: { lines: { item_id: string; service: 'wash' | 'dry_clean' | 'press'; quantity: number }[]; express: boolean; pickup: string; notes: string }): Promise<Built> {
   if (guest.type !== 'IN_HOUSE') throw new HttpError(422, 'validation_failed', 'Laundry pickup is available to in-house guests.', { fields: { 'guest.room': 'Room number required' } });
   const ids = [...new Set(p.lines.map((l) => l.item_id))];
-  const rows = await q<EntityRow>('SELECT * FROM laundry_items WHERE hotel_id = $1 AND id = ANY($2::uuid[]) AND is_active', [hotel.id, ids]);
+  const rows = await q<EntityRow>(`SELECT i.* FROM laundry_items i JOIN laundry_categories c ON c.id = i.parent_id
+      WHERE i.hotel_id = $1 AND i.id = ANY($2::uuid[]) AND i.is_active AND i.archived_at IS NULL AND c.is_active AND c.archived_at IS NULL`, [hotel.id, ids]);
   const byId = new Map(rows.map((r) => [r.id, toRecord('laundry_items', r)]));
   const vat = { vat_rate: hotel.profile.vat_rate, prices_include_vat: hotel.profile.prices_include_vat };
   const amounts: LineAmounts[] = [];

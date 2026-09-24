@@ -42,7 +42,7 @@ describe('spreadsheet import', () => {
 
   test('commit is refused while errors remain (no partial import)', async () => {
     const admin = await login(users.admin);
-    const r = await admin.post(`${H()}/import/laundry`, { commit: true, sheets: { laundry_items: [{ name_en: 'Scarf', wash_price: 5 }, { name_en: '', wash_price: 5 }] } });
+    const r = await admin.post(`${H()}/import/laundry`, { commit: true, sheets: { laundry_items: [{ category: 'Ladies', name_en: 'Scarf', wash_price: 5 }, { category: 'Ladies', name_en: '', wash_price: 5 }] } });
     assert.equal(r.status, 422);
     assert.equal(r.body.committed, false);
     assert.equal((await one(`SELECT COUNT(*) AS n FROM laundry_items WHERE name_en = 'Scarf'`)).n, 0);
@@ -54,14 +54,17 @@ describe('spreadsheet import', () => {
     const r = await admin.post(`${H()}/import/laundry`, { commit: true, sheets });
     assert.equal(r.status, 200);
     assert.equal(r.body.summary.create, 2);
-    const tie = await one(`SELECT data FROM laundry_items WHERE hotel_id = $1 AND name_en = 'Tie'`, [ids.royal]);
-    assert.equal(tie.data.category, 'gentlemen', 'labels are mapped to option values');
+    const tie = await one(
+      `SELECT c.code FROM laundry_items i JOIN laundry_categories c ON c.id = i.parent_id WHERE i.hotel_id = $1 AND i.name_en = 'Tie'`,
+      [ids.royal]
+    );
+    assert.equal(tie.code, 'LCAT-GENTLEMEN', 'rows are attached to their category by name');
 
-    const again = await admin.post(`${H()}/import/laundry`, { commit: true, sheets: { laundry_items: [{ name_en: 'scarf', wash_price: 6 }] } });
+    const again = await admin.post(`${H()}/import/laundry`, { commit: true, sheets: { laundry_items: [{ category: 'Ladies', name_en: 'scarf', wash_price: 6 }] } });
     assert.equal(again.body.summary.update, 1);
     assert.equal((await one(`SELECT data FROM laundry_items WHERE lower(name_en) = 'scarf'`)).data.wash_price, 6);
 
-    const strict = await admin.post(`${H()}/import/laundry`, { commit: false, mode: 'create_only', sheets: { laundry_items: [{ name_en: 'Tie', wash_price: 1 }] } });
+    const strict = await admin.post(`${H()}/import/laundry`, { commit: false, mode: 'create_only', sheets: { laundry_items: [{ category: 'Gentlemen', name_en: 'Tie', wash_price: 1 }] } });
     assert.equal(strict.body.summary.errors, 1);
     const audit = await one(`SELECT COUNT(*) AS n FROM audit_log WHERE action = 'import' AND hotel_id = $1`, [ids.royal]);
     assert.equal(audit.n, 2);

@@ -214,15 +214,29 @@ export async function importFirestoreHotel(client: pg.PoolClient, hotelKey: stri
     )) count('spa_services');
   }
 
-  // Laundry
+  // Laundry: the old free-text category becomes a laundry category entity.
+  const laundryCats = new Map<string, string>();
+  const LAUNDRY_CATS: Record<string, [string, string]> = {
+    ladies: ['Ladies', 'السيدات'], traditional: ['Traditional wear', 'الملابس التقليدية'], children: ['Children', 'الأطفال'], gentlemen: ['Gentlemen', 'الرجال'],
+  };
+  const laundryCategory = async (raw: string) => {
+    const key = /abaya|dress|ladies/i.test(raw) ? 'ladies' : /thobe|shemagh|ghutra|traditional/i.test(raw) ? 'traditional' : /child/i.test(raw) ? 'children' : 'gentlemen';
+    if (!laundryCats.has(key)) {
+      const [en, ar] = LAUNDRY_CATS[key];
+      const existing = await one<{ id: string }>('SELECT id FROM laundry_categories WHERE hotel_id = $1 AND code = $2', [hid, `LCAT-${key.toUpperCase()}`], client);
+      laundryCats.set(key, existing?.id ?? (await createEntity('laundry_categories', hid, { code: `LCAT-${key.toUpperCase()}`, name_en: en, name_ar: ar }, client)).id);
+      if (!existing) count('laundry_categories');
+    }
+    return laundryCats.get(key)!;
+  };
   for (const l of docs(cols.laundry)) {
     const p = l.prices ?? {};
     const surcharge = num(p.express_surcharge);
     const wash = num(p.wash_press) ?? num(p.wash);
     const base = wash ?? num(p.dry_clean) ?? num(p.press);
-    if (await safe(`laundry ${str(l.name_en)}`, () =>
+    if (await safe(`laundry ${str(l.name_en)}`, async () =>
       createEntity('laundry_items', hid, {
-        name_en: str(l.name_en), name_ar: str(l.name_ar), category: /abaya|dress|ladies/i.test(str(l.category_en)) ? 'ladies' : /thobe|shemagh|ghutra|traditional/i.test(str(l.category_en)) ? 'traditional' : /child/i.test(str(l.category_en)) ? 'children' : 'gentlemen',
+        name_en: str(l.name_en), name_ar: str(l.name_ar), parent_id: await laundryCategory(str(l.category_en)),
         wash_price: wash, dry_clean_price: num(p.dry_clean), press_price: num(p.press),
         // Old model stored an absolute surcharge; convert to a percentage of the base price.
         express_pct: surcharge && base ? Math.round((surcharge / base) * 100) : null,

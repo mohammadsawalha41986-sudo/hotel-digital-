@@ -145,7 +145,8 @@ describe('multi-hotel isolation', () => {
     const superAdmin = await login(users.superAdmin);
     const royalOutlet = await outletByName('In-Room Dining');
     const r = await superAdmin.post(`/admin/hotels/${ids.harbour}/entities/menus`, { name_en: 'Hijack', parent_id: royalOutlet.id });
-    assert.equal(r.status, 400);
+    assert.equal(r.status, 422);
+    assert.match(r.body.error.details.fields.parent_id, /not found in this hotel/);
     const royalService = (await bundle()).catalog.room_services[0];
     const qa = await superAdmin.post(`/admin/hotels/${ids.harbour}/entities/quick_actions`, { label_en: 'x', action: 'room_service', room_service_id: royalService.id });
     assert.equal(qa.status, 422);
