@@ -8,6 +8,7 @@ import { LedgerStatus, SettlementStatus, dateOnly, dateTime, money, pct } from '
 import { OrderDetailSheet } from '../commerce/OrderDetail';
 import { SettlementSheet } from '../commerce/SettlementDetail';
 import { Card, PageHeader } from '../layout/AdminLayout';
+import { tr, L } from '../i18n';
 
 interface Summary {
   access: 'SETTLEMENTS' | 'FULL';
@@ -25,17 +26,17 @@ export function HotelFinance({ hid }: { hid: string }) {
   if (q.error)
     return (
       <>
-        <PageHeader title="Finance" />
-        <ErrorState title="Financial information is not available" description={errorMessage(q.error)} />
+        <PageHeader title={tr('Finance')} />
+        <ErrorState title={tr('Financial information is not available')} description={errorMessage(q.error)} />
       </>
     );
   const d = q.data!;
   return (
     <>
-      <PageHeader title="Finance" description="Settlements between the hotel and the platform. Every amount traces back to individual orders." />
+      <PageHeader title={tr('Finance')} description={tr('Settlements between the hotel and the platform. Every amount traces back to individual orders.')} />
       <div className="space-y-4">
         {d.access === 'FULL' && (
-          <Card title="Commission terms in force" description="Set by the platform under your commercial agreement. Past orders keep the terms that applied when they were placed.">
+          <Card title={tr('Commission terms in force')} description={tr('Set by the platform under your commercial agreement. Past orders keep the terms that applied when they were placed.')}>
             {d.rules.length ? (
               <ul className="divide-y divide-black/[0.06] text-sm">
                 {d.rules.map((r) => (
@@ -45,30 +46,30 @@ export function HotelFinance({ hid }: { hid: string }) {
                     </span>
                     <span className="tabular-nums">
                       {r.commission_type === 'FIXED' ? money(r.fixed_fee_minor) : pct(r.rate_bps)}
-                      {r.commission_type === 'PERCENTAGE_PLUS_FIXED' ? ` + ${money(r.fixed_fee_minor)}` : ''} · {COMMISSION_BASIS_LABELS[r.basis as keyof typeof COMMISSION_BASIS_LABELS] ?? r.basis}
+                      {r.commission_type === 'PERCENTAGE_PLUS_FIXED' ? ` + ${money(r.fixed_fee_minor)}` : ''} · {L(COMMISSION_BASIS_LABELS[r.basis as keyof typeof COMMISSION_BASIS_LABELS]) || r.basis}
                     </span>
-                    <span className="text-xs text-zinc-500">from {dateOnly(r.effective_from)}{r.effective_to ? ` to ${dateOnly(r.effective_to)}` : ''}</span>
+                    <span className="text-xs text-zinc-500">{tr('from {0}', { 0: dateOnly(r.effective_from) })}{r.effective_to ? ` to ${dateOnly(r.effective_to)}` : ''}</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-zinc-500">No commission terms are configured yet.</p>
+              <p className="text-sm text-zinc-500">{tr('No commission terms are configured yet.')}</p>
             )}
           </Card>
         )}
-        <Card title="Settlements">
+        <Card title={tr('Settlements')}>
           {d.settlements.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[44rem] text-sm">
-                <thead className="text-left text-xs text-zinc-500">
+                <thead className="text-start text-xs text-zinc-500">
                   <tr>
-                    <th className="py-2 font-medium">Settlement</th>
-                    <th className="py-2 font-medium">Period</th>
-                    <th className="py-2 font-medium">Status</th>
-                    <th className="py-2 text-right font-medium">Orders</th>
-                    <th className="py-2 text-right font-medium">Gross value</th>
-                    <th className="py-2 text-right font-medium">Commission</th>
-                    <th className="py-2 text-right font-medium">Due to platform</th>
+                    <th className="py-2 font-medium">{tr('Settlement')}</th>
+                    <th className="py-2 font-medium">{tr('Period')}</th>
+                    <th className="py-2 font-medium">{tr('Status')}</th>
+                    <th className="py-2 text-end font-medium">{tr('Orders')}</th>
+                    <th className="py-2 text-end font-medium">{tr('Gross value')}</th>
+                    <th className="py-2 text-end font-medium">{tr('Commission')}</th>
+                    <th className="py-2 text-end font-medium">{tr('Due to platform')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/[0.06]">
@@ -79,33 +80,33 @@ export function HotelFinance({ hid }: { hid: string }) {
                       </td>
                       <td className="py-2">{dateOnly(s.period_start)} → {dateOnly(s.period_end)}</td>
                       <td className="py-2"><SettlementStatus status={s.status} /></td>
-                      <td className="py-2 text-right tabular-nums">{s.order_count}</td>
-                      <td className="py-2 text-right tabular-nums">{money(s.gross_minor, s.currency)}</td>
-                      <td className="py-2 text-right tabular-nums">{money(s.commission_minor, s.currency)}</td>
-                      <td className="py-2 text-right font-semibold tabular-nums">{money(s.amount_due_minor, s.currency)}</td>
+                      <td className="py-2 text-end tabular-nums">{s.order_count}</td>
+                      <td className="py-2 text-end tabular-nums">{money(s.gross_minor, s.currency)}</td>
+                      <td className="py-2 text-end tabular-nums">{money(s.commission_minor, s.currency)}</td>
+                      <td className="py-2 text-end font-semibold tabular-nums">{money(s.amount_due_minor, s.currency)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <EmptyState icon={<Landmark className="h-6 w-6" />} title="No settlements yet" description="The platform prepares a statement for each settlement period." />
+            <EmptyState icon={<Landmark className="h-6 w-6" />} title={tr('No settlements yet')} description={tr('The platform prepares a statement for each settlement period.')} />
           )}
         </Card>
         {d.access === 'FULL' && (
-          <Card title="Commission ledger" description="Most recent 200 entries. Adjustments appear as separate entries; original entries never change.">
+          <Card title={tr('Commission ledger')} description={tr('Most recent 200 entries. Adjustments appear as separate entries; original entries never change.')}>
             {d.ledger.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[44rem] text-sm">
-                  <thead className="text-left text-xs text-zinc-500">
+                  <thead className="text-start text-xs text-zinc-500">
                     <tr>
-                      <th className="py-2 font-medium">Entry</th>
-                      <th className="py-2 font-medium">Order</th>
-                      <th className="py-2 text-right font-medium">Order value</th>
-                      <th className="py-2 text-right font-medium">Commission</th>
-                      <th className="py-2 ps-4 font-medium">Status</th>
-                      <th className="py-2 font-medium">Settlement</th>
-                      <th className="py-2 font-medium">Date</th>
+                      <th className="py-2 font-medium">{tr('Entry')}</th>
+                      <th className="py-2 font-medium">{tr('Order')}</th>
+                      <th className="py-2 text-end font-medium">{tr('Order value')}</th>
+                      <th className="py-2 text-end font-medium">{tr('Commission')}</th>
+                      <th className="py-2 ps-4 font-medium">{tr('Status')}</th>
+                      <th className="py-2 font-medium">{tr('Settlement')}</th>
+                      <th className="py-2 font-medium">{tr('Date')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black/[0.06]">
@@ -115,8 +116,8 @@ export function HotelFinance({ hid }: { hid: string }) {
                         <td className="py-2">
                           <button type="button" className="font-mono hover:underline" onClick={() => setOrderId(l.request_id)}>{l.reference}</button>
                         </td>
-                        <td className="py-2 text-right tabular-nums">{money(l.gross_minor)}</td>
-                        <td className="py-2 text-right tabular-nums">{money(l.commission_minor)}</td>
+                        <td className="py-2 text-end tabular-nums">{money(l.gross_minor)}</td>
+                        <td className="py-2 text-end tabular-nums">{money(l.commission_minor)}</td>
                         <td className="py-2 ps-4"><LedgerStatus status={l.status} /></td>
                         <td className="py-2 text-xs">{l.settlement_no ?? '—'}</td>
                         <td className="py-2 text-xs text-zinc-500">{dateTime(l.earned_at)}</td>
@@ -126,7 +127,7 @@ export function HotelFinance({ hid }: { hid: string }) {
                 </table>
               </div>
             ) : (
-              <p className="text-sm text-zinc-500">No commission entries yet.</p>
+              <p className="text-sm text-zinc-500">{tr('No commission entries yet.')}</p>
             )}
           </Card>
         )}

@@ -94,19 +94,19 @@ async function login(page: Page, email: string) {
   await page.locator('h1').first().waitFor();
 }
 
-async function settle(page: Page) {
-  await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => undefined);
-  await page.waitForTimeout(150);
+/** In-flight API calls per page (networkidle never settles: the admin polls). */
+const inflight = new WeakMap<Page, number>();
+function track(page: Page) {
+  inflight.set(page, 0);
+  const done = (r: { url(): string }) => r.url().includes('/api/') && inflight.set(page, Math.max(0, (inflight.get(page) ?? 1) - 1));
+  page.on('request', (r) => r.url().includes('/api/') && inflight.set(page, (inflight.get(page) ?? 0) + 1));
+  page.on('requestfinished', done);
+  page.on('requestfailed', done);
 }
-
-async function nameOf(l: Locator) {
-  return (
-    (await l.getAttribute('aria-label')) ||
-    (await l.innerText().catch(() => '')).replace(/\s+/g, ' ').trim() ||
-    (await l.getAttribute('title')) ||
-    (await l.getAttribute('href')) ||
-    ''
-  ).slice(0, 80);
+async function settle(page: Page) {
+  await page.waitForTimeout(200);
+  for (let i = 0; i < 30 && (inflight.get(page) ?? 0) > 0; i++) await page.waitForTimeout(100);
+  await page.waitForTimeout(100);
 }
 
 /** Record-specific labels ("Edit Lobby Café") collapse to one family ("Edit …"). */
@@ -136,25 +136,31 @@ async function crawl(page: Page, role: string, route: string, scope: string) {
       await page.goto(route);
       await settle(page);
     }
-    const controls = page.locator(`${scope} :is(button, a[href], [role="button"], [role="tab"], [role="radio"], summary):visible`);
-    const n = await controls.count();
+    const SEL = `${scope} :is(button, a[href], [role="button"], [role="tab"], [role="radio"], summary)`;
+    // One round-trip: describe every visible control outside dialogs.
+    const list = await page.evaluate((sel) => {
+      const out: { i: number; name: string; tag: string }[] = [];
+      document.querySelectorAll(sel).forEach((el, i) => {
+        const h = el as HTMLElement;
+        if (h.closest('[role="dialog"]') || !(h.offsetWidth || h.offsetHeight || h.getClientRects().length)) return;
+        const name = (h.getAttribute('aria-label') || h.innerText || h.getAttribute('title') || h.getAttribute('href') || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+        out.push({ i, name, tag: h.getAttribute('role') || h.tagName.toLowerCase() });
+      });
+      return out;
+    }, SEL);
     let target: Locator | null = null;
     let label = '';
     let kind = '';
-    for (let i = 0; i < n; i++) {
-      const c = controls.nth(i);
-      if (await c.evaluate((el) => !!el.closest('[role="dialog"]'))) continue;
-      const nm = await nameOf(c);
-      const tag = await c.evaluate((el) => el.getAttribute('role') || el.tagName.toLowerCase());
-      const key = `${tag}|${nm}`;
+    for (const c of list) {
+      const key = `${c.tag}|${c.name}`;
       if (done.has(key)) continue;
       done.add(key);
-      const fam = `${tag}|${family(nm)}`;
+      const fam = `${c.tag}|${family(c.name)}`;
       if ((perFamily.get(fam) ?? 0) >= 2) continue;
       perFamily.set(fam, (perFamily.get(fam) ?? 0) + 1);
-      target = c;
-      label = nm;
-      kind = tag;
+      target = page.locator(SEL).nth(c.i);
+      label = c.name;
+      kind = c.tag;
       break;
     }
     if (!target) return;
@@ -184,6 +190,13 @@ async function crawl(page: Page, role: string, route: string, scope: string) {
       rec.status = 'DISABLED';
       continue;
     }
+    // Already-selected tabs, filters and segments legitimately do nothing when clicked again.
+    const selected = await target.evaluate((el) =>
+      ['aria-pressed', 'aria-checked', 'aria-selected', 'aria-current'].some((a) => {
+        const v = el.getAttribute(a);
+        return v === 'true' || v === 'page';
+      })
+    );
     const w = watch(page);
     await page.evaluate(() => {
       const g = window as unknown as { __mut: number; __obs?: MutationObserver };
@@ -198,6 +211,9 @@ async function crawl(page: Page, role: string, route: string, scope: string) {
     let download = false;
     const onDl = () => (download = true);
     page.on('download', onDl);
+    let chooser = false;
+    const onChooser = () => (chooser = true);
+    page.on('filechooser', onChooser);
     const popup = page.context().waitForEvent('page', { timeout: 800 }).catch(() => null);
     try {
       await target.click({ timeout: 2500 });
@@ -206,6 +222,7 @@ async function crawl(page: Page, role: string, route: string, scope: string) {
       rec.detail = String((e as Error).message).split('\n')[0].slice(0, 160);
       w.stop();
       page.off('download', onDl);
+      page.off('filechooser', onChooser);
       continue;
     }
     await settle(page);
@@ -214,8 +231,9 @@ async function crawl(page: Page, role: string, route: string, scope: string) {
     const dialog = await page.locator('[role="dialog"]:visible, [role="menu"]:visible').count();
     w.stop();
     page.off('download', onDl);
+    page.off('filechooser', onChooser);
     if (newPage) await newPage.close();
-    const effects = [page.url() !== before && 'navigation', w.api > 0 && `api×${w.api}`, dialog > 0 && 'dialog', download && 'download', newPage && 'new tab', mut > 0 && `dom×${mut}`].filter(Boolean);
+    const effects = [page.url() !== before && 'navigation', w.api > 0 && `api×${w.api}`, dialog > 0 && 'dialog', download && 'download', chooser && 'file chooser', newPage && 'new tab', mut > 0 && `dom×${mut}`, !mut && selected && 'already selected'].filter(Boolean);
     rec.effect = effects.join(', ');
     const forbidden = w.bad.filter((b) => / → 403$/.test(b));
     const failed = w.bad.filter((b) => !/ → (403|404|409|422)$/.test(b));
@@ -245,6 +263,7 @@ async function visit(page: Page, role: string, route: string, deep: boolean, sco
 for (const r of ROLES) {
   test(`action audit · ${r.role}`, async ({ page }) => {
     test.setTimeout(20 * 60_000);
+    track(page);
     await login(page, r.email);
     const landing = page.url();
     const hid = /\/admin\/h\/([0-9a-f-]{36})/.exec(landing)?.[1] ?? /\/admin\/h\/([0-9a-f-]{36})/.exec((await page.locator('a[href*="/admin/h/"]').first().getAttribute('href').catch(() => '')) ?? '')?.[1];
@@ -267,6 +286,7 @@ for (const r of ROLES) {
 
 test('action audit · GUEST', async ({ page }) => {
   test.setTimeout(20 * 60_000);
+  track(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await enterAsGuest(page, { lang: 'en' });
   const base = `/h/${SLUG}`;

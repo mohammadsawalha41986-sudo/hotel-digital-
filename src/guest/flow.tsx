@@ -1,3 +1,4 @@
+import { track } from './track';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { GuestRequestInput } from '@shared/hotel';
@@ -28,6 +29,9 @@ interface Flow {
 
 const Ctx = createContext<Flow | null>(null);
 
+/** Request kinds → engagement target types (aggregate counters only). */
+const KIND_TARGET: Record<string, string> = { ORDER: 'outlet', ROOM_SERVICE: 'room_service', HOTEL_SERVICE: 'hotel_service', SPA: 'spa_service', LAUNDRY: 'laundry', FEEDBACK: 'feedback' };
+
 export function FlowProvider({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<OpenSheet>(null);
   const { slug, bundle } = useHotel();
@@ -55,7 +59,10 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         setSheet({ kind: 'identity' });
         throw new Error('identity required');
       }
-      return mutation.mutateAsync(payload);
+      track('request_started', { target_type: KIND_TARGET[(payload as { kind?: string }).kind ?? ''] ?? '' });
+      const created = await mutation.mutateAsync(payload);
+      track('request_completed', { target_type: KIND_TARGET[(payload as { kind?: string }).kind ?? ''] ?? '' });
+      return created;
     },
     [identity, mutation, bundle.preview, lang]
   );

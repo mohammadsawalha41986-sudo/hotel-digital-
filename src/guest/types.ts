@@ -106,6 +106,10 @@ export interface PublicBundle {
   site: SiteConfig;
   departments: { code: string; name_en: string; name_ar: string; phone: string; has_whatsapp: boolean }[];
   catalog: {
+    /** Homepage discovery tiles (may be empty — tiles are then derived). */
+    experiences: Rec[];
+    /** Merchandised menu items with their outlet_id. */
+    featured_items: Rec[];
     offers: Rec[];
     quick_actions: Rec[];
     outlets: Outlet[];

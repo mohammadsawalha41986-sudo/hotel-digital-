@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { IMAGE_SPECS } from '@shared/mediaSpecs';
 import { Button, Segmented, Sheet } from '../../components/ui';
+import { tr } from '../i18n';
 
 interface Props {
   open: boolean;
@@ -117,23 +118,23 @@ export function CropDialog({ open, src, spec, onClose, onCropped }: Props) {
     <Sheet
       open={open}
       onClose={onClose}
-      title="Crop image"
-      description="Drag to position. Use the slider or + / − to zoom and the arrow keys to move. The cropped copy is uploaded; the original is kept in the media library."
+      title={tr('Crop image')}
+      description={tr('Drag to position. Use the slider or + / − to zoom and the arrow keys to move. The cropped copy is uploaded; the original is kept in the media library.')}
       size="lg"
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button onClick={apply} loading={busy} disabled={!img}>Apply crop</Button>
+          <Button variant="secondary" onClick={onClose}>{tr('Cancel')}</Button>
+          <Button onClick={apply} loading={busy} disabled={!img}>{tr('Apply crop')}</Button>
         </div>
       }
     >
       <div className="space-y-4">
-        <Segmented label="Aspect ratio" value={ratioKey} onChange={(v) => { setRatioKey(v); setPos({ x: 0, y: 0 }); }} options={options} />
+        <Segmented label={tr('Aspect ratio')} value={ratioKey} onChange={(v) => { setRatioKey(v); setPos({ x: 0, y: 0 }); }} options={options} />
         <div className="flex justify-center overflow-hidden">
           <div
             role="slider"
             tabIndex={0}
-            aria-label="Image position"
+            aria-label={tr('Image position')}
             aria-valuetext={`Zoom ${Math.round(zoom * 100)}%`}
             aria-valuenow={Math.round(zoom * 100)}
             onKeyDown={onKey}
@@ -149,13 +150,12 @@ export function CropDialog({ open, src, spec, onClose, onCropped }: Props) {
           </div>
         </div>
         <label className="flex items-center gap-3 text-sm">
-          <span className="w-12 text-zinc-500">Zoom</span>
-          <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="flex-1" aria-label="Zoom" />
+          <span className="w-12 text-zinc-500">{tr('Zoom')}</span>
+          <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="flex-1" aria-label={tr('Zoom')} />
           <span className="w-12 text-end tabular-nums">{Math.round(zoom * 100)}%</span>
         </label>
         {img && (
-          <p className="text-xs text-zinc-500">
-            Source {img.naturalWidth}×{img.naturalHeight} · output {Math.round(Math.min(s?.width ?? 2400, FW / scale))}×{Math.round(Math.min(s?.width ?? 2400, FW / scale) / ratio)}
+          <p className="text-xs text-zinc-500">{tr('Source {0}×{1} · output', { 0: img.naturalWidth, 1: img.naturalHeight })}{Math.round(Math.min(s?.width ?? 2400, FW / scale))}×{Math.round(Math.min(s?.width ?? 2400, FW / scale) / ratio)}
           </p>
         )}
         {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}

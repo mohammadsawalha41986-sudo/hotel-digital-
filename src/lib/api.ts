@@ -20,6 +20,12 @@ export class ApiError extends Error {
 
 type Json = Record<string, unknown> | unknown[];
 
+/** Optional translator for API messages (the admin registers one for Arabic). */
+let translate: (message: string, code: string) => string = (m) => m;
+export function setApiMessageTranslator(fn: (message: string, code: string) => string) {
+  translate = fn;
+}
+
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: Json | FormData;
@@ -40,7 +46,7 @@ export async function api<T = unknown>(path: string, opts: RequestOptions = {}):
     res = await fetch(`/api${path}`, { method: opts.method ?? 'GET', headers, body, credentials: 'same-origin', signal: opts.signal });
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e;
-    throw new ApiError(0, 'network', 'We could not reach the server. Check your connection and try again.');
+    throw new ApiError(0, 'network', translate('We could not reach the server. Check your connection and try again.', 'network'));
   }
   const text = await res.text();
   let data: unknown = null;
@@ -51,7 +57,9 @@ export async function api<T = unknown>(path: string, opts: RequestOptions = {}):
   }
   if (!res.ok) {
     const err = (data as { error?: { code?: string; message?: string; details?: { fields?: Record<string, string> } & Record<string, unknown> } } | null)?.error;
-    throw new ApiError(res.status, err?.code ?? 'http_error', err?.message ?? `Request failed (${res.status})`, err?.details?.fields ?? {}, err?.details ?? {});
+    const code = err?.code ?? 'http_error';
+    const fields = Object.fromEntries(Object.entries(err?.details?.fields ?? {}).map(([k, v]) => [k, translate(String(v), 'field')]));
+    throw new ApiError(res.status, code, translate(err?.message ?? `Request failed (${res.status})`, code), fields, err?.details ?? {});
   }
   return data as T;
 }

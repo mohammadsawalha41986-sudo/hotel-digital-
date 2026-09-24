@@ -227,6 +227,7 @@ export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 export const SECTION_TYPES = [
   'experiences',
   'offers',
+  'popular_items',
   'quick_actions',
   'dining',
   'room_services',

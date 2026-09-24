@@ -25,7 +25,12 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
       return this.props.fallback ? (
         this.props.fallback(this.reset)
       ) : (
-        <FullPageMessage code="Error" title="Something went wrong" description="Please reload the page. If the problem continues, contact the hotel reception." action={{ label: 'Reload', onClick: () => window.location.reload() }} />
+        <FullPageMessage
+          code={document.documentElement.lang === 'ar' ? 'خطأ' : 'Error'}
+          title={document.documentElement.lang === 'ar' ? 'حدث خطأ ما' : 'Something went wrong'}
+          description={document.documentElement.lang === 'ar' ? 'يرجى إعادة تحميل الصفحة. إذا استمرت المشكلة تواصل مع الاستقبال.' : 'Please reload the page. If the problem continues, contact the hotel reception.'}
+          action={{ label: document.documentElement.lang === 'ar' ? 'إعادة التحميل' : 'Reload', onClick: () => window.location.reload() }}
+        />
       );
     }
     return this.props.children;

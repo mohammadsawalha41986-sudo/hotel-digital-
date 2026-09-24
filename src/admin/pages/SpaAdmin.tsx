@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAdminHotel, useEntities, type EntityRecord } from '../data';
 import { EntityManager } from '../components/EntityManager';
 import { PageHeader } from '../layout/AdminLayout';
+import { tr } from '../i18n';
 
 export function SpaAdmin({ hid }: { hid: string }) {
   const hotel = useAdminHotel(hid);
@@ -12,13 +13,13 @@ export function SpaAdmin({ hid }: { hid: string }) {
   }, [cats.data, cat]);
   return (
     <>
-      <PageHeader title="Wellness & spa" description="Categories (massage, pool, gym…) each contain services. Bookable services let guests request a preferred date and time." />
+      <PageHeader title={tr('Wellness & spa')} description={tr('Categories (massage, pool, gym…) each contain services. Bookable services let guests request a preferred date and time.')} />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
-        <EntityManager hid={hid} entity="spa_categories" compact onOpen={setCat} selectedId={cat?.id} title="Categories" />
+        <EntityManager hid={hid} entity="spa_categories" compact onOpen={setCat} selectedId={cat?.id} title={tr('Categories')} />
         {cat ? (
-          <EntityManager hid={hid} entity="spa_services" parentId={cat.id} currency={hotel.data?.profile.currency} title={`Services · ${String(cat.name_en)}`} />
+          <EntityManager hid={hid} entity="spa_services" parentId={cat.id} currency={hotel.data?.profile.currency} title={tr('Services · {0}', { 0: String(cat.name_en) })} />
         ) : (
-          <p className="rounded-2xl border border-dashed border-black/15 p-6 text-sm text-zinc-500">Add a category to start.</p>
+          <p className="rounded-2xl border border-dashed border-black/15 p-6 text-sm text-zinc-500">{tr('Add a category to start.')}</p>
         )}
       </div>
     </>

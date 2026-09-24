@@ -3,28 +3,32 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ORDER_SOURCE_LABELS, ORDER_TYPE_LABELS, ORDER_SOURCES, ORDER_TYPES, type OrderSource, type OrderType } from '@shared/commerce';
 import { DEPARTMENT_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUSES, type DepartmentCode, type RequestStatus } from '@shared/domain';
 import { Badge, Select, TextInput, cx } from '../../components/ui';
+import { adminLang, tr, L, locale } from '../i18n';
+
+/** Amounts keep Latin digits in both languages (finance readability). */
+const moneyLocale = () => (adminLang() === 'ar' ? 'ar-SA-u-nu-latn' : 'en-SA');
 
 /** Minor units (halalas) → "SAR 1,234.50". */
 export function money(minor: number | null | undefined, currency = 'SAR') {
   if (minor == null) return '—';
-  return new Intl.NumberFormat('en-SA', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(minor / 100);
+  return new Intl.NumberFormat(moneyLocale(), { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(minor / 100);
 }
 /** Major units (order totals) → currency. */
 export function major(v: number | null | undefined, currency = 'SAR') {
   if (v == null) return '—';
-  return new Intl.NumberFormat('en-SA', { style: 'currency', currency, minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }).format(v);
+  return new Intl.NumberFormat(moneyLocale(), { style: 'currency', currency, minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }).format(v);
 }
 export const pct = (bps: number | null | undefined) => (bps == null ? '—' : `${(bps / 100).toFixed(2)}%`);
-export const dateTime = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
-export const dateOnly = (iso: string | null | undefined) => (iso ? new Date(iso.length === 10 ? `${iso}T00:00:00` : iso).toLocaleDateString('en-GB', { dateStyle: 'medium' }) : '—');
-export const deptLabel = (d: string) => DEPARTMENT_LABELS[d as DepartmentCode]?.en ?? d;
-export const typeLabel = (t: string) => ORDER_TYPE_LABELS[t as OrderType]?.en ?? t;
-export const sourceLabel = (s: string) => ORDER_SOURCE_LABELS[s as OrderSource]?.en ?? s;
+export const dateTime = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' }) : '—');
+export const dateOnly = (iso: string | null | undefined) => (iso ? new Date(iso.length === 10 ? `${iso}T00:00:00` : iso).toLocaleDateString(locale(), { dateStyle: 'medium' }) : '—');
+export const deptLabel = (d: string) => L(DEPARTMENT_LABELS[d as DepartmentCode]) || d;
+export const typeLabel = (t: string) => L(ORDER_TYPE_LABELS[t as OrderType]) || t;
+export const sourceLabel = (s: string) => L(ORDER_SOURCE_LABELS[s as OrderSource]) || s;
 
 type Tone = 'neutral' | 'success' | 'warning' | 'danger' | 'brand' | 'info';
 const ORDER_TONE: Record<string, Tone> = { NEW: 'info', ACCEPTED: 'brand', IN_PROGRESS: 'warning', READY: 'brand', COMPLETED: 'success', REJECTED: 'danger', CANCELLED: 'neutral' };
 export function OrderStatus({ status }: { status: string }) {
-  return <Badge tone={ORDER_TONE[status] ?? 'neutral'}>{REQUEST_STATUS_LABELS[status as RequestStatus]?.en ?? status}</Badge>;
+  return <Badge tone={ORDER_TONE[status] ?? 'neutral'}>{L(REQUEST_STATUS_LABELS[status as RequestStatus]) || status}</Badge>;
 }
 
 const FIN: Record<string, [string, Tone]> = {
@@ -70,11 +74,9 @@ export function ExportLinks({ href, label = 'Export' }: { href: string; label?: 
   return (
     <div className="flex gap-2" role="group" aria-label={label}>
       <a className={cls} href={`/api${href}${sep}format=xlsx`} download>
-        <Download className="h-4 w-4" aria-hidden="true" /> Excel
-      </a>
+        <Download className="h-4 w-4" aria-hidden="true" />{' '}{tr('Excel')}</a>
       <a className={cls} href={`/api${href}${sep}format=csv`} download>
-        <Download className="h-4 w-4" aria-hidden="true" /> CSV
-      </a>
+        <Download className="h-4 w-4" aria-hidden="true" />{' '}{tr('CSV')}</a>
     </div>
   );
 }
@@ -104,69 +106,69 @@ export function OrderFilterBar({ value, onChange, departments, showFinance, extr
   return (
     <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
       <div className="sm:col-span-2">
-        <label htmlFor="of-search" className="sr-only">Search</label>
-        <TextInput id="of-search" placeholder="Reference, guest, phone, room, guest ID…" value={value.search} onChange={set('search')} className={cls} />
+        <label htmlFor="of-search" className="sr-only">{tr('Search')}</label>
+        <TextInput id="of-search" placeholder={tr('Reference, guest, phone, room, guest ID…')} value={value.search} onChange={set('search')} className={cls} />
       </div>
       {extra}
       <div>
-        <label htmlFor="of-status" className="sr-only">Status</label>
+        <label htmlFor="of-status" className="sr-only">{tr('Status')}</label>
         <Select id="of-status" value={value.status} onChange={set('status')} className={cls}>
-          <option value="">All statuses</option>
-          <option value="OPEN">Open</option>
+          <option value="">{tr('All statuses')}</option>
+          <option value="OPEN">{tr('Open')}</option>
           {REQUEST_STATUSES.map((s) => (
-            <option key={s} value={s}>{REQUEST_STATUS_LABELS[s].en}</option>
+            <option key={s} value={s}>{L(REQUEST_STATUS_LABELS[s])}</option>
           ))}
         </Select>
       </div>
       <div>
-        <label htmlFor="of-dept" className="sr-only">Department</label>
+        <label htmlFor="of-dept" className="sr-only">{tr('Department')}</label>
         <Select id="of-dept" value={value.department} onChange={set('department')} className={cls}>
-          <option value="">All departments</option>
+          <option value="">{tr('All departments')}</option>
           {departments.map((d) => (
             <option key={d} value={d}>{deptLabel(d)}</option>
           ))}
         </Select>
       </div>
       <div>
-        <label htmlFor="of-type" className="sr-only">Order type</label>
+        <label htmlFor="of-type" className="sr-only">{tr('Order type')}</label>
         <Select id="of-type" value={value.order_type} onChange={set('order_type')} className={cls}>
-          <option value="">All order types</option>
+          <option value="">{tr('All order types')}</option>
           {ORDER_TYPES.map((t) => (
-            <option key={t} value={t}>{ORDER_TYPE_LABELS[t].en}</option>
+            <option key={t} value={t}>{L(ORDER_TYPE_LABELS[t])}</option>
           ))}
         </Select>
       </div>
       <div>
-        <label htmlFor="of-source" className="sr-only">Source</label>
+        <label htmlFor="of-source" className="sr-only">{tr('Source')}</label>
         <Select id="of-source" value={value.source} onChange={set('source')} className={cls}>
-          <option value="">All sources</option>
+          <option value="">{tr('All sources')}</option>
           {ORDER_SOURCES.map((s) => (
-            <option key={s} value={s}>{ORDER_SOURCE_LABELS[s].en}</option>
+            <option key={s} value={s}>{L(ORDER_SOURCE_LABELS[s])}</option>
           ))}
         </Select>
       </div>
       <div>
-        <label htmlFor="of-from" className="text-xs text-zinc-500">From</label>
+        <label htmlFor="of-from" className="text-xs text-zinc-500">{tr('From')}</label>
         <TextInput id="of-from" type="date" value={value.from} onChange={set('from')} className={cls} />
       </div>
       <div>
-        <label htmlFor="of-to" className="text-xs text-zinc-500">To</label>
+        <label htmlFor="of-to" className="text-xs text-zinc-500">{tr('To')}</label>
         <TextInput id="of-to" type="date" value={value.to} onChange={set('to')} className={cls} />
       </div>
       {showFinance && (
         <>
           <div>
-            <label htmlFor="of-fin" className="text-xs text-zinc-500">Financial status</label>
+            <label htmlFor="of-fin" className="text-xs text-zinc-500">{tr('Financial status')}</label>
             <Select id="of-fin" value={value.financial_status} onChange={set('financial_status')} className={cls}>
-              <option value="">Any</option>
+              <option value="">{tr('Any')}</option>
               {Object.entries(FIN).map(([k, [l]]) => (
                 <option key={k} value={k}>{l}</option>
               ))}
             </Select>
           </div>
           <div>
-            <label htmlFor="of-stl" className="text-xs text-zinc-500">Settlement no.</label>
-            <TextInput id="of-stl" placeholder="STL-…" value={value.settlement} onChange={set('settlement')} className={cls} />
+            <label htmlFor="of-stl" className="text-xs text-zinc-500">{tr('Settlement no.')}</label>
+            <TextInput id="of-stl" placeholder={tr('STL-…')} value={value.settlement} onChange={set('settlement')} className={cls} />
           </div>
         </>
       )}
@@ -177,7 +179,7 @@ export function OrderFilterBar({ value, onChange, departments, showFinance, extr
 /** Simple horizontal bar list for breakdowns (department, source, …). */
 export function Breakdown({ rows, label, value, format = (v) => String(v) }: { rows: Record<string, any>[]; label: (r: any) => string; value: (r: any) => number; format?: (v: number) => string }) {
   const max = Math.max(1, ...rows.map(value));
-  if (!rows.length) return <p className="text-sm text-zinc-500">No orders in this period.</p>;
+  if (!rows.length) return <p className="text-sm text-zinc-500">{tr('No orders in this period.')}</p>;
   return (
     <ul className="space-y-2.5">
       {rows.map((r, i) => (

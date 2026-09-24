@@ -134,6 +134,10 @@ The most specific rule wins, in this order: `SERVICE → CATEGORY → OUTLET →
 - Periods of one hotel cannot overlap.
 - A settlement collects every unsettled, undisputed ledger entry in its period, and its totals are recomputed from those lines.
 - Lifecycle: `DRAFT → REVIEWED → APPROVED → SETTLED`. A payment reference is required to settle. `VOID` releases the entries.
+- **Maker–checker:** the approver must be a different person from the creator and the reviewer.
+  - The server rejects self-approval with `409 four_eyes`.
+  - The settlement screen disables Approve for that user and explains why.
+  - Covered by `tests/api/commerce.test.ts` and `e2e/04-commerce.spec.ts`: the reviewer is blocked, and a second finance user approves and settles.
 - Moving to approved or settled runs an integrity check: header = Σ lines, and every line still equals its ledger entry.
 - Every figure can be drilled down: settlement → ledger entry → order → order lines → snapshot (rule and formula) → adjustment. Statements export to Excel or CSV and print to PDF.
 
@@ -239,12 +243,17 @@ The most specific rule wins, in this order: `SERVICE → CATEGORY → OUTLET →
 
 ## 10. Remaining gaps
 
-1. **Admin console language:** the admin console is still English-only. The bilingual admin shell is the next master-order phase.
+1. **Admin console language:** done.
+   - The whole console, commerce screens included, is Arabic/English with RTL.
+   - Server error messages are translated through a generated catalogue. See `docs/UX-ARCHITECTURE.md`.
 2. **Discounts and fees:** discounts, service charge and other fees are stored and fully handled by the maths, but nothing sets them yet. There is no promotion engine, so they are always 0 today.
 3. **Offers and packages:** offer and laundry-package ordering is not available in the guest portal yet. `OFFER_PACKAGE` orders can only be entered by staff.
 4. **Payments and PMS:** there is no payment gateway (the hotel collects from the guest) and no PMS integration. Check-in and check-out dates are entered manually.
 5. **PDF output:** settlement PDFs come from the browser's print dialog. There is no server-rendered PDF.
-6. **Retention scheduling:** retention runs through an endpoint or function, and no scheduler calls it yet. Staff notes in request history are immutable, so anonymisation cannot erase them. Staff are told not to record personal data there.
-7. **Settlement approval:** creator ≠ approver (four-eyes) is not enforced. The hotel cannot acknowledge a settlement in the app.
+6. **Retention scheduling:** an opt-in daily job (`RETENTION_JOB=1`, `server/services/scheduler.ts`) runs retention.
+   - It is guarded by a Postgres advisory lock, so only one instance runs it.
+   - It is audited, and it only touches hotels that have a retention period.
+   - It is off by default until the operator enables it. Staff notes in request history are immutable, so anonymisation cannot erase them. Staff are told not to record personal data there.
+7. **Settlement approval:** four-eyes approval is enforced (see §5). The hotel still cannot acknowledge a settlement in the app.
 8. **Rule entry time zone:** effective dates are entered in the browser's local time.
 9. **Deployment:** nothing is deployed. §70 needs you to approve a target.

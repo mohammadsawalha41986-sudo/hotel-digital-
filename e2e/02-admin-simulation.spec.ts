@@ -169,10 +169,15 @@ test('role restrictions are enforced in the UI', async ({ page }) => {
   await uiLogin(page, 'fnb@demo.hotelhub.local');
   const nav = page.getByRole('navigation', { name: 'Admin' });
   await expect(nav.getByRole('link', { name: 'Dining & menus' })).toBeVisible();
-  await expect(nav.getByRole('link', { name: 'Branding' })).toHaveCount(0);
-  await expect(nav.getByRole('link', { name: 'Users & roles' })).toHaveCount(0);
+  await expect(nav.getByRole('link', { name: 'Brand & theme' })).toHaveCount(0);
+  await expect(nav.getByRole('link', { name: 'Users & permissions' })).toHaveCount(0);
   await page.goto(`/admin/h/${hid}/branding`);
   await expect(page.getByText('Access restricted')).toBeVisible();
+  // The same labels exist for a hotel admin, so the absence above is real, not a stale name.
+  await page.context().clearCookies();
+  await uiLogin(page, 'admin@demo.hotelhub.local');
+  await expect(nav.getByRole('link', { name: 'Brand & theme' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'Users & permissions' })).toBeVisible();
 });
 
 test('error pages instead of blank screens', async ({ page }) => {

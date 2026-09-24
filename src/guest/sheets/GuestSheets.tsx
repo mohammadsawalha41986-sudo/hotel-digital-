@@ -1,3 +1,4 @@
+import { track } from '../track';
 import { CheckCircle2, MessageCircle, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -372,7 +373,7 @@ function SuccessSheet() {
           </div>
           {created.whatsapp_url && (
             <div className="mt-5 w-full">
-              <a href={created.whatsapp_url} target="_blank" rel="noopener noreferrer" className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#25D366] font-semibold text-white" data-testid="whatsapp-link">
+              <a href={created.whatsapp_url} target="_blank" rel="noopener noreferrer" onClick={() => track('whatsapp_click', { target_type: 'department', target_code: created.department ?? '' })} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#25D366] font-semibold text-white" data-testid="whatsapp-link">
                 <MessageCircle className="h-5 w-5" aria-hidden="true" />
                 {t('sendWhatsApp')}
               </a>

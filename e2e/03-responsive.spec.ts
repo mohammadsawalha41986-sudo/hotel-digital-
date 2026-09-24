@@ -127,7 +127,7 @@ test('screenshots for the delivery report', async ({ page, browser }) => {
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${SHOTS}/admin-request-detail.png` });
   await page.keyboard.press('Escape');
-  await page.getByRole('link', { name: 'Website manager' }).click();
+  await page.getByRole('link', { name: 'Website & homepage' }).click();
   await page.waitForTimeout(2500);
   await page.screenshot({ path: `${SHOTS}/admin-website-manager.png` });
   await page.getByRole('link', { name: 'Dining & menus' }).click();
@@ -143,7 +143,7 @@ test('screenshots for the delivery report', async ({ page, browser }) => {
   await page.getByRole('link', { name: 'QR codes' }).click();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${SHOTS}/admin-qr-codes.png` });
-  await page.getByRole('link', { name: 'Branding' }).click();
+  await page.getByRole('link', { name: 'Brand & theme' }).click();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${SHOTS}/admin-branding.png` });
 });

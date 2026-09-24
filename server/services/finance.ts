@@ -531,13 +531,17 @@ export async function transitionSettlement(
   extra: { payment_reference?: string; notes?: string },
   actor: Actor
 ) {
-  const s = await one<{ id: string; status: SettlementStatus; settlement_no: string; commission_minor: number }>(
-    `SELECT id, status, settlement_no, commission_minor FROM settlements WHERE hotel_id = $1 AND id = $2 FOR UPDATE`,
+  const s = await one<{ id: string; status: SettlementStatus; settlement_no: string; commission_minor: number; created_by: string | null; reviewed_by: string | null }>(
+    `SELECT id, status, settlement_no, commission_minor, created_by, reviewed_by FROM settlements WHERE hotel_id = $1 AND id = $2 FOR UPDATE`,
     [hotelId, settlementId],
     client
   );
   if (!s) throw notFound('Settlement not found');
   if (!SETTLEMENT_TRANSITIONS[s.status].includes(to)) throw new HttpError(409, 'invalid_transition', `A ${s.status.toLowerCase()} settlement cannot move to ${to.toLowerCase()}`);
+  // Maker–checker: the person approving must not be the one who prepared or reviewed the settlement.
+  if (to === 'APPROVED' && actor.user && (actor.user.id === s.created_by || actor.user.id === s.reviewed_by)) {
+    throw new HttpError(409, 'four_eyes', 'A different person must approve this settlement (maker–checker)');
+  }
   if (to === 'SETTLED' && !extra.payment_reference?.trim()) {
     throw new HttpError(422, 'validation_failed', 'Enter the payment reference', { fields: { payment_reference: 'Required to close a settlement' } });
   }

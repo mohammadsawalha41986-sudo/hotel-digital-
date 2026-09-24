@@ -7,6 +7,7 @@ import { Badge, Button, EmptyState, ErrorState, Field, Sheet, Skeleton, TextInpu
 import { useMe } from '../data';
 import { useFeedback } from '../feedback';
 import { PageHeader } from '../layout/AdminLayout';
+import { tr } from '../i18n';
 
 interface HotelRow {
   id: string;
@@ -25,22 +26,21 @@ export function Hotels() {
   return (
     <>
       <PageHeader
-        title="Hotel portfolio"
-        description="Each hotel is fully isolated: its own content, requests, routing, users and analytics."
+        title={tr('Hotel portfolio')}
+        description={tr('Each hotel is fully isolated: its own content, requests, routing, users and analytics.')}
         actions={
           me.data?.user?.global ? (
             <Button size="sm" className="rounded-lg" onClick={() => setCreating(true)}>
-              <Plus className="h-4 w-4" aria-hidden="true" /> New hotel
-            </Button>
+              <Plus className="h-4 w-4" aria-hidden="true" />{' '}{tr('New hotel')}</Button>
           ) : undefined
         }
       />
       {q.isLoading ? (
         <Skeleton className="h-48" />
       ) : q.error ? (
-        <ErrorState title="Could not load hotels" description={errorMessage(q.error)} onRetry={() => q.refetch()} />
+        <ErrorState title={tr('Could not load hotels')} description={errorMessage(q.error)} onRetry={() => q.refetch()} />
       ) : !q.data!.length ? (
-        <EmptyState icon={<Building2 className="h-6 w-6" />} title="No hotels yet" />
+        <EmptyState icon={<Building2 className="h-6 w-6" />} title={tr('No hotels yet')} />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {q.data!.map((h) => (
@@ -51,7 +51,7 @@ export function Hotels() {
                     <p className="font-semibold">{h.name_en}</p>
                     <p className="text-sm text-zinc-500" dir="rtl">{h.name_ar}</p>
                   </div>
-                  <Badge tone={h.is_published ? 'success' : 'warning'}>{h.is_published ? 'Live' : 'Offline'}</Badge>
+                  <Badge tone={h.is_published ? 'success' : 'warning'}>{h.is_published ? tr('Live') : tr('Offline')}</Badge>
                 </div>
                 <p className="mt-3 font-mono text-xs text-zinc-500">/h/{h.slug}</p>
               </Link>
@@ -73,7 +73,7 @@ function CreateHotel({ open, onClose }: { open: boolean; onClose: () => void }) 
   const m = useMutation({
     mutationFn: () => api<{ id: string }>('/admin/hotels', { method: 'POST', body: { ...f, slug: f.slug || f.name_en.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') } }),
     onSuccess: async (r) => {
-      fb.success('Hotel created (offline until you publish it)');
+      fb.success(tr('Hotel created (offline until you publish it)'));
       await qc.invalidateQueries({ queryKey: ['me'] });
       qc.invalidateQueries({ queryKey: ['hotels'] });
       onClose();
@@ -88,34 +88,30 @@ function CreateHotel({ open, onClose }: { open: boolean; onClose: () => void }) 
     <Sheet
       open={open}
       onClose={onClose}
-      title="New hotel"
-      description="Starts with default departments, homepage sections and navigation. No sample content is added."
+      title={tr('New hotel')}
+      description={tr('Starts with default departments, homepage sections and navigation. No sample content is added.')}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button loading={m.isPending} onClick={() => m.mutate()}>
-            Create hotel
-          </Button>
+          <Button variant="secondary" onClick={onClose}>{tr('Cancel')}</Button>
+          <Button loading={m.isPending} onClick={() => m.mutate()}>{tr('Create hotel')}</Button>
         </div>
       }
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Name (English)" htmlFor="h-en" error={errors.name_en} required>
+        <Field label={tr('Name (English)')} htmlFor="h-en" error={errors.name_en} required>
           <TextInput id="h-en" value={f.name_en} onChange={(e) => setF({ ...f, name_en: e.target.value })} className="h-10 rounded-lg text-sm" />
         </Field>
-        <Field label="Name (Arabic)" htmlFor="h-ar" error={errors.name_ar} required>
+        <Field label={tr('Name (Arabic)')} htmlFor="h-ar" error={errors.name_ar} required>
           <TextInput id="h-ar" dir="rtl" value={f.name_ar} onChange={(e) => setF({ ...f, name_ar: e.target.value })} className="h-10 rounded-lg text-sm" />
         </Field>
-        <Field label="Web address" htmlFor="h-slug" error={errors.slug} required hint="Lowercase letters, digits and hyphens, e.g. swiss-flora-inn">
+        <Field label={tr('Web address')} htmlFor="h-slug" error={errors.slug} required hint={tr('Lowercase letters, digits and hyphens, e.g. swiss-flora-inn')}>
           <TextInput id="h-slug" value={f.slug} placeholder={f.name_en.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')} onChange={(e) => setF({ ...f, slug: e.target.value.toLowerCase() })} className="h-10 rounded-lg text-sm" />
         </Field>
         <div />
-        <Field label="City (English)" htmlFor="h-city-en">
+        <Field label={tr('City (English)')} htmlFor="h-city-en">
           <TextInput id="h-city-en" value={f.city_en} onChange={(e) => setF({ ...f, city_en: e.target.value })} className="h-10 rounded-lg text-sm" />
         </Field>
-        <Field label="City (Arabic)" htmlFor="h-city-ar">
+        <Field label={tr('City (Arabic)')} htmlFor="h-city-ar">
           <TextInput id="h-city-ar" dir="rtl" value={f.city_ar} onChange={(e) => setF({ ...f, city_ar: e.target.value })} className="h-10 rounded-lg text-sm" />
         </Field>
       </div>

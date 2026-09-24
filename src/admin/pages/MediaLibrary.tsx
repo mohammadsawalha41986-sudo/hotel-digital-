@@ -6,6 +6,7 @@ import { Button, EmptyState, ErrorState, Field, IconButton, Skeleton, TextInput 
 import { useFeedback } from '../feedback';
 import { uploadMedia, type MediaRow } from '../lib/upload';
 import { Card, PageHeader } from '../layout/AdminLayout';
+import { tr } from '../i18n';
 
 export function MediaLibrary({ hid }: { hid: string }) {
   const qc = useQueryClient();
@@ -25,7 +26,7 @@ export function MediaLibrary({ hid }: { hid: string }) {
       setLabel('');
       setUrlError('');
       refresh();
-      fb.success('Media link added');
+      fb.success(tr('Media link added'));
     },
     onError: (e) => setUrlError(e instanceof ApiError ? e.fields.url ?? e.message : errorMessage(e)),
   });
@@ -33,7 +34,7 @@ export function MediaLibrary({ hid }: { hid: string }) {
     mutationFn: (id: string) => api(`/admin/hotels/${hid}/media/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       refresh();
-      fb.success('Deleted');
+      fb.success(tr('Deleted'));
     },
     onError: (e) => fb.error(errorMessage(e)),
   });
@@ -44,7 +45,7 @@ export function MediaLibrary({ hid }: { hid: string }) {
       try {
         await uploadMedia(hid, f);
       } catch (e) {
-        fb.error(`${f.name}: ${errorMessage(e)}`);
+        fb.error(tr('{0}: {1}', { 0: f.name, 1: errorMessage(e) }));
       } finally {
         setUploading((n) => n - 1);
       }
@@ -55,18 +56,17 @@ export function MediaLibrary({ hid }: { hid: string }) {
   return (
     <>
       <PageHeader
-        title="Media library"
-        description="Uploaded files and external links available to every image and video field. Uploads are validated by content (not file extension) and resized for fast loading."
+        title={tr('Media library')}
+        description={tr('Uploaded files and external links available to every image and video field. Uploads are validated by content (not file extension) and resized for fast loading.')}
         actions={
           <>
-            <input ref={fileRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif,image/gif,video/mp4,video/webm" className="sr-only" tabIndex={-1} aria-label="Upload files" onChange={(e) => e.target.files && onFiles(e.target.files).then(() => (e.target.value = ''))} />
+            <input ref={fileRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif,image/gif,video/mp4,video/webm" className="sr-only" tabIndex={-1} aria-label={tr('Upload files')} onChange={(e) => e.target.files && onFiles(e.target.files).then(() => (e.target.value = ''))} />
             <Button size="sm" className="rounded-lg" loading={uploading > 0} onClick={() => fileRef.current?.click()}>
-              <Upload className="h-4 w-4" aria-hidden="true" /> Upload files
-            </Button>
+              <Upload className="h-4 w-4" aria-hidden="true" />{' '}{tr('Upload files')}</Button>
           </>
         }
       />
-      <Card title="Add an external link" className="mb-4">
+      <Card title={tr('Add an external link')} className="mb-4">
         <form
           className="grid items-start gap-3 md:grid-cols-[1fr_16rem_auto]"
           onSubmit={(e) => {
@@ -74,24 +74,23 @@ export function MediaLibrary({ hid }: { hid: string }) {
             addUrl.mutate();
           }}
         >
-          <Field label="Image or video URL" htmlFor="m-url" error={urlError}>
-            <TextInput id="m-url" type="url" dir="ltr" placeholder="https://" value={url} onChange={(e) => setUrl(e.target.value)} className="h-10 rounded-lg text-sm" invalid={!!urlError} />
+          <Field label={tr('Image or video URL')} htmlFor="m-url" error={urlError}>
+            <TextInput id="m-url" type="url" dir="ltr" placeholder={tr('https://')} value={url} onChange={(e) => setUrl(e.target.value)} className="h-10 rounded-lg text-sm" invalid={!!urlError} />
           </Field>
-          <Field label="Label" htmlFor="m-label">
+          <Field label={tr('Label')} htmlFor="m-label">
             <TextInput id="m-label" value={label} onChange={(e) => setLabel(e.target.value)} className="h-10 rounded-lg text-sm" />
           </Field>
           <Button type="submit" size="sm" className="mt-6 h-10 rounded-lg" loading={addUrl.isPending} disabled={!url}>
-            <Link2 className="h-4 w-4" aria-hidden="true" /> Add link
-          </Button>
+            <Link2 className="h-4 w-4" aria-hidden="true" />{' '}{tr('Add link')}</Button>
         </form>
       </Card>
       {q.isLoading ? (
         <Skeleton className="h-64" />
       ) : q.error ? (
-        <ErrorState title="Could not load media" description={errorMessage(q.error)} onRetry={() => q.refetch()} />
+        <ErrorState title={tr('Could not load media')} description={errorMessage(q.error)} onRetry={() => q.refetch()} />
       ) : !q.data!.length ? (
         <div className="rounded-2xl border border-black/[0.07] bg-white">
-          <EmptyState title="No media yet" description="Upload photos or add links to reuse them across menus, services and the website." />
+          <EmptyState title={tr('No media yet')} description={tr('Upload photos or add links to reuse them across menus, services and the website.')} />
         </div>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -108,24 +107,24 @@ export function MediaLibrary({ hid }: { hid: string }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium">{m.label || m.filename || m.url}</p>
                   <p className="text-[0.7rem] text-zinc-500">
-                    {m.source === 'url' ? 'External link' : m.source === 'guest_upload' ? 'Guest upload' : `${Math.round((m.size_bytes ?? 0) / 1024)} KB`}
+                    {m.source === 'url' ? tr('External link') : m.source === 'guest_upload' ? tr('Guest upload') : `${Math.round((m.size_bytes ?? 0) / 1024)} KB`}
                   </p>
                 </div>
                 <IconButton
-                  label="Copy URL"
+                  label={tr('Copy URL')}
                   size="sm"
                   onClick={() => {
                     const full = m.url.startsWith('/') ? window.location.origin + m.url : m.url;
-                    navigator.clipboard?.writeText(full).then(() => fb.success('URL copied'), () => fb.error('Clipboard unavailable'));
+                    navigator.clipboard?.writeText(full).then(() => fb.success(tr('URL copied')), () => fb.error(tr('Clipboard unavailable')));
                   }}
                 >
                   <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                 </IconButton>
                 <IconButton
-                  label="Delete media"
+                  label={tr('Delete media')}
                   size="sm" className="text-red-600"
                   onClick={async () => {
-                    if (await fb.confirm({ title: 'Delete this file?', message: 'Content still using it will fall back to the branded placeholder.', confirmLabel: 'Delete', danger: true })) remove.mutate(m.id);
+                    if (await fb.confirm({ title: tr('Delete this file?'), message: tr('Content still using it will fall back to the branded placeholder.'), confirmLabel: tr('Delete'), danger: true })) remove.mutate(m.id);
                   }}
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />

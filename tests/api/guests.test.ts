@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
-import { Client, bundle, ids, login, one, setup, teardown, users } from './helpers';
+import { Client, bundle, ids, login, one, pool, setup, teardown, users } from './helpers';
 
 before(setup);
 after(teardown);
@@ -103,5 +103,36 @@ describe('guest identity and duplicates', () => {
     assert.equal((await admin.get(`${H()}/reports/commission_revenue`)).status, 403, 'finance reports need finance access');
     assert.equal((await admin.get(`${H()}/reports/orders_by_hotel`)).status, 404, 'cross-hotel reports are platform-only');
     assert.ok((await one(`SELECT COUNT(*) AS n FROM audit_log WHERE action = 'export' AND entity = 'orders'`)).n >= 1);
+  });
+});
+
+describe('scheduled retention', () => {
+  test('anonymises only inactive guests of hotels with a retention period, one instance at a time', async () => {
+    const { runRetentionOnce } = await import('../../server/services/scheduler');
+    const mk = async (hotelId: string, no: string) =>
+      (await one(`INSERT INTO guests (hotel_id, guest_no, guest_type, name, phone, last_activity_at) VALUES ($1,$2,'EXTERNAL','Old Guest','+966555000999', now() - interval '400 days') RETURNING id`, [hotelId, no])).id as string;
+    const kept = await mk(ids.harbour, 'G-RET-KEEP');
+    const gone = await mk(ids.royal, 'G-RET-GONE');
+    await one(`INSERT INTO hotel_commercial_settings (hotel_id, guest_retention_days) VALUES ($1, 365) ON CONFLICT (hotel_id) DO UPDATE SET guest_retention_days = 365 RETURNING hotel_id`, [ids.royal]);
+    await one(`UPDATE hotel_commercial_settings SET guest_retention_days = NULL WHERE hotel_id = $1 RETURNING hotel_id`, [ids.harbour]).catch(() => null);
+
+    // Another instance holding the lock: this run stands down without touching data.
+    const holder = await pool.connect();
+    try {
+      await holder.query('BEGIN');
+      await holder.query('SELECT pg_advisory_xact_lock($1)', [0x5245_5431]);
+      assert.equal(await runRetentionOnce(), null);
+    } finally {
+      await holder.query('ROLLBACK');
+      holder.release();
+    }
+    assert.equal((await one(`SELECT anonymized_at FROM guests WHERE id = $1`, [gone])).anonymized_at, null);
+
+    assert.ok((await runRetentionOnce())! >= 1);
+    const g = await one(`SELECT name, phone, anonymized_at FROM guests WHERE id = $1`, [gone]);
+    assert.deepEqual([g.name, g.phone, !!g.anonymized_at], ['Anonymised guest', '', true]);
+    assert.equal((await one(`SELECT anonymized_at FROM guests WHERE id = $1`, [kept])).anonymized_at, null, 'hotels without a retention period are untouched');
+    assert.ok(await one(`SELECT 1 FROM audit_log WHERE action = 'retention' AND summary LIKE 'Scheduled retention%'`));
+    await one(`UPDATE hotel_commercial_settings SET guest_retention_days = NULL WHERE hotel_id = $1 RETURNING hotel_id`, [ids.royal]);
   });
 });

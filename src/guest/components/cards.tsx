@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronRight } from 'lucide-react';
+import { ArrowUpRight, BellRing, ChevronRight, MapPin } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { OUTLET_TYPES } from '@shared/fields';
@@ -7,7 +7,8 @@ import { Icon } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import { Img, cx } from '../../components/ui';
 import { useHotel } from '../hotel';
-import type { Outlet, Rec, ServiceRec } from '../types';
+import { MerchBadges } from './sell';
+import type { Outlet, ServiceRec } from '../types';
 
 export function useOpenState(rec: { status_override?: unknown; hours?: unknown }) {
   const { bundle } = useHotel();
@@ -56,22 +57,40 @@ export function ViewAll({ to, dark }: { to: string; dark?: boolean }) {
 }
 
 export function OutletCard({ outlet, wide }: { outlet: Outlet; wide?: boolean }) {
-  const { pick, lang } = useI18n();
+  const { pick, lang, t } = useI18n();
   const { path } = useHotel();
   const typeLabel = OUTLET_TYPES.find((o) => o.value === outlet.type)?.[lang] ?? '';
   const name = pick(outlet, 'name');
+  const location = pick(outlet, 'location');
   return (
-    <Link to={path(`dining/${outlet.id}`)} className={cx('group relative block overflow-hidden rounded-[1.6rem] bg-ink text-white shadow-sm', wide ? 'aspect-[4/5] sm:aspect-[16/10]' : 'aspect-[4/5]')}>
-      <Img src={outlet.cover} alt="" className="absolute inset-0 h-full w-full transition duration-700 group-hover:scale-[1.04] [&_img]:transition" />
+    <Link to={path(`dining/${outlet.id}`)} className={cx('group relative block overflow-hidden rounded-[1.6rem] bg-ink text-white shadow-sm transition active:scale-[0.99]', wide ? 'aspect-[4/5] sm:aspect-[16/10]' : 'aspect-[5/4] sm:aspect-[4/5]')}>
+      <Img src={outlet.cover} alt="" fallbackIcon={<Icon name={outlet.type === 'cafe' ? 'coffee' : outlet.type === 'bar' || outlet.type === 'pool_bar' ? 'wine' : 'utensils'} />} className="absolute inset-0 h-full w-full transition duration-700 group-hover:scale-[1.04] [&_img]:transition" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-      <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
-        <OpenPill rec={outlet} dark />
-        {outlet.logo && <Img src={outlet.logo} alt="" className="h-10 w-10 rounded-full bg-white/90 p-1 [&_img]:object-contain" />}
+      <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-4">
+        <span className="flex flex-col items-start gap-1.5">
+          <OpenPill rec={outlet} dark />
+          <MerchBadges rec={outlet} dark max={1} />
+        </span>
+        {outlet.logo && <Img src={outlet.logo} alt="" className="h-10 w-10 shrink-0 rounded-full bg-white/90 p-1 [&_img]:object-contain" />}
       </div>
       <div className="absolute inset-x-0 bottom-0 p-5">
         <p className="eyebrow text-white/70">{typeLabel}</p>
         <h3 className="display mt-1 text-[1.75rem] leading-tight">{name}</h3>
         {pick(outlet, 'tagline') && <p className="mt-1 line-clamp-2 text-sm text-white/75">{pick(outlet, 'tagline')}</p>}
+        <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/70">
+          {location && (
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+              {location}
+            </span>
+          )}
+          {outlet.room_delivery && outlet.accepts_orders && (
+            <span className="inline-flex items-center gap-1">
+              <BellRing className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('deliversToRoom')}
+            </span>
+          )}
+        </p>
       </div>
     </Link>
   );
@@ -94,29 +113,15 @@ export function ServiceTile({ service, onClick, compact }: { service: ServiceRec
         <Icon name={service.icon} className="h-[1.35rem] w-[1.35rem]" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block font-semibold leading-snug">{pick(service, 'name')}</span>
+        <span className="flex flex-wrap items-center gap-1.5">
+          <span className="font-semibold leading-snug">{pick(service, 'name')}</span>
+          <MerchBadges rec={service} max={1} />
+        </span>
         <span className="mt-0.5 block text-xs text-muted">
           {off ? t('unavailable') : service.response_minutes ? t('expectedIn', { n: service.response_minutes }) : pick(service, 'description').slice(0, 60)}
         </span>
       </span>
       {!compact && <ArrowUpRight className="h-4 w-4 shrink-0 text-muted transition group-hover:text-fg rtl:-scale-x-100" aria-hidden="true" />}
-    </button>
-  );
-}
-
-export function OfferCard({ offer, onOpen }: { offer: Rec; onOpen: () => void }) {
-  const { pick } = useI18n();
-  const title = pick(offer, 'title');
-  return (
-    <button type="button" onClick={onOpen} className="group relative block aspect-[16/11] w-full overflow-hidden rounded-[1.6rem] bg-ink text-start text-white sm:aspect-[21/9]">
-      <Img src={offer.image as string} alt="" className="absolute inset-0 h-full w-full transition duration-700 group-hover:scale-[1.03]" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/5 sm:bg-gradient-to-r rtl:sm:bg-gradient-to-l" />
-      <div className="absolute inset-0 flex flex-col justify-end p-5 sm:max-w-[60%] sm:justify-center sm:p-10">
-        {pick(offer, 'badge') && <span className="mb-3 inline-flex w-fit rounded-full bg-accent px-3 py-1 text-xs font-bold text-white">{pick(offer, 'badge')}</span>}
-        <h3 className="display text-[1.8rem] leading-tight sm:text-5xl">{title}</h3>
-        {pick(offer, 'subtitle') && <p className="mt-2 line-clamp-2 text-sm text-white/80 sm:text-base">{pick(offer, 'subtitle')}</p>}
-        {pick(offer, 'price_label') && <p className="mt-3 text-lg font-semibold text-accent">{pick(offer, 'price_label')}</p>}
-      </div>
     </button>
   );
 }

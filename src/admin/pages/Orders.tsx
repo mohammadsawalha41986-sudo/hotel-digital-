@@ -7,6 +7,7 @@ import { ExportLinks, FinancialStatus, OrderFilterBar, OrderStatus, dateTime, de
 import { OrderDetailSheet } from '../commerce/OrderDetail';
 import { useMe } from '../data';
 import { PageHeader } from '../layout/AdminLayout';
+import { tr } from '../i18n';
 
 interface OrderRow {
   id: string;
@@ -54,9 +55,9 @@ export function Orders({ hid, platform }: { hid?: string; platform?: boolean }) 
   return (
     <>
       <PageHeader
-        title={platform ? 'Orders — all hotels' : 'Orders'}
-        description="Every order with its guest, lines, status history and — where you have finance access — its locked commission."
-        actions={<ExportLinks href={`${base}?${qs}`} label="Export orders" />}
+        title={platform ? tr('Orders — all hotels') : tr('Orders')}
+        description={tr('Every order with its guest, lines, status history and — where you have finance access — its locked commission.')}
+        actions={<ExportLinks href={`${base}?${qs}`} label={tr('Export orders')} />}
       />
       <OrderFilterBar
         value={filters}
@@ -72,22 +73,22 @@ export function Orders({ hid, platform }: { hid?: string; platform?: boolean }) 
         {q.isLoading ? (
           <div className="space-y-2 p-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 rounded-xl" />)}</div>
         ) : q.error ? (
-          <ErrorState title="Could not load orders" description={errorMessage(q.error)} onRetry={() => q.refetch()} />
+          <ErrorState title={tr('Could not load orders')} description={errorMessage(q.error)} onRetry={() => q.refetch()} />
         ) : !rows.length ? (
-          <EmptyState icon={<ShoppingBag className="h-6 w-6" />} title="No orders match these filters" />
+          <EmptyState icon={<ShoppingBag className="h-6 w-6" />} title={tr('No orders match these filters')} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[56rem] text-sm">
-              <thead className="border-b border-black/[0.06] bg-zinc-50 text-left text-xs text-zinc-500">
+              <thead className="border-b border-black/[0.06] bg-zinc-50 text-start text-xs text-zinc-500">
                 <tr>
-                  <th className="px-4 py-2.5 font-medium">Reference</th>
-                  {platform && <th className="px-4 py-2.5 font-medium">Hotel</th>}
-                  <th className="px-4 py-2.5 font-medium">Order</th>
-                  <th className="px-4 py-2.5 font-medium">Guest</th>
-                  <th className="px-4 py-2.5 font-medium">Status</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Total</th>
-                  {hasCommission && <th className="px-4 py-2.5 text-right font-medium">Commission</th>}
-                  <th className="px-4 py-2.5 font-medium">Created</th>
+                  <th className="px-4 py-2.5 font-medium">{tr('Reference')}</th>
+                  {platform && <th className="px-4 py-2.5 font-medium">{tr('Hotel')}</th>}
+                  <th className="px-4 py-2.5 font-medium">{tr('Order')}</th>
+                  <th className="px-4 py-2.5 font-medium">{tr('Guest')}</th>
+                  <th className="px-4 py-2.5 font-medium">{tr('Status')}</th>
+                  <th className="px-4 py-2.5 text-end font-medium">{tr('Total')}</th>
+                  {hasCommission && <th className="px-4 py-2.5 text-end font-medium">{tr('Commission')}</th>}
+                  <th className="px-4 py-2.5 font-medium">{tr('Created')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.06]">
@@ -105,14 +106,14 @@ export function Orders({ hid, platform }: { hid?: string; platform?: boolean }) 
                     </td>
                     <td className="px-4 py-2.5">
                       <p className="max-w-[12rem] truncate">{r.guest_name || '—'}</p>
-                      <p className="text-xs text-zinc-500">{r.room ? `Room ${r.room}` : 'Visitor'}{r.guest_no ? ` · ${r.guest_no}` : ''}</p>
+                      <p className="text-xs text-zinc-500">{r.room ? tr('Room {0}', { 0: r.room }) : tr('Visitor')}{r.guest_no ? ` · ${r.guest_no}` : ''}</p>
                     </td>
                     <td className="space-y-1 px-4 py-2.5">
                       <OrderStatus status={r.status} />
                       {showFinance && <div><FinancialStatus status={r.financial_status} /></div>}
                     </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{major(r.total, r.currency)}</td>
-                    {hasCommission && <td className="px-4 py-2.5 text-right tabular-nums">{money(r.commission_minor, r.currency)}{r.settlement_no && <p className="text-xs text-zinc-500">{r.settlement_no}</p>}</td>}
+                    <td className="px-4 py-2.5 text-end tabular-nums">{major(r.total, r.currency)}</td>
+                    {hasCommission && <td className="px-4 py-2.5 text-end tabular-nums">{money(r.commission_minor, r.currency)}{r.settlement_no && <p className="text-xs text-zinc-500">{r.settlement_no}</p>}</td>}
                     <td className="px-4 py-2.5 text-xs text-zinc-500">{dateTime(r.created_at)}</td>
                   </tr>
                 ))}
@@ -122,13 +123,12 @@ export function Orders({ hid, platform }: { hid?: string; platform?: boolean }) 
         )}
       </div>
       {q.data && q.data.total > PAGE && (
-        <nav className="mt-3 flex items-center justify-between text-sm" aria-label="Pages">
+        <nav className="mt-3 flex items-center justify-between text-sm" aria-label={tr('Pages')}>
           <span className="text-zinc-500">
-            {page * PAGE + 1}–{Math.min((page + 1) * PAGE, q.data.total)} of {q.data.total}
-          </span>
+            {page * PAGE + 1}–{Math.min((page + 1) * PAGE, q.data.total)}{tr('of {0}', { 0: q.data.total })}</span>
           <div className="flex gap-2">
-            <Button size="sm" variant="secondary" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-            <Button size="sm" variant="secondary" disabled={(page + 1) * PAGE >= q.data.total} onClick={() => setPage((p) => p + 1)}>Next</Button>
+            <Button size="sm" variant="secondary" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>{tr('Previous')}</Button>
+            <Button size="sm" variant="secondary" disabled={(page + 1) * PAGE >= q.data.total} onClick={() => setPage((p) => p + 1)}>{tr('Next')}</Button>
           </div>
         </nav>
       )}
@@ -146,9 +146,9 @@ export function HotelPicker({ value, onChange }: { value: string; onChange: (v: 
   const me = useMe();
   return (
     <div>
-      <label htmlFor="hotel-pick" className="sr-only">Hotel</label>
+      <label htmlFor="hotel-pick" className="sr-only">{tr('Hotel')}</label>
       <Select id="hotel-pick" value={value} onChange={(e) => onChange(e.target.value)} className="h-10 rounded-lg text-sm">
-        <option value="">All hotels</option>
+        <option value="">{tr('All hotels')}</option>
         {(me.data?.hotels ?? []).map((h) => (
           <option key={h.id} value={h.id}>{h.name_en}</option>
         ))}

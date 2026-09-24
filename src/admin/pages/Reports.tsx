@@ -7,6 +7,7 @@ import { ExportLinks, filterQuery } from '../commerce/kit';
 import { useMe } from '../data';
 import { PageHeader } from '../layout/AdminLayout';
 import { HotelPicker } from './Orders';
+import { tr, locale } from '../i18n';
 
 const REPORTS: { key: string; title: string; finance?: boolean; platformOnly?: boolean }[] = [
   { key: 'orders_by_hotel', title: 'Orders by hotel', platformOnly: true },
@@ -39,37 +40,37 @@ export function Reports({ hid, platform }: { hid?: string; platform?: boolean })
   const qs = filterQuery({ from, to, hotel_id: platform ? hotelId : undefined });
   const q = useQuery({ queryKey: ['report', base, qs], queryFn: () => api<Report>(`${base}?${qs}`), retry: false });
   const fmt = (c: Report['columns'][number], v: unknown) =>
-    v == null ? '—' : c.money ? new Intl.NumberFormat('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(v) / 100) : typeof v === 'number' ? v.toLocaleString('en') : String(v);
+    v == null ? '—' : c.money ? new Intl.NumberFormat('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(v) / 100) : typeof v === 'number' ? v.toLocaleString(locale()) : String(v);
   return (
     <>
-      <PageHeader title={platform ? 'Reports — all hotels' : 'Reports'} description="Built from order records and the commission ledger. Download as Excel or CSV, or print to PDF." actions={<ExportLinks href={`${base}?${qs}`} label="Download report" />} />
+      <PageHeader title={platform ? tr('Reports — all hotels') : tr('Reports')} description={tr('Built from order records and the commission ledger. Download as Excel or CSV, or print to PDF.')} actions={<ExportLinks href={`${base}?${qs}`} label={tr('Download report')} />} />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[16rem_repeat(3,minmax(0,11rem))]">
         <div>
-          <label htmlFor="rp-key" className="sr-only">Report</label>
+          <label htmlFor="rp-key" className="sr-only">{tr('Report')}</label>
           <Select id="rp-key" value={key} onChange={(e) => setKey(e.target.value)} className="h-10 rounded-lg text-sm">
             {available.map((r) => (
-              <option key={r.key} value={r.key}>{r.title}</option>
+              <option key={r.key} value={r.key}>{tr(r.title)}</option>
             ))}
           </Select>
         </div>
         {platform && <HotelPicker value={hotelId} onChange={setHotelId} />}
-        <TextInput aria-label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-10 rounded-lg text-sm" />
-        <TextInput aria-label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-10 rounded-lg text-sm" />
+        <TextInput aria-label={tr('From')} type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-10 rounded-lg text-sm" />
+        <TextInput aria-label={tr('To')} type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-10 rounded-lg text-sm" />
       </div>
       <div className="overflow-hidden rounded-2xl border border-black/[0.07] bg-white">
         {q.isLoading ? (
           <Skeleton className="m-4 h-40 rounded-xl" />
         ) : q.error ? (
-          <ErrorState title="Could not run this report" description={errorMessage(q.error)} onRetry={() => q.refetch()} />
+          <ErrorState title={tr('Could not run this report')} description={errorMessage(q.error)} onRetry={() => q.refetch()} />
         ) : !q.data!.rows.length ? (
-          <EmptyState icon={<BarChart3 className="h-6 w-6" />} title="No data for this period" />
+          <EmptyState icon={<BarChart3 className="h-6 w-6" />} title={tr('No data for this period')} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-black/[0.06] bg-zinc-50 text-left text-xs text-zinc-500">
+              <thead className="border-b border-black/[0.06] bg-zinc-50 text-start text-xs text-zinc-500">
                 <tr>
                   {q.data!.columns.map((c) => (
-                    <th key={c.key} className={cx('px-4 py-2.5 font-medium', (c.money || typeof q.data!.rows[0][c.key] === 'number') && 'text-right')}>{c.label}</th>
+                    <th key={c.key} className={cx('px-4 py-2.5 font-medium', (c.money || typeof q.data!.rows[0][c.key] === 'number') && 'text-end')}>{tr(c.label)}</th>
                   ))}
                 </tr>
               </thead>
@@ -77,7 +78,7 @@ export function Reports({ hid, platform }: { hid?: string; platform?: boolean })
                 {q.data!.rows.map((r, i) => (
                   <tr key={i}>
                     {q.data!.columns.map((c) => (
-                      <td key={c.key} className={cx('px-4 py-2', (c.money || typeof r[c.key] === 'number') && 'text-right tabular-nums')}>{fmt(c, r[c.key])}</td>
+                      <td key={c.key} className={cx('px-4 py-2', (c.money || typeof r[c.key] === 'number') && 'text-end tabular-nums')}>{fmt(c, r[c.key])}</td>
                     ))}
                   </tr>
                 ))}

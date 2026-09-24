@@ -16,6 +16,7 @@ import { PAGE_SEGMENT, useHotel } from '../hotel';
 import { guestToken, useGuestSession } from '../session';
 import type { GuestRequestRow } from '../types';
 import { GuestSheets } from '../sheets/GuestSheets';
+import { PageTransition } from '../components/motion';
 
 export const PAGE_ICONS: Record<GuestPage, LucideIcon> = {
   home: HomeIcon,
@@ -71,7 +72,7 @@ export function GuestLayout({ children }: { children: ReactNode }) {
       )}
       <Header overlay={isHome} onMenu={() => setDrawer(true)} />
       <main id="main" className="pb-28 lg:pb-12">
-        {children}
+        <PageTransition id={location.pathname}>{children}</PageTransition>
       </main>
       <Footer />
       <BasketBar />

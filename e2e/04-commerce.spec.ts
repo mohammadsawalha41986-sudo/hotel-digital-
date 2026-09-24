@@ -118,12 +118,22 @@ test('platform finance: new rule version, settlement lifecycle and statement', a
   await expect(statement).toContainText(reference);
   await expect(statement).toContainText('Due to platform');
   await statement.getByRole('button', { name: 'Mark reviewed' }).click();
-  await statement.getByRole('button', { name: 'Approve' }).click();
-  await statement.getByLabel('Payment reference').fill('TRX-2026-0001');
-  await statement.getByRole('button', { name: 'Mark settled' }).click();
-  await expect(statement.getByText('Settled', { exact: true })).toBeVisible();
-  await fin.screenshot({ path: `${SHOTS}/platform-settlement.png` });
+  // Maker–checker: whoever prepared or reviewed it cannot approve.
+  await expect(statement.getByRole('button', { name: 'Approve' })).toBeDisabled();
+  await expect(statement.getByText(/another finance user must approve/i)).toBeVisible();
+  const settlementNo = ((await statement.getByRole('heading').first().innerText()).match(/STL-[\w-]+/) ?? [''])[0];
   await fin.keyboard.press('Escape');
+
+  const checker = await login(browser, 'super@demo.hotelhub.local');
+  await checker.goto('/admin/platform/settlements');
+  await checker.getByRole('button', { name: new RegExp(settlementNo) }).first().click();
+  const approve = checker.getByRole('dialog', { name: /^Settlement STL-/ });
+  await approve.getByRole('button', { name: 'Approve' }).click();
+  await approve.getByLabel('Payment reference').fill('TRX-2026-0001');
+  await approve.getByRole('button', { name: 'Mark settled' }).click();
+  await expect(approve.getByText('Settled', { exact: true })).toBeVisible();
+  await checker.screenshot({ path: `${SHOTS}/platform-settlement.png` });
+  await checker.close();
 
   // Ledger and reports.
   await fin.getByRole('link', { name: 'Commission ledger' }).click();

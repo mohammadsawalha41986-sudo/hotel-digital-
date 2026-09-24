@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useI18n } from '../../lib/i18n';
 import { Badge, Button, EmptyState, Img, cx } from '../../components/ui';
-import { HoursLine, OfferCard } from '../components/cards';
+import { HoursLine } from '../components/cards';
+import { MerchBadges, OfferCard } from '../components/sell';
+import { track } from '../track';
 import { usePageTitle } from '../components/usePageTitle';
 import { OfferSheet } from '../sheets/OfferSheet';
 import { useFlow } from '../flow';
@@ -80,8 +82,11 @@ export function Spa() {
         ) : (
           <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="tabpanel">
             {services.map((s) => (
-              <li key={s.id} className="flex flex-col overflow-hidden rounded-[1.5rem] bg-surface ring-1 ring-line">
-                <Img src={s.image || (cat?.image as string)} alt="" className="aspect-[16/10] w-full" />
+              <li key={s.id} className="flex flex-col overflow-hidden rounded-[1.5rem] bg-surface shadow-sm ring-1 ring-line transition hover:-translate-y-0.5 hover:shadow-md">
+                <div className="relative">
+                  <Img src={s.image || (cat?.image as string)} alt="" fallbackIcon={<Flower2 />} className="aspect-[16/10] w-full" />
+                  <MerchBadges rec={s as never} dark className="absolute start-3 top-3" />
+                </div>
                 <div className="flex flex-1 flex-col p-5">
                   <h2 className="text-lg font-semibold">{pick(s, 'name')}</h2>
                   {pick(s, 'description') && <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-muted">{pick(s, 'description')}</p>}
@@ -92,7 +97,14 @@ export function Spa() {
                   <div className="mt-auto flex items-center justify-between gap-3 pt-5">
                     <span className="font-semibold">{s.price ? money(s.price) : pick(s, 'price_note') || t('priceOnRequest')}</span>
                     {s.bookable !== false ? (
-                      <Button size="sm" disabled={s.available === false} onClick={() => flow.open({ kind: 'spa', service: s })}>
+                      <Button
+                        size="sm"
+                        disabled={s.available === false}
+                        onClick={() => {
+                          track('service_view', { target_type: 'spa_service', target_code: String(s.code ?? '') });
+                          flow.open({ kind: 'spa', service: s });
+                        }}
+                      >
                         {t('bookTreatment')}
                       </Button>
                     ) : (

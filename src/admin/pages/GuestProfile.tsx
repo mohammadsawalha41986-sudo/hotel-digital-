@@ -9,6 +9,7 @@ import { OrderDetailSheet } from '../commerce/OrderDetail';
 import { useMe } from '../data';
 import { useFeedback } from '../feedback';
 import { Card, PageHeader } from '../layout/AdminLayout';
+import { tr } from '../i18n';
 
 interface Profile {
   guest: {
@@ -76,7 +77,7 @@ export function GuestProfilePage({ hid }: { hid: string }) {
   const canOrders = me.data?.permissions?.modules.includes('orders');
 
   if (q.isLoading) return <Skeleton className="h-96 rounded-2xl" />;
-  if (q.error) return <ErrorState title="Could not load this guest" description={errorMessage(q.error)} onRetry={() => q.refetch()} />;
+  if (q.error) return <ErrorState title={tr('Could not load this guest')} description={errorMessage(q.error)} onRetry={() => q.refetch()} />;
   const p = q.data!;
   const g = p.guest;
   const locked = g.anonymized || g.merged;
@@ -84,53 +85,48 @@ export function GuestProfilePage({ hid }: { hid: string }) {
   return (
     <>
       <Link to={`/admin/h/${hid}/guests`} className="mb-3 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900">
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Guests
-      </Link>
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />{' '}{tr('Guests')}</Link>
       <PageHeader
         title={g.name}
         description={
           <span className="flex flex-wrap items-center gap-2">
             <span className="font-mono">{g.guest_no}</span>
-            <Badge tone={g.guest_type === 'IN_HOUSE' ? 'brand' : 'neutral'}>{g.guest_type === 'IN_HOUSE' ? 'In-house' : 'External visitor'}</Badge>
-            {g.anonymized && <Badge tone="danger">Anonymised</Badge>}
-            {g.merged && <Badge tone="warning">Merged into another profile</Badge>}
+            <Badge tone={g.guest_type === 'IN_HOUSE' ? 'brand' : 'neutral'}>{g.guest_type === 'IN_HOUSE' ? tr('In-house') : tr('External visitor')}</Badge>
+            {g.anonymized && <Badge tone="danger">{tr('Anonymised')}</Badge>}
+            {g.merged && <Badge tone="warning">{tr('Merged into another profile')}</Badge>}
           </span>
         }
         actions={
           <>
             {!locked && (
               <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-                <Pencil className="h-4 w-4" aria-hidden="true" /> Edit
-              </Button>
+                <Pencil className="h-4 w-4" aria-hidden="true" />{' '}{tr('Edit')}</Button>
             )}
             <a className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 text-sm font-medium hover:bg-zinc-50" href={`/api/admin/hotels/${hid}/guests/${gid}/export`} download>
-              <Download className="h-4 w-4" aria-hidden="true" /> Export data
-            </a>
+              <Download className="h-4 w-4" aria-hidden="true" />{' '}{tr('Export data')}</a>
             {canErase && !g.anonymized && (
               <Button size="sm" variant="secondary" onClick={() => setErasing(true)}>
-                <ShieldOff className="h-4 w-4" aria-hidden="true" /> Anonymise
-              </Button>
+                <ShieldOff className="h-4 w-4" aria-hidden="true" />{' '}{tr('Anonymise')}</Button>
             )}
           </>
         }
       />
       {g.merged && g.merged_into && (
-        <p className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-          This profile was merged. <Link className="font-medium underline" to={`/admin/h/${hid}/guests/${g.merged_into}`}>Open the current profile</Link>.
+        <p className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{tr('This profile was merged.')}{' '}<Link className="font-medium underline" to={`/admin/h/${hid}/guests/${g.merged_into}`}>{tr('Open the current profile')}</Link>.
         </p>
       )}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-4">
-          <Card title="Overview">
+          <Card title={tr('Overview')}>
             <dl className="grid gap-4 text-sm sm:grid-cols-3">
-              <Item label="Mobile"><span dir="ltr">{g.phone || '—'}</span>{g.country_code && <span className="text-xs text-zinc-500"> (+{g.country_code})</span>}</Item>
-              <Item label="Email">{g.email || '—'}</Item>
-              <Item label="Language">{g.preferred_lang === 'ar' ? 'العربية' : 'English'}</Item>
-              <Item label="Current stay">
+              <Item label={tr('Mobile')}><span dir="ltr">{g.phone || '—'}</span>{g.country_code && <span className="text-xs text-zinc-500"> (+{g.country_code})</span>}</Item>
+              <Item label={tr('Email')}>{g.email || '—'}</Item>
+              <Item label={tr('Language')}>{g.preferred_lang === 'ar' ? 'العربية' : tr('English')}</Item>
+              <Item label={tr('Current stay')}>
                 {p.current_stay ? (
                   <span>
-                    {p.current_stay.guest_type === 'IN_HOUSE' ? `Room ${p.current_stay.room}` : 'Visit'}
+                    {p.current_stay.guest_type === 'IN_HOUSE' ? tr('Room {0}', { 0: p.current_stay.room }) : tr('Visit')}
                     {p.current_stay.check_in && ` · ${dateOnly(p.current_stay.check_in)}`}
                     {p.current_stay.check_out && ` → ${dateOnly(p.current_stay.check_out)}`}
                   </span>
@@ -138,35 +134,35 @@ export function GuestProfilePage({ hid }: { hid: string }) {
                   '—'
                 )}
               </Item>
-              <Item label="Guest since">{dateTime(g.created_at)}</Item>
-              <Item label="Last activity">{dateTime(g.last_activity_at)}</Item>
-              <Item label="Marketing consent">{g.consent_marketing ? 'Given' : 'Not given'}</Item>
+              <Item label={tr('Guest since')}>{dateTime(g.created_at)}</Item>
+              <Item label={tr('Last activity')}>{dateTime(g.last_activity_at)}</Item>
+              <Item label={tr('Marketing consent')}>{g.consent_marketing ? tr('Given') : tr('Not given')}</Item>
             </dl>
           </Card>
 
           <KpiGrid>
-            <Kpi label="Total orders" value={p.summary.total_orders} />
-            <Kpi label="Completed" value={p.summary.completed_orders} />
-            <Kpi label="Pending" value={p.summary.pending_orders} />
-            <Kpi label="Cancelled / declined" value={p.summary.cancelled_orders} />
-            <Kpi label="Total order value" value={major(p.summary.total_value)} />
-            <Kpi label="Average order value" value={major(p.summary.average_value)} />
-            <Kpi label="All requests" value={p.summary.total_requests} hint="Including free services and feedback" />
-            {p.commission.length > 0 && <Kpi label="Commission generated" value={money(p.commission.reduce((s, c) => s + c.commission_minor, 0))} />}
+            <Kpi label={tr('Total orders')} value={p.summary.total_orders} />
+            <Kpi label={tr('Completed')} value={p.summary.completed_orders} />
+            <Kpi label={tr('Pending')} value={p.summary.pending_orders} />
+            <Kpi label={tr('Cancelled / declined')} value={p.summary.cancelled_orders} />
+            <Kpi label={tr('Total order value')} value={major(p.summary.total_value)} />
+            <Kpi label={tr('Average order value')} value={major(p.summary.average_value)} />
+            <Kpi label={tr('All requests')} value={p.summary.total_requests} hint={tr('Including free services and feedback')} />
+            {p.commission.length > 0 && <Kpi label={tr('Commission generated')} value={money(p.commission.reduce((s, c) => s + c.commission_minor, 0))} />}
           </KpiGrid>
 
-          <Card title="Service history">
+          <Card title={tr('Service history')}>
             {p.service_history.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-left text-xs text-zinc-500">
+                  <thead className="text-start text-xs text-zinc-500">
                     <tr>
-                      <th className="py-1.5 font-medium">Service</th>
-                      <th className="py-1.5 font-medium">Department</th>
-                      <th className="py-1.5 text-right font-medium">Requests</th>
-                      <th className="py-1.5 text-right font-medium">Completed</th>
-                      <th className="py-1.5 text-right font-medium">Cancelled</th>
-                      <th className="py-1.5 text-right font-medium">Value</th>
+                      <th className="py-1.5 font-medium">{tr('Service')}</th>
+                      <th className="py-1.5 font-medium">{tr('Department')}</th>
+                      <th className="py-1.5 text-end font-medium">{tr('Requests')}</th>
+                      <th className="py-1.5 text-end font-medium">{tr('Completed')}</th>
+                      <th className="py-1.5 text-end font-medium">{tr('Cancelled')}</th>
+                      <th className="py-1.5 text-end font-medium">{tr('Value')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black/[0.06]">
@@ -174,27 +170,27 @@ export function GuestProfilePage({ hid }: { hid: string }) {
                       <tr key={i}>
                         <td className="py-2">{typeLabel(s.order_type)}</td>
                         <td className="py-2">{deptLabel(s.department)}</td>
-                        <td className="py-2 text-right tabular-nums">{s.n}</td>
-                        <td className="py-2 text-right tabular-nums">{s.completed}</td>
-                        <td className="py-2 text-right tabular-nums">{s.cancelled}</td>
-                        <td className="py-2 text-right tabular-nums">{major(s.value)}</td>
+                        <td className="py-2 text-end tabular-nums">{s.n}</td>
+                        <td className="py-2 text-end tabular-nums">{s.completed}</td>
+                        <td className="py-2 text-end tabular-nums">{s.cancelled}</td>
+                        <td className="py-2 text-end tabular-nums">{major(s.value)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <p className="text-sm text-zinc-500">No orders or service requests yet.</p>
+              <p className="text-sm text-zinc-500">{tr('No orders or service requests yet.')}</p>
             )}
             {p.most_used.length > 0 && (
               <p className="mt-4 text-sm">
-                <span className="text-zinc-500">Most used: </span>
+                <span className="text-zinc-500">{tr('Most used:')}{' '}</span>
                 {p.most_used.map((m) => `${m.name_en} (${m.orders})`).join(' · ')}
               </p>
             )}
           </Card>
 
-          <Card title="Orders & requests">
+          <Card title={tr('Orders & requests')}>
             {p.orders.length ? (
               <ul className="divide-y divide-black/[0.06]">
                 {p.orders.map((o) => (
@@ -210,23 +206,23 @@ export function GuestProfilePage({ hid }: { hid: string }) {
                     <div className="flex items-center gap-2">
                       <OrderStatus status={o.status} />
                       {o.financial_status !== 'NOT_APPLICABLE' && <FinancialStatus status={o.financial_status} />}
-                      <span className="w-24 text-right tabular-nums">{major(o.total, o.currency)}</span>
+                      <span className="w-24 text-end tabular-nums">{major(o.total, o.currency)}</span>
                       <span className="hidden text-xs text-zinc-500 sm:inline">{dateTime(o.created_at)}</span>
                     </div>
                   </li>
                 ))}
               </ul>
             ) : (
-              <EmptyState title="No orders yet" />
+              <EmptyState title={tr('No orders yet')} />
             )}
           </Card>
 
-          <Card title="Guest relations">
+          <Card title={tr('Guest relations')}>
             <div className="grid gap-4 sm:grid-cols-3">
-              <RelList title="Complaints" items={p.relations.complaints} />
-              <RelList title="Suggestions & compliments" items={p.relations.suggestions} />
+              <RelList title={tr('Complaints')} items={p.relations.complaints} />
+              <RelList title={tr('Suggestions & compliments')} items={p.relations.suggestions} />
               <div>
-                <h3 className="mb-2 text-sm font-semibold">Reviews ({p.relations.reviews.length})</h3>
+                <h3 className="mb-2 text-sm font-semibold">{tr('Reviews ({0})', { 0: p.relations.reviews.length })}</h3>
                 {p.relations.reviews.length ? (
                   <ul className="space-y-2 text-sm">
                     {p.relations.reviews.map((r) => (
@@ -237,36 +233,36 @@ export function GuestProfilePage({ hid }: { hid: string }) {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-zinc-500">None</p>
+                  <p className="text-sm text-zinc-500">{tr('None')}</p>
                 )}
               </div>
             </div>
             <div className="mt-4 rounded-xl bg-zinc-50 p-3 text-sm">
-              <p className="text-xs font-medium text-zinc-500">Staff notes</p>
+              <p className="text-xs font-medium text-zinc-500">{tr('Staff notes')}</p>
               <p className="whitespace-pre-wrap">{p.relations.notes || '—'}</p>
             </div>
           </Card>
 
-          <Card title="Stays & visits">
+          <Card title={tr('Stays & visits')}>
             <ul className="divide-y divide-black/[0.06] text-sm">
               {p.stays.map((s) => (
                 <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <span>
-                    {s.guest_type === 'IN_HOUSE' ? `Room ${s.room}` : 'Visit'}
-                    {s.stay_reference && <span className="text-zinc-500"> · ref {s.stay_reference}</span>}
+                    {s.guest_type === 'IN_HOUSE' ? tr('Room {0}', { 0: s.room }) : tr('Visit')}
+                    {s.stay_reference && <span className="text-zinc-500">{tr('· ref {0}', { 0: s.stay_reference })}</span>}
                     <span className="block text-xs text-zinc-500">
-                      {s.check_in ? `${dateOnly(s.check_in)} → ${dateOnly(s.check_out)}` : `Seen ${dateTime(s.started_at)} – ${dateTime(s.last_seen_at)}`}
-                      {s.ended_at ? ' · ended' : ' · current'}
+                      {s.check_in ? `${dateOnly(s.check_in)} → ${dateOnly(s.check_out)}` : tr('Seen {0} – {1}', { 0: dateTime(s.started_at), 1: dateTime(s.last_seen_at) })}
+                      {s.ended_at ? tr(' · ended') : tr(' · current')}
                     </span>
                   </span>
-                  {!locked && <Button size="sm" variant="secondary" onClick={() => setStayEdit(s)}>Edit stay</Button>}
+                  {!locked && <Button size="sm" variant="secondary" onClick={() => setStayEdit(s)}>{tr('Edit stay')}</Button>}
                 </li>
               ))}
             </ul>
           </Card>
         </div>
 
-        <Card title="Timeline" className="h-fit xl:sticky xl:top-6">
+        <Card title={tr('Timeline')} className="h-fit xl:sticky xl:top-6">
           {p.timeline.length ? (
             <ol className="relative max-h-[70vh] space-y-3 overflow-y-auto border-s border-zinc-200 ps-4">
               {[...p.timeline].reverse().map((t, i) => (
@@ -279,7 +275,7 @@ export function GuestProfilePage({ hid }: { hid: string }) {
               ))}
             </ol>
           ) : (
-            <p className="text-sm text-zinc-500">No activity yet.</p>
+            <p className="text-sm text-zinc-500">{tr('No activity yet.')}</p>
           )}
         </Card>
       </div>
@@ -293,7 +289,7 @@ export function GuestProfilePage({ hid }: { hid: string }) {
         onConfirm={async (reason) => {
           try {
             await api(`/admin/hotels/${hid}/guests/${gid}/anonymize`, { method: 'POST', body: { reason, confirm: true } });
-            fb.success('Personal data erased');
+            fb.success(tr('Personal data erased'));
             qc.invalidateQueries({ queryKey: ['guests', hid] });
             setErasing(false);
             q.refetch();
@@ -329,7 +325,7 @@ function RelList({ title, items }: { title: string; items: Rel[] }) {
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-zinc-500">None</p>
+        <p className="text-sm text-zinc-500">{tr('None')}</p>
       )}
     </div>
   );
@@ -342,7 +338,7 @@ function EditGuest({ hid, open, onClose, guest, onSaved }: { hid: string; open: 
   const m = useMutation({
     mutationFn: () => api<{ changed: boolean }>(`/admin/hotels/${hid}/guests/${guest.id}`, { method: 'PATCH', body: v }),
     onSuccess: (r) => {
-      fb.success(r.changed ? 'Guest updated' : 'No changes to save');
+      fb.success(r.changed ? tr('Guest updated') : tr('No changes to save'));
       onSaved();
       onClose();
     },
@@ -352,22 +348,22 @@ function EditGuest({ hid, open, onClose, guest, onSaved }: { hid: string; open: 
     },
   });
   return (
-    <Sheet open={open} onClose={onClose} title="Edit guest" size="md" footer={<div className="flex justify-end"><Button loading={m.isPending} onClick={() => m.mutate()}>Save</Button></div>}>
+    <Sheet open={open} onClose={onClose} title={tr('Edit guest')} size="md" footer={<div className="flex justify-end"><Button loading={m.isPending} onClick={() => m.mutate()}>{tr('Save')}</Button></div>}>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Full name" htmlFor="eg-name" error={errors.name}><TextInput id="eg-name" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></Field>
-        <Field label="Mobile" htmlFor="eg-phone" error={errors.phone}><TextInput id="eg-phone" dir="ltr" type="tel" value={v.phone} onChange={(e) => setV({ ...v, phone: e.target.value })} /></Field>
-        <Field label="Email" htmlFor="eg-email" error={errors.email}><TextInput id="eg-email" type="email" value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} /></Field>
-        <Field label="Language" htmlFor="eg-lang">
+        <Field label={tr('Full name')} htmlFor="eg-name" error={errors.name}><TextInput id="eg-name" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></Field>
+        <Field label={tr('Mobile')} htmlFor="eg-phone" error={errors.phone}><TextInput id="eg-phone" dir="ltr" type="tel" value={v.phone} onChange={(e) => setV({ ...v, phone: e.target.value })} /></Field>
+        <Field label={tr('Email')} htmlFor="eg-email" error={errors.email}><TextInput id="eg-email" type="email" value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} /></Field>
+        <Field label={tr('Language')} htmlFor="eg-lang">
           <Select id="eg-lang" value={v.preferred_lang} onChange={(e) => setV({ ...v, preferred_lang: e.target.value })}>
-            <option value="en">English</option>
+            <option value="en">{tr('English')}</option>
             <option value="ar">العربية</option>
           </Select>
         </Field>
         <div className="sm:col-span-2">
-          <Toggle checked={v.consent_marketing} onChange={(c) => setV({ ...v, consent_marketing: c })} label="Guest agreed to receive offers" description="Record only what the guest has explicitly agreed to." />
+          <Toggle checked={v.consent_marketing} onChange={(c) => setV({ ...v, consent_marketing: c })} label={tr('Guest agreed to receive offers')} description={tr('Record only what the guest has explicitly agreed to.')} />
         </div>
         <div className="sm:col-span-2">
-          <Field label="Staff notes" htmlFor="eg-notes" hint="Preferences and service notes. No passport, ID or card details." error={errors.notes}>
+          <Field label={tr('Staff notes')} htmlFor="eg-notes" hint={tr('Preferences and service notes. No passport, ID or card details.')} error={errors.notes}>
             <TextArea id="eg-notes" rows={4} value={v.notes} onChange={(e) => setV({ ...v, notes: e.target.value })} />
           </Field>
         </div>
@@ -388,7 +384,7 @@ function EditStay({ hid, gid, stay, onClose, onSaved }: { hid: string; gid: stri
   const m = useMutation({
     mutationFn: () => api(`/admin/hotels/${hid}/guests/${gid}/stays/${stay!.id}`, { method: 'PATCH', body: { ...v, check_in: v.check_in || null, check_out: v.check_out || null } }),
     onSuccess: () => {
-      fb.success('Stay updated');
+      fb.success(tr('Stay updated'));
       onSaved();
       onClose();
     },
@@ -398,13 +394,13 @@ function EditStay({ hid, gid, stay, onClose, onSaved }: { hid: string; gid: stri
     },
   });
   return (
-    <Sheet open={!!stay} onClose={onClose} title="Edit stay" size="sm" footer={<div className="flex justify-end"><Button loading={m.isPending} onClick={() => m.mutate()}>Save</Button></div>}>
+    <Sheet open={!!stay} onClose={onClose} title={tr('Edit stay')} size="sm" footer={<div className="flex justify-end"><Button loading={m.isPending} onClick={() => m.mutate()}>{tr('Save')}</Button></div>}>
       <div className="grid gap-4">
-        <Field label="Room" htmlFor="es-room" error={errors.room}><TextInput id="es-room" value={v.room} onChange={(e) => setV({ ...v, room: e.target.value })} /></Field>
-        <Field label="Check-in" htmlFor="es-in" error={errors.check_in}><TextInput id="es-in" type="date" value={v.check_in} onChange={(e) => setV({ ...v, check_in: e.target.value })} /></Field>
-        <Field label="Check-out" htmlFor="es-out" error={errors.check_out}><TextInput id="es-out" type="date" value={v.check_out} onChange={(e) => setV({ ...v, check_out: e.target.value })} /></Field>
-        <Field label="Stay / PMS reference" htmlFor="es-ref"><TextInput id="es-ref" value={v.stay_reference} onChange={(e) => setV({ ...v, stay_reference: e.target.value })} /></Field>
-        <Toggle checked={v.ended} onChange={(c) => setV({ ...v, ended: c })} label="Stay has ended" />
+        <Field label={tr('Room')} htmlFor="es-room" error={errors.room}><TextInput id="es-room" value={v.room} onChange={(e) => setV({ ...v, room: e.target.value })} /></Field>
+        <Field label={tr('Check-in')} htmlFor="es-in" error={errors.check_in}><TextInput id="es-in" type="date" value={v.check_in} onChange={(e) => setV({ ...v, check_in: e.target.value })} /></Field>
+        <Field label={tr('Check-out')} htmlFor="es-out" error={errors.check_out}><TextInput id="es-out" type="date" value={v.check_out} onChange={(e) => setV({ ...v, check_out: e.target.value })} /></Field>
+        <Field label={tr('Stay / PMS reference')} htmlFor="es-ref"><TextInput id="es-ref" value={v.stay_reference} onChange={(e) => setV({ ...v, stay_reference: e.target.value })} /></Field>
+        <Toggle checked={v.ended} onChange={(c) => setV({ ...v, ended: c })} label={tr('Stay has ended')} />
       </div>
     </Sheet>
   );
@@ -418,12 +414,12 @@ function EraseSheet({ open, onClose, onConfirm }: { open: boolean; onClose: () =
     <Sheet
       open={open}
       onClose={onClose}
-      title="Anonymise guest"
-      description="Erases name, phone, email, notes and free-text answers from this profile and its orders. Order records and financial figures stay, without personal data."
+      title={tr('Anonymise guest')}
+      description={tr('Erases name, phone, email, notes and free-text answers from this profile and its orders. Order records and financial figures stay, without personal data.')}
       size="sm"
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="secondary" onClick={onClose}>{tr('Cancel')}</Button>
           <Button
             variant="danger"
             disabled={!ok || reason.trim().length < 3}
@@ -433,20 +429,16 @@ function EraseSheet({ open, onClose, onConfirm }: { open: boolean; onClose: () =
               await onConfirm(reason);
               setBusy(false);
             }}
-          >
-            Erase personal data
-          </Button>
+          >{tr('Erase personal data')}</Button>
         </div>
       }
     >
       <div className="space-y-4">
-        <Field label="Legal basis / request reference" htmlFor="er-reason" required>
-          <TextArea id="er-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Erasure request received by email on …" />
+        <Field label={tr('Legal basis / request reference')} htmlFor="er-reason" required>
+          <TextArea id="er-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={tr('e.g. Erasure request received by email on …')} />
         </Field>
         <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} className="mt-1" />
-          I understand this cannot be undone.
-        </label>
+          <input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} className="mt-1" />{tr('I understand this cannot be undone.')}</label>
       </div>
     </Sheet>
   );

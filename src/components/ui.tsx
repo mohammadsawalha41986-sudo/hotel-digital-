@@ -14,6 +14,15 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 
+/** Built-in component labels follow the document language (both apps set <html lang>). */
+const UI_TEXT = {
+  close: { en: 'Close', ar: 'إغلاق' },
+  decrease: { en: 'Decrease', ar: 'إنقاص' },
+  increase: { en: 'Increase', ar: 'زيادة' },
+  retry: { en: 'Try again', ar: 'حاول مجدداً' },
+} as const;
+export const uiText = (k: keyof typeof UI_TEXT) => UI_TEXT[k][typeof document !== 'undefined' && document.documentElement.lang === 'ar' ? 'ar' : 'en'];
+
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
 // ---------------------------------------------------------------------------
@@ -79,6 +88,15 @@ export function Spinner({ className }: { className?: string }) {
 // ---------------------------------------------------------------------------
 // Image with graceful fallback
 // ---------------------------------------------------------------------------
+/** Branded placeholder compositions, all derived from the hotel's theme tokens. */
+const PLACEHOLDERS = [
+  'radial-gradient(120% 90% at 20% 10%, color-mix(in oklab, var(--c-accent) 55%, var(--c-primary)) 0%, var(--c-primary) 55%, var(--c-secondary) 100%)',
+  'radial-gradient(110% 90% at 85% 15%, color-mix(in oklab, var(--c-accent) 70%, var(--c-secondary)) 0%, var(--c-secondary) 60%, color-mix(in oklab, var(--c-secondary) 70%, black) 100%)',
+  'linear-gradient(160deg, color-mix(in oklab, var(--c-primary) 80%, white) 0%, var(--c-primary) 45%, color-mix(in oklab, var(--c-primary) 60%, black) 100%)',
+  'radial-gradient(120% 100% at 50% 0%, color-mix(in oklab, var(--c-accent) 40%, var(--c-secondary)) 0%, color-mix(in oklab, var(--c-secondary) 85%, black) 100%)',
+];
+
+// ---------------------------------------------------------------------------
 export function Img({
   src,
   alt,
@@ -86,6 +104,8 @@ export function Img({
   fallbackLabel,
   eager,
   sizes: sizesAttr,
+  fallbackIcon,
+  tone = 0,
 }: {
   src?: string | null;
   alt: string;
@@ -93,6 +113,10 @@ export function Img({
   fallbackLabel?: string;
   eager?: boolean;
   sizes?: string;
+  /** Large faint icon shown on the branded placeholder (e.g. the service icon). */
+  fallbackIcon?: ReactNode;
+  /** Varies the placeholder composition so neighbouring tiles differ. */
+  tone?: number;
 }) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -107,12 +131,13 @@ export function Img({
         role={alt ? 'img' : undefined}
         aria-label={alt || undefined}
         className={cx('relative flex items-center justify-center overflow-hidden', className)}
-        style={{ background: 'radial-gradient(120% 90% at 20% 10%, color-mix(in oklab, var(--c-accent) 55%, var(--c-primary)) 0%, var(--c-primary) 55%, var(--c-secondary) 100%)' }}
+        style={{ background: PLACEHOLDERS[Math.abs(tone) % PLACEHOLDERS.length] }}
       >
         <div className="absolute inset-0 opacity-[0.12]" style={{ backgroundImage: 'repeating-linear-gradient(135deg, #fff 0 1px, transparent 1px 14px)' }} />
+        {fallbackIcon && <span className="pointer-events-none absolute -end-[8%] -bottom-[10%] text-white/[0.16] [&_svg]:h-[62%] [&_svg]:max-h-44 [&_svg]:w-auto" aria-hidden="true">{fallbackIcon}</span>}
         {fallbackLabel ? (
           <span className="display relative px-4 text-center text-2xl text-white/85">{fallbackLabel}</span>
-        ) : alt ? (
+        ) : alt && !fallbackIcon ? (
           <ImageOff className="relative h-6 w-6 text-white/50" aria-hidden="true" />
         ) : null}
       </div>
@@ -159,7 +184,7 @@ export function Sheet({
   children,
   footer,
   size = 'md',
-  closeLabel = 'Close',
+  closeLabel = uiText('close'),
   hideHeader,
   side,
 }: {
@@ -328,14 +353,16 @@ export function Toggle({ checked, onChange, label, description, id }: { checked:
   return (
     <div className="flex items-start justify-between gap-4">
       <label htmlFor={fid} className="min-w-0 flex-1 cursor-pointer">
-        <span className="block text-sm font-medium">{label}</span>
-        {description && <span className="mt-0.5 block text-xs text-muted">{description}</span>}
+        <span id={`${fid}-l`} className="block text-sm font-medium">{label}</span>
+        {description && <span id={`${fid}-d`} className="mt-0.5 block text-xs text-muted">{description}</span>}
       </label>
       <button
         id={fid}
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-labelledby={`${fid}-l`}
+        aria-describedby={description ? `${fid}-d` : undefined}
         onClick={() => onChange(!checked)}
         className={cx('relative h-7 w-12 shrink-0 rounded-full transition', checked ? 'bg-brand' : 'bg-black/15')}
       >
@@ -345,7 +372,7 @@ export function Toggle({ checked, onChange, label, description, id }: { checked:
   );
 }
 
-export function Stepper({ value, onChange, min = 1, max = 50, label, decLabel = 'Decrease', incLabel = 'Increase', size = 'md' }: { value: number; onChange: (v: number) => void; min?: number; max?: number; label: string; decLabel?: string; incLabel?: string; size?: 'sm' | 'md' }) {
+export function Stepper({ value, onChange, min = 1, max = 50, label, decLabel = uiText('decrease'), incLabel = uiText('increase'), size = 'md' }: { value: number; onChange: (v: number) => void; min?: number; max?: number; label: string; decLabel?: string; incLabel?: string; size?: 'sm' | 'md' }) {
   const b = size === 'sm' ? 'h-8 w-8' : 'h-11 w-11';
   return (
     <div className="inline-flex items-center gap-1 rounded-full bg-black/[0.04] p-1" role="group" aria-label={label}>
@@ -399,7 +426,7 @@ export function EmptyState({ icon, title, description, action }: { icon?: ReactN
   );
 }
 
-export function ErrorState({ title, description, onRetry, retryLabel = 'Try again' }: { title: string; description?: string; onRetry?: () => void; retryLabel?: string }) {
+export function ErrorState({ title, description, onRetry, retryLabel = uiText('retry') }: { title: string; description?: string; onRetry?: () => void; retryLabel?: string }) {
   return (
     <div role="alert" className="flex flex-col items-center px-6 py-14 text-center">
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-600">

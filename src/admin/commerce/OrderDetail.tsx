@@ -6,6 +6,7 @@ import { ApiError, api, errorMessage } from '../../lib/api';
 import { Button, ErrorState, Field, Select, Sheet, Skeleton, TextArea, TextInput, cx } from '../../components/ui';
 import { useFeedback } from '../feedback';
 import { FinancialStatus, LedgerStatus, OrderStatus, dateTime, deptLabel, major, money, pct, sourceLabel, typeLabel } from './kit';
+import { tr, L } from '../i18n';
 
 interface Detail {
   order: Record<string, any>;
@@ -29,41 +30,41 @@ export function OrderDetailSheet({ apiPath, open, onClose, canAdjust }: { apiPat
   const d = q.data;
   const cur = d?.order.currency ?? 'SAR';
   return (
-    <Sheet open={open} onClose={onClose} title={d ? `Order ${d.order.reference}` : 'Order'} description={d ? `${d.order.hotel_name || ''} · ${typeLabel(d.order.order_type)} · ${deptLabel(d.order.department)}` : undefined} size="lg" side="right">
+    <Sheet open={open} onClose={onClose} title={d ? tr('Order {0}', { 0: d.order.reference }) : tr('Order')} description={d ? `${d.order.hotel_name || ''} · ${typeLabel(d.order.order_type)} · ${deptLabel(d.order.department)}` : undefined} size="lg" side="right">
       {q.isLoading ? (
         <div className="space-y-3">
           <Skeleton className="h-24 rounded-xl" />
           <Skeleton className="h-40 rounded-xl" />
         </div>
       ) : q.error ? (
-        <ErrorState title="Could not load the order" description={errorMessage(q.error)} onRetry={() => q.refetch()} />
+        <ErrorState title={tr('Could not load the order')} description={errorMessage(q.error)} onRetry={() => q.refetch()} />
       ) : d ? (
         <div className="space-y-6">
           <section className="grid gap-3 rounded-xl bg-zinc-50 p-4 text-sm sm:grid-cols-2">
-            <Info label="Status"><OrderStatus status={d.order.status} /></Info>
-            <Info label="Financial"><FinancialStatus status={d.order.financial_status} /></Info>
-            <Info label="Guest">{d.order.guest_name || '—'} {d.order.guest_no && <span className="text-zinc-500">({d.order.guest_no})</span>}</Info>
-            <Info label="Phone"><span dir="ltr">{d.order.guest_phone || '—'}</span></Info>
-            <Info label="Room / type">{d.order.room || 'Visitor'} · {d.order.guest_type === 'IN_HOUSE' ? 'In-house' : 'External'}</Info>
-            <Info label="Source">{sourceLabel(d.order.source)}</Info>
-            <Info label="Created">{dateTime(d.order.created_at)}</Info>
-            <Info label="Completed">{dateTime(d.order.completed_at)}</Info>
+            <Info label={tr('Status')}><OrderStatus status={d.order.status} /></Info>
+            <Info label={tr('Financial')}><FinancialStatus status={d.order.financial_status} /></Info>
+            <Info label={tr('Guest')}>{d.order.guest_name || '—'} {d.order.guest_no && <span className="text-zinc-500">({d.order.guest_no})</span>}</Info>
+            <Info label={tr('Phone')}><span dir="ltr">{d.order.guest_phone || '—'}</span></Info>
+            <Info label={tr('Room / type')}>{d.order.room || tr('Visitor')} · {d.order.guest_type === 'IN_HOUSE' ? tr('In-house') : tr('External')}</Info>
+            <Info label={tr('Source')}>{sourceLabel(d.order.source)}</Info>
+            <Info label={tr('Created')}>{dateTime(d.order.created_at)}</Info>
+            <Info label={tr('Completed')}>{dateTime(d.order.completed_at)}</Info>
             {d.order.financial_note && <p className="sm:col-span-2 text-xs text-zinc-600">{d.order.financial_note}</p>}
           </section>
 
           <section>
-            <h3 className="mb-2 text-sm font-semibold">Order lines (as ordered)</h3>
+            <h3 className="mb-2 text-sm font-semibold">{tr('Order lines (as ordered)')}</h3>
             {d.lines.length ? (
               <div className="overflow-x-auto rounded-xl border border-black/[0.07]">
                 <table className="w-full text-sm">
-                  <thead className="bg-zinc-50 text-left text-xs text-zinc-500">
+                  <thead className="bg-zinc-50 text-start text-xs text-zinc-500">
                     <tr>
-                      <th className="px-3 py-2 font-medium">Item</th>
-                      <th className="px-3 py-2 font-medium">Code</th>
-                      <th className="px-3 py-2 text-right font-medium">Qty</th>
-                      <th className="px-3 py-2 text-right font-medium">Unit</th>
-                      <th className="px-3 py-2 text-right font-medium">VAT</th>
-                      <th className="px-3 py-2 text-right font-medium">Total</th>
+                      <th className="px-3 py-2 font-medium">{tr('Item')}</th>
+                      <th className="px-3 py-2 font-medium">{tr('Code')}</th>
+                      <th className="px-3 py-2 text-end font-medium">{tr('Qty')}</th>
+                      <th className="px-3 py-2 text-end font-medium">{tr('Unit')}</th>
+                      <th className="px-3 py-2 text-end font-medium">{tr('VAT')}</th>
+                      <th className="px-3 py-2 text-end font-medium">{tr('Total')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black/[0.06]">
@@ -78,62 +79,62 @@ export function OrderDetailSheet({ apiPath, open, onClose, canAdjust }: { apiPat
                           {l.service && <p className="text-xs text-zinc-500">{l.service.replace(':express', ' · express')}</p>}
                         </td>
                         <td className="px-3 py-2 font-mono text-xs">{l.item_code || '—'}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{l.quantity}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{money(l.unit_price_minor, cur)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{money(l.vat_minor, cur)}</td>
-                        <td className="px-3 py-2 text-right font-semibold tabular-nums">{money(l.gross_minor, cur)}</td>
+                        <td className="px-3 py-2 text-end tabular-nums">{l.quantity}</td>
+                        <td className="px-3 py-2 text-end tabular-nums">{money(l.unit_price_minor, cur)}</td>
+                        <td className="px-3 py-2 text-end tabular-nums">{money(l.vat_minor, cur)}</td>
+                        <td className="px-3 py-2 text-end font-semibold tabular-nums">{money(l.gross_minor, cur)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot className="bg-zinc-50 text-sm">
                     <tr>
-                      <td colSpan={5} className="px-3 py-2 text-right text-zinc-500">Subtotal {major(d.order.subtotal, cur)} · VAT {major(d.order.vat, cur)} · Total</td>
-                      <td className="px-3 py-2 text-right font-semibold tabular-nums">{major(d.order.total, cur)}</td>
+                      <td colSpan={5} className="px-3 py-2 text-end text-zinc-500">{tr('Subtotal {0} · VAT {1} · Total', { 0: major(d.order.subtotal, cur), 1: major(d.order.vat, cur) })}</td>
+                      <td className="px-3 py-2 text-end font-semibold tabular-nums">{major(d.order.total, cur)}</td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
             ) : (
-              <p className="text-sm text-zinc-500">This request has no billable lines.</p>
+              <p className="text-sm text-zinc-500">{tr('This request has no billable lines.')}</p>
             )}
           </section>
 
           {d.finance_access === 'FULL' && (
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold">Commission</h3>
+              <h3 className="text-sm font-semibold">{tr('Commission')}</h3>
               {d.snapshot ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 text-sm">
                   <div className="grid gap-2 sm:grid-cols-3">
-                    <Info label="Rule">{d.snapshot.rule_level} · v{d.snapshot.rule_version}</Info>
-                    <Info label="Rate">{d.snapshot.commission_type === 'FIXED' ? money(d.snapshot.fixed_fee_minor, cur) : pct(d.snapshot.rate_bps)}{d.snapshot.commission_type === 'PERCENTAGE_PLUS_FIXED' ? ` + ${money(d.snapshot.fixed_fee_minor, cur)}` : ''}</Info>
-                    <Info label="Basis">{COMMISSION_BASIS_LABELS[d.snapshot.basis as keyof typeof COMMISSION_BASIS_LABELS] ?? d.snapshot.basis}</Info>
-                    <Info label="Commission base">{money(d.snapshot.eligible_base_minor, cur)}</Info>
-                    <Info label="Commission">{money(d.snapshot.commission_minor, cur)}</Info>
-                    <Info label="Hotel amount">{money(d.snapshot.hotel_amount_minor, cur)}</Info>
+                    <Info label={tr('Rule')}>{d.snapshot.rule_level} · v{d.snapshot.rule_version}</Info>
+                    <Info label={tr('Rate')}>{d.snapshot.commission_type === 'FIXED' ? money(d.snapshot.fixed_fee_minor, cur) : pct(d.snapshot.rate_bps)}{d.snapshot.commission_type === 'PERCENTAGE_PLUS_FIXED' ? ` + ${money(d.snapshot.fixed_fee_minor, cur)}` : ''}</Info>
+                    <Info label={tr('Basis')}>{L(COMMISSION_BASIS_LABELS[d.snapshot.basis as keyof typeof COMMISSION_BASIS_LABELS]) || d.snapshot.basis}</Info>
+                    <Info label={tr('Commission base')}>{money(d.snapshot.eligible_base_minor, cur)}</Info>
+                    <Info label={tr('Commission')}>{money(d.snapshot.commission_minor, cur)}</Info>
+                    <Info label={tr('Hotel amount')}>{money(d.snapshot.hotel_amount_minor, cur)}</Info>
                   </div>
                   <p className="mt-3 rounded-lg bg-white/70 p-2 font-mono text-xs text-zinc-700">{d.snapshot.formula}</p>
-                  <p className="mt-2 text-xs text-zinc-500">Locked {dateTime(d.snapshot.locked_at)} when the order was {String(d.snapshot.trigger_status).toLowerCase()}. It never changes; corrections are separate adjustments.</p>
+                  <p className="mt-2 text-xs text-zinc-500">{tr('Locked {0} when the order was {1}. It never changes; corrections are separate adjustments.', { 0: dateTime(d.snapshot.locked_at), 1: String(d.snapshot.trigger_status).toLowerCase() })}</p>
                 </div>
               ) : (
-                <p className="text-sm text-zinc-500">No financial snapshot yet.</p>
+                <p className="text-sm text-zinc-500">{tr('No financial snapshot yet.')}</p>
               )}
               {d.ledger.length > 0 && (
                 <ul className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.07] text-sm">
                   {d.ledger.map((l) => (
                     <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
                       <span className="font-mono text-xs">{l.entry_no}</span>
-                      <span className="text-zinc-500">{l.entry_type === 'COMMISSION' ? 'Commission' : 'Adjustment'}</span>
+                      <span className="text-zinc-500">{l.entry_type === 'COMMISSION' ? tr('Commission') : tr('Adjustment')}</span>
                       <span className="tabular-nums">{money(l.commission_minor, cur)}</span>
                       <LedgerStatus status={l.status} />
-                      <span className="text-xs text-zinc-500">{l.settlement_no ?? 'Not settled'}</span>
+                      <span className="text-xs text-zinc-500">{l.settlement_no ?? tr('Not settled')}</span>
                     </li>
                   ))}
                 </ul>
               )}
               {d.adjustments.map((a) => (
                 <div key={a.id} className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 text-sm">
-                  <p className="font-medium">{a.adjustment_no} · {ADJUSTMENT_LABELS[a.adjustment_type as AdjustmentType] ?? a.adjustment_type}</p>
-                  <p className="text-zinc-600">{a.reason}{a.reference ? ` · ref ${a.reference}` : ''}</p>
+                  <p className="font-medium">{a.adjustment_no} · {L(ADJUSTMENT_LABELS[a.adjustment_type as AdjustmentType]) || a.adjustment_type}</p>
+                  <p className="text-zinc-600">{a.reason}{a.reference ? tr(' · ref {0}', { 0: a.reference }) : ''}</p>
                   <p className="mt-1 font-mono text-xs text-zinc-600">{a.calculation}</p>
                   <p className="text-xs text-zinc-500">{a.created_by_name} · {dateTime(a.created_at)}</p>
                 </div>
@@ -144,7 +145,7 @@ export function OrderDetailSheet({ apiPath, open, onClose, canAdjust }: { apiPat
           )}
 
           <section>
-            <h3 className="mb-2 text-sm font-semibold">History</h3>
+            <h3 className="mb-2 text-sm font-semibold">{tr('History')}</h3>
             <ol className="relative space-y-3 border-s border-zinc-200 ps-4">
               {d.events.map((e, i) => (
                 <li key={i} className="text-sm">
@@ -158,8 +159,8 @@ export function OrderDetailSheet({ apiPath, open, onClose, canAdjust }: { apiPat
                     )}
                   </p>
                   {e.note && <p className="text-zinc-700">{e.note}</p>}
-                  {e.reason && e.reason !== e.note && <p className="text-xs text-zinc-500">Reason: {e.reason}</p>}
-                  <p className="text-xs text-zinc-500">{dateTime(e.created_at)} · {e.actor ?? (e.actor_type === 'system' ? 'System' : 'Guest')}</p>
+                  {e.reason && e.reason !== e.note && <p className="text-xs text-zinc-500">{tr('Reason: {0}', { 0: e.reason })}</p>}
+                  <p className="text-xs text-zinc-500">{dateTime(e.created_at)} · {e.actor ?? (e.actor_type === 'system' ? tr('System') : tr('Guest'))}</p>
                 </li>
               ))}
             </ol>
@@ -195,7 +196,7 @@ function AdjustmentForm({ orderId, currency, onDone }: { orderId: string; curren
         body: { adjustment_type: type, amount_minor: Math.round(Number(amount || 0) * 100), direction, reason, reference },
       }),
     onSuccess: () => {
-      fb.success('Adjustment posted');
+      fb.success(tr('Adjustment posted'));
       setAmount('');
       setReason('');
       setReference('');
@@ -212,41 +213,40 @@ function AdjustmentForm({ orderId, currency, onDone }: { orderId: string; curren
   return (
     <details className="rounded-xl border border-black/[0.07] p-3">
       <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
-        <Receipt className="h-4 w-4" aria-hidden="true" /> Post an adjustment
-      </summary>
+        <Receipt className="h-4 w-4" aria-hidden="true" />{' '}{tr('Post an adjustment')}</summary>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Field label="Type" htmlFor="adj-type">
+        <Field label={tr('Type')} htmlFor="adj-type">
           <Select id="adj-type" value={type} onChange={(e) => setType(e.target.value as typeof type)}>
             {ADJUSTMENT_TYPES.map((t) => (
-              <option key={t} value={t}>{ADJUSTMENT_LABELS[t]}</option>
+              <option key={t} value={t}>{L(ADJUSTMENT_LABELS[t])}</option>
             ))}
           </Select>
         </Field>
         {needsAmount && (
-          <Field label={type.includes('REFUND') ? `Refunded to guest (${currency})` : `Commission amount (${currency})`} htmlFor="adj-amount" error={errors.amount_minor}>
+          <Field label={type.includes('REFUND') ? tr('Refunded to guest ({0})', { 0: currency }) : tr('Commission amount ({0})', { 0: currency })} htmlFor="adj-amount" error={errors.amount_minor}>
             <TextInput id="adj-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} invalid={!!errors.amount_minor} />
           </Field>
         )}
         {type === 'COMMISSION_CORRECTION' && (
-          <Field label="Direction" htmlFor="adj-dir">
+          <Field label={tr('Direction')} htmlFor="adj-dir">
             <Select id="adj-dir" value={direction} onChange={(e) => setDirection(e.target.value as typeof direction)}>
-              <option value="DECREASE">Decrease commission</option>
-              <option value="INCREASE">Increase commission</option>
+              <option value="DECREASE">{tr('Decrease commission')}</option>
+              <option value="INCREASE">{tr('Increase commission')}</option>
             </Select>
           </Field>
         )}
-        <Field label="Reference (optional)" htmlFor="adj-ref">
+        <Field label={tr('Reference (optional)')} htmlFor="adj-ref">
           <TextInput id="adj-ref" value={reference} onChange={(e) => setReference(e.target.value)} />
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Reason" htmlFor="adj-reason" error={errors.reason} required>
+          <Field label={tr('Reason')} htmlFor="adj-reason" error={errors.reason} required>
             <TextArea id="adj-reason" value={reason} onChange={(e) => setReason(e.target.value)} invalid={!!errors.reason} />
           </Field>
         </div>
       </div>
-      <p className="mt-2 text-xs text-zinc-500">The original order, snapshot and ledger entry stay unchanged. The adjustment is a new ledger entry that lands in the next settlement.</p>
+      <p className="mt-2 text-xs text-zinc-500">{tr('The original order, snapshot and ledger entry stay unchanged. The adjustment is a new ledger entry that lands in the next settlement.')}</p>
       <div className="mt-3 flex justify-end">
-        <Button size="sm" loading={m.isPending} onClick={() => m.mutate()}>Post adjustment</Button>
+        <Button size="sm" loading={m.isPending} onClick={() => m.mutate()}>{tr('Post adjustment')}</Button>
       </div>
     </details>
   );
@@ -257,15 +257,15 @@ function Reevaluate({ orderId, onDone }: { orderId: string; onDone: () => void }
   const m = useMutation({
     mutationFn: () => api(`/admin/platform/orders/${orderId}/evaluate`, { method: 'POST' }),
     onSuccess: () => {
-      fb.success('Commission calculated');
+      fb.success(tr('Commission calculated'));
       onDone();
     },
     onError: (e) => fb.error(errorMessage(e)),
   });
   return (
     <div className="rounded-xl border border-red-200 bg-red-50/60 p-3 text-sm">
-      <p>No commission rule applied when this order was placed. After configuring the correct agreement, re-run the calculation — later rules are never applied retroactively.</p>
-      <Button size="sm" variant="secondary" className="mt-2" loading={m.isPending} onClick={() => m.mutate()}>Re-evaluate</Button>
+      <p>{tr('No commission rule applied when this order was placed. After configuring the correct agreement, re-run the calculation — later rules are never applied retroactively.')}</p>
+      <Button size="sm" variant="secondary" className="mt-2" loading={m.isPending} onClick={() => m.mutate()}>{tr('Re-evaluate')}</Button>
     </div>
   );
 }

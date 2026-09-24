@@ -77,7 +77,8 @@
     -webkit-tap-highlight-color: transparent;
   }
   [dir='rtl'] body,
-  [dir='rtl'] {
+  [dir='rtl'],
+  [dir='rtl'] .font-sans {
     font-family: var(--font-ar);
   }
   :focus-visible {

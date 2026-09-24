@@ -6,6 +6,7 @@ import { Badge, Button, Segmented, Select, Sheet, Toggle, cx } from '../../compo
 import { useMe } from '../data';
 import { useFeedback } from '../feedback';
 import { templatePath, useImportMutations, useTemplates, type ImportBatch, type ImportMode, type RowAction, type RowResult } from './api';
+import { tr, L } from '../i18n';
 
 const ACTION_LABEL: Record<RowAction, string> = { create: 'New', update: 'Update', unchanged: 'No change', skipped: 'Skipped', error: 'Error' };
 const ACTION_TONE: Record<RowAction, 'success' | 'info' | 'neutral' | 'warning' | 'danger'> = { create: 'success', update: 'info', unchanged: 'neutral', skipped: 'warning', error: 'danger' };
@@ -63,7 +64,7 @@ export function ResultTable({ results, sheetTitle }: { results: RowResult[]; she
   if (!results.length) return null;
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter rows">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label={tr('Filter rows')}>
         {(['all', 'error', 'warning', 'create', 'update', 'skipped'] as const).map((f) => (
           <button
             key={f}
@@ -87,9 +88,9 @@ export function ResultTable({ results, sheetTitle }: { results: RowResult[]; she
         {shown.slice(0, limit).map((r) => (
           <li key={`${r.sheet}-${r.row}`} className={cx('rounded-xl border border-black/[0.07] p-3 text-sm', r.action === 'error' && 'border-red-200 bg-red-50/50')}>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-zinc-500">Row {r.row}</span>
+              <span className="font-mono text-xs text-zinc-500">{tr('Row {0}', { 0: r.row })}</span>
               <span className="truncate font-mono text-xs">{r.code}</span>
-              <Badge tone={ACTION_TONE[r.action]} className="ms-auto">{ACTION_LABEL[r.action]}</Badge>
+              <Badge tone={ACTION_TONE[r.action]} className="ms-auto">{L(ACTION_LABEL[r.action])}</Badge>
             </div>
             <p className="mt-1 font-medium">{r.name || '—'}{multiSheet && <span className="font-normal text-zinc-500"> · {sheetTitle(r.sheet)}</span>}</p>
             {!!r.messages.length && (
@@ -110,12 +111,12 @@ export function ResultTable({ results, sheetTitle }: { results: RowResult[]; she
         <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-zinc-50 text-start text-xs text-zinc-500">
             <tr>
-              {multiSheet && <th className="px-3 py-2 text-start font-medium">Sheet</th>}
-              <th className="px-3 py-2 text-start font-medium">Row</th>
-              <th className="px-3 py-2 text-start font-medium">Code</th>
-              <th className="px-3 py-2 text-start font-medium">Name</th>
-              <th className="px-3 py-2 text-start font-medium">Result</th>
-              <th className="px-3 py-2 text-start font-medium">Details</th>
+              {multiSheet && <th className="px-3 py-2 text-start font-medium">{tr('Sheet')}</th>}
+              <th className="px-3 py-2 text-start font-medium">{tr('Row')}</th>
+              <th className="px-3 py-2 text-start font-medium">{tr('Code')}</th>
+              <th className="px-3 py-2 text-start font-medium">{tr('Name')}</th>
+              <th className="px-3 py-2 text-start font-medium">{tr('Result')}</th>
+              <th className="px-3 py-2 text-start font-medium">{tr('Details')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-black/[0.05]">
@@ -126,7 +127,7 @@ export function ResultTable({ results, sheetTitle }: { results: RowResult[]; she
                 <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{r.code || '—'}</td>
                 <td className="max-w-[14rem] truncate px-3 py-2">{r.name || '—'}</td>
                 <td className="px-3 py-2">
-                  <Badge tone={ACTION_TONE[r.action]}>{ACTION_LABEL[r.action]}</Badge>
+                  <Badge tone={ACTION_TONE[r.action]}>{L(ACTION_LABEL[r.action])}</Badge>
                 </td>
                 <td className="px-3 py-2">
                   <ul className="space-y-0.5">
@@ -148,9 +149,7 @@ export function ResultTable({ results, sheetTitle }: { results: RowResult[]; she
         </table>
       </div>
       {shown.length > limit && (
-        <Button variant="secondary" size="sm" onClick={() => setLimit((l) => l + 500)}>
-          Show more ({shown.length - limit} remaining)
-        </Button>
+        <Button variant="secondary" size="sm" onClick={() => setLimit((l) => l + 500)}>{tr('Show more ({0} remaining)', { 0: shown.length - limit })}</Button>
       )}
     </div>
   );
@@ -159,7 +158,7 @@ export function ResultTable({ results, sheetTitle }: { results: RowResult[]; she
 function IssueList({ issues }: { issues: NonNullable<ImportBatch['summary']['issues']> }) {
   if (!issues.length) return null;
   return (
-    <ul className="space-y-1.5" aria-label="File checks">
+    <ul className="space-y-1.5" aria-label={tr('File checks')}>
       {issues.map((i, n) => (
         <li key={n} className={cx('flex gap-2 rounded-lg px-3 py-2 text-sm', i.level === 'error' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-900')}>
           {i.level === 'error' ? <XCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />}
@@ -187,7 +186,7 @@ export function ImportDialog({ hid, open, onClose, templates: only }: { hid: str
   const inputId = useId();
   const choices = useMemo(() => {
     const t = (cat.data?.templates ?? []).filter((x) => x.allowed && (!only || only.includes(x.key)));
-    return [...((!only || only.includes('master')) && cat.data?.master.allowed ? [{ key: 'master', label: `${cat.data.master.title} (all sheets)` }] : []), ...t.map((x) => ({ key: x.key, label: `${x.number} ${x.title}` }))];
+    return [...((!only || only.includes('master')) && cat.data?.master.allowed ? [{ key: 'master', label: tr('{0} (all sheets)', { 0: cat.data.master.title }) }] : []), ...t.map((x) => ({ key: x.key, label: `${x.number} ${L({ en: x.title, ar: x.title_ar })}` }))];
   }, [cat.data, only]);
   const [template, setTemplate] = useState('');
   const [mode, setMode] = useState<ImportMode>('create_update');
@@ -212,8 +211,8 @@ export function ImportDialog({ hid, open, onClose, templates: only }: { hid: str
 
   const pick = (f: File | undefined | null) => {
     if (!f) return;
-    if (!/\.xlsx$/i.test(f.name)) return fb.error('Choose an Excel .xlsx file (use “Save as .xlsx” for older files)');
-    if (f.size > maxMb * 1024 * 1024) return fb.error(`The file is larger than ${maxMb} MB`);
+    if (!/\.xlsx$/i.test(f.name)) return fb.error(tr('Choose an Excel .xlsx file (use “Save as .xlsx” for older files)'));
+    if (f.size > maxMb * 1024 * 1024) return fb.error(tr('The file is larger than {0} MB', { 0: maxMb }));
     setFile(f);
   };
   const onDrop = (e: DragEvent) => {
@@ -240,7 +239,7 @@ export function ImportDialog({ hid, open, onClose, templates: only }: { hid: str
     m.commit.mutate(batch.id, {
       onSuccess: (b) => {
         setBatch(b);
-        fb.success(`Imported: ${b.summary.create} new, ${b.summary.update} updated`);
+        fb.success(tr('Imported: {0} new, {1} updated', { 0: b.summary.create, 1: b.summary.update }));
       },
       onError: (e) => {
         const next = e instanceof ApiError ? (e.details.batch as ImportBatch | undefined) : undefined;
@@ -266,15 +265,14 @@ export function ImportDialog({ hid, open, onClose, templates: only }: { hid: str
       onClose={close}
       side="right"
       size="xl"
-      title={step === 'done' ? 'Import complete' : step === 'preview' ? 'Review the import' : 'Import from Excel'}
-      description={step === 'upload' ? 'Nothing is saved until you have reviewed the preview and confirmed.' : batch ? `${batch.template_title} · ${batch.filename}` : undefined}
+      title={step === 'done' ? tr('Import complete') : step === 'preview' ? tr('Review the import') : tr('Import from Excel')}
+      description={step === 'upload' ? tr('Nothing is saved until you have reviewed the preview and confirmed.') : batch ? `${batch.template_title} · ${batch.filename}` : undefined}
       footer={
         step === 'upload' ? (
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={close}>Cancel</Button>
+            <Button variant="secondary" onClick={close}>{tr('Cancel')}</Button>
             <Button onClick={validate} disabled={!file || !template} loading={m.preview.isPending}>
-              <Upload className="h-4 w-4" aria-hidden="true" /> Upload &amp; validate
-            </Button>
+              <Upload className="h-4 w-4" aria-hidden="true" />{' '}{tr('Upload & validate')}</Button>
           </div>
         ) : step === 'preview' ? (
           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -286,20 +284,17 @@ export function ImportDialog({ hid, open, onClose, templates: only }: { hid: str
                 setFile(null);
               }}
             >
-              <RotateCcw className="h-4 w-4" aria-hidden="true" /> Upload a corrected file
-            </Button>
+              <RotateCcw className="h-4 w-4" aria-hidden="true" />{' '}{tr('Upload a corrected file')}</Button>
             <Button onClick={confirm} loading={m.commit.isPending} disabled={batch?.status !== 'previewed' || !!s?.errors || !writable}>
               <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-              {s?.errors ? 'Fix the errors to import' : writable ? `Import ${writable} record${writable === 1 ? '' : 's'}` : 'Nothing to import'}
+              {s?.errors ? tr('Fix the errors to import') : writable ? tr(writable === 1 ? 'Import 1 record' : 'Import {0} records', { 0: writable }) : tr('Nothing to import')}
             </Button>
           </div>
         ) : (
           <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="secondary" onClick={onClose}>Close</Button>
+            <Button variant="secondary" onClick={onClose}>{tr('Close')}</Button>
             {canPublish && (
-              <Link to={`/admin/h/${hid}/publishing`} onClick={onClose} className="inline-flex h-10 items-center rounded-full bg-cta px-5 text-sm font-semibold text-cta-ink hover:bg-cta-hover">
-                Review &amp; publish
-              </Link>
+              <Link to={`/admin/h/${hid}/publishing`} onClick={onClose} className="inline-flex h-10 items-center rounded-full bg-cta px-5 text-sm font-semibold text-cta-ink hover:bg-cta-hover">{tr('Review & publish')}</Link>
             )}
           </div>
         )
@@ -308,9 +303,7 @@ export function ImportDialog({ hid, open, onClose, templates: only }: { hid: str
       {step === 'upload' && (
         <div className="space-y-5">
           {choices.length > 1 && (
-            <label className="block text-sm font-medium" htmlFor={`${inputId}-t`}>
-              Template
-              <Select id={`${inputId}-t`} className="mt-1.5" value={template} onChange={(e) => setTemplate(e.target.value)}>
+            <label className="block text-sm font-medium" htmlFor={`${inputId}-t`}>{tr('Template')}<Select id={`${inputId}-t`} className="mt-1.5" value={template} onChange={(e) => setTemplate(e.target.value)}>
                 {choices.map((c) => (
                   <option key={c.key} value={c.key}>
                     {c.label}
@@ -321,11 +314,9 @@ export function ImportDialog({ hid, open, onClose, templates: only }: { hid: str
           )}
           <div className="flex flex-wrap gap-2 text-sm">
             <Button variant="secondary" size="sm" onClick={() => downloadFile(templatePath(hid, template, false)).catch((e) => fb.error(errorMessage(e)))} disabled={!template}>
-              <Download className="h-4 w-4" aria-hidden="true" /> Blank template
-            </Button>
+              <Download className="h-4 w-4" aria-hidden="true" />{' '}{tr('Blank template')}</Button>
             <Button variant="secondary" size="sm" onClick={() => downloadFile(templatePath(hid, template, true)).catch((e) => fb.error(errorMessage(e)))} disabled={!template}>
-              <FileSpreadsheet className="h-4 w-4" aria-hidden="true" /> Current data (edit &amp; re-import)
-            </Button>
+              <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />{' '}{tr('Current data (edit & re-import)')}</Button>
           </div>
           <div
             onDragOver={(e) => {
@@ -337,26 +328,26 @@ export function ImportDialog({ hid, open, onClose, templates: only }: { hid: str
             className={cx('rounded-2xl border-2 border-dashed p-8 text-center transition', drag ? 'border-zinc-900 bg-zinc-50' : 'border-black/15')}
           >
             <FileSpreadsheet className="mx-auto h-10 w-10 text-zinc-400" aria-hidden="true" />
-            <p className="mt-3 text-sm font-medium">{file ? file.name : 'Drop the .xlsx file here'}</p>
-            <p className="mt-1 text-xs text-zinc-500">{file ? `${(file.size / 1024).toFixed(0)} KB` : `or choose it from your computer · up to ${maxMb} MB`}</p>
+            <p className="mt-3 text-sm font-medium">{file ? file.name : tr('Drop the .xlsx file here')}</p>
+            <p className="mt-1 text-xs text-zinc-500">{file ? `${(file.size / 1024).toFixed(0)} KB` : tr('or choose it from your computer · up to {0} MB', { 0: maxMb })}</p>
             <input ref={fileRef} id={inputId} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" onChange={(e) => pick(e.target.files?.[0])} />
             <Button variant="secondary" size="sm" className="mt-4" onClick={() => fileRef.current?.click()}>
-              {file ? 'Choose another file' : 'Choose file'}
+              {file ? tr('Choose another file') : tr('Choose file')}
             </Button>
           </div>
           <Segmented<ImportMode>
-            label="Import mode"
+            label={tr('Import mode')}
             value={mode}
             onChange={setMode}
             options={[
-              { value: 'create_update', label: 'Create + update' },
-              { value: 'create_only', label: 'Create only' },
+              { value: 'create_update', label: tr('Create + update') },
+              { value: 'create_only', label: tr('Create only') },
             ]}
           />
           <p className="-mt-3 text-xs text-zinc-500">
-            {mode === 'create_update' ? 'New codes are added; existing records with the same code are updated. Renaming never creates duplicates.' : 'Only new records are added. Rows whose code already exists are skipped and reported.'}
+            {mode === 'create_update' ? tr('New codes are added; existing records with the same code are updated. Renaming never creates duplicates.') : tr('Only new records are added. Rows whose code already exists are skipped and reported.')}
           </p>
-          <Toggle checked={checkImages} onChange={setCheckImages} label="Check image links" description="Tests every image URL (reachability and type). Broken links are warnings — rows are still imported." />
+          <Toggle checked={checkImages} onChange={setCheckImages} label={tr('Check image links')} description={tr('Tests every image URL (reachability and type). Broken links are warnings — rows are still imported.')} />
         </div>
       )}
 
@@ -371,21 +362,20 @@ export function ImportDialog({ hid, open, onClose, templates: only }: { hid: str
             <div className="flex items-start gap-3 rounded-xl bg-emerald-50 px-4 py-3 text-emerald-900">
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
               <p className="text-sm">
-                {s.create} new and {s.update} updated record{s.create + s.update === 1 ? '' : 's'} saved as a draft. Guests see them after {canPublish ? 'you publish' : 'an administrator publishes'}. The import is in Import History and can be rolled back while the records are unchanged.
+                {tr('{0} new and {1} updated records saved as a draft.', { 0: s.create, 1: s.update })}{' '}
+                {canPublish ? tr('Guests see them after you publish.') : tr('Guests see them after an administrator publishes.')}{' '}
+                {tr('The import is in Import History and can be rolled back while the records are unchanged.')}
               </p>
             </div>
           ) : batch.status === 'failed' ? (
-            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
-              The file could not be imported. Fix the problems below and upload it again.
-            </p>
+            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{tr('The file could not be imported. Fix the problems below and upload it again.')}</p>
           ) : s.errors ? (
             <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
-              {s.errors} row{s.errors === 1 ? ' has' : 's have'} errors. Nothing will be imported until every error is fixed — correct the rows in Excel and upload the file again.
+              {tr(s.errors === 1 ? '1 row has errors. Nothing will be imported until every error is fixed — correct the row in Excel and upload the file again.' : '{0} rows have errors. Nothing will be imported until every error is fixed — correct the rows in Excel and upload the file again.', { 0: s.errors })}
             </p>
           ) : (
-            <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
-              Validation passed. {writable ? `Confirm to import ${writable} record${writable === 1 ? '' : 's'}.` : 'The file matches the current data — there is nothing to import.'}
-              {s.warnings ? ` ${s.warnings} row${s.warnings === 1 ? ' has' : 's have'} warnings; review them first.` : ''}
+            <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-700">{tr('Validation passed.')}{' '}{writable ? tr(writable === 1 ? 'Confirm to import 1 record.' : 'Confirm to import {0} records.', { 0: writable }) : tr('The file matches the current data — there is nothing to import.')}
+              {s.warnings ? ` ${tr(s.warnings === 1 ? '1 row has warnings; review it first.' : '{0} rows have warnings; review them first.', { 0: s.warnings })}` : ''}
             </p>
           )}
           <SummaryTiles s={s} />

@@ -6,6 +6,7 @@ import { useMe } from '../data';
 import { useFeedback } from '../feedback';
 import { templatePath, useTemplates } from './api';
 import { ImportDialog } from './ImportDialog';
+import { tr, L } from '../i18n';
 
 /** Small accessible menu for modules with several templates (e.g. laundry garments and prices). */
 function ExportMenu({ items, onPick }: { items: { key: string; label: string }[]; onPick: (key: string) => void }) {
@@ -26,8 +27,7 @@ function ExportMenu({ items, onPick }: { items: { key: string; label: string }[]
   return (
     <div ref={root} className="relative">
       <Button variant="secondary" size="sm" className="rounded-lg" aria-haspopup="menu" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
-        <Download className="h-4 w-4" aria-hidden="true" /> Export Excel
-      </Button>
+        <Download className="h-4 w-4" aria-hidden="true" />{' '}{tr('Export Excel')}</Button>
       {open && (
         <ul id={id} role="menu" className="absolute end-0 z-30 mt-1 min-w-56 rounded-xl border border-black/10 bg-white p-1 shadow-lg">
           {items.map((i) => (
@@ -68,14 +68,12 @@ export function DataButtons({ hid, entity }: { hid: string; entity: string }) {
   return (
     <>
       <Button variant="secondary" size="sm" className="rounded-lg" onClick={() => setOpen(true)}>
-        <FileUp className="h-4 w-4" aria-hidden="true" /> Import Excel
-      </Button>
+        <FileUp className="h-4 w-4" aria-hidden="true" />{' '}{tr('Import Excel')}</Button>
       {mine.length === 1 ? (
         <Button variant="secondary" size="sm" className="rounded-lg" onClick={() => exportKey(mine[0].key)}>
-          <Download className="h-4 w-4" aria-hidden="true" /> Export Excel
-        </Button>
+          <Download className="h-4 w-4" aria-hidden="true" />{' '}{tr('Export Excel')}</Button>
       ) : (
-        <ExportMenu items={mine.map((t) => ({ key: t.key, label: `${t.number} ${t.title}` }))} onPick={exportKey} />
+        <ExportMenu items={mine.map((t) => ({ key: t.key, label: `${t.number} ${L({ en: t.title, ar: t.title_ar })}` }))} onPick={exportKey} />
       )}
       <ImportDialog hid={hid} open={open} onClose={() => setOpen(false)} templates={mine.map((t) => t.key)} />
     </>

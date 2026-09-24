@@ -11,6 +11,7 @@ import { useMe } from '../../data';
 import { useFeedback } from '../../feedback';
 import { PageHeader } from '../../layout/AdminLayout';
 import { HotelPicker } from '../Orders';
+import { tr } from '../../i18n';
 
 interface Row {
   id: string;
@@ -58,18 +59,17 @@ export function PlatformSettlements() {
   return (
     <>
       <PageHeader
-        title="Settlements"
-        description="Draft → reviewed → approved → settled. A settlement contains exactly the unsettled ledger entries of its period; every total is traceable to orders."
+        title={tr('Settlements')}
+        description={tr('Draft → reviewed → approved → settled. A settlement contains exactly the unsettled ledger entries of its period; every total is traceable to orders.')}
         actions={
           <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" aria-hidden="true" /> New settlement
-          </Button>
+            <Plus className="h-4 w-4" aria-hidden="true" />{' '}{tr('New settlement')}</Button>
         }
       />
       <div className="mb-4 grid max-w-xl gap-3 sm:grid-cols-2">
         <HotelPicker value={hotelId} onChange={setHotelId} />
-        <Select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 rounded-lg text-sm">
-          <option value="">All statuses</option>
+        <Select aria-label={tr('Status')} value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 rounded-lg text-sm">
+          <option value="">{tr('All statuses')}</option>
           {SETTLEMENT_STATUSES.map((s) => (
             <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>
           ))}
@@ -79,22 +79,22 @@ export function PlatformSettlements() {
         {q.isLoading ? (
           <Skeleton className="m-4 h-40 rounded-xl" />
         ) : q.error ? (
-          <ErrorState title="Could not load settlements" description={errorMessage(q.error)} onRetry={() => q.refetch()} />
+          <ErrorState title={tr('Could not load settlements')} description={errorMessage(q.error)} onRetry={() => q.refetch()} />
         ) : !q.data!.length ? (
-          <EmptyState icon={<Landmark className="h-6 w-6" />} title="No settlements" description="Create one for a hotel and period; it collects that period's unsettled ledger entries." />
+          <EmptyState icon={<Landmark className="h-6 w-6" />} title={tr('No settlements')} description={tr('Create one for a hotel and period; it collects that period\'s unsettled ledger entries.')} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[52rem] text-sm">
-              <thead className="border-b border-black/[0.06] bg-zinc-50 text-left text-xs text-zinc-500">
+              <thead className="border-b border-black/[0.06] bg-zinc-50 text-start text-xs text-zinc-500">
                 <tr>
-                  <th className="px-4 py-2.5 font-medium">Settlement</th>
-                  <th className="px-4 py-2.5 font-medium">Hotel</th>
-                  <th className="px-4 py-2.5 font-medium">Period</th>
-                  <th className="px-4 py-2.5 font-medium">Status</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Orders</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Gross value</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Commission</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Due</th>
+                  <th className="px-4 py-2.5 font-medium">{tr('Settlement')}</th>
+                  <th className="px-4 py-2.5 font-medium">{tr('Hotel')}</th>
+                  <th className="px-4 py-2.5 font-medium">{tr('Period')}</th>
+                  <th className="px-4 py-2.5 font-medium">{tr('Status')}</th>
+                  <th className="px-4 py-2.5 text-end font-medium">{tr('Orders')}</th>
+                  <th className="px-4 py-2.5 text-end font-medium">{tr('Gross value')}</th>
+                  <th className="px-4 py-2.5 text-end font-medium">{tr('Commission')}</th>
+                  <th className="px-4 py-2.5 text-end font-medium">{tr('Due')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.06]">
@@ -109,10 +109,10 @@ export function PlatformSettlements() {
                       <p className="text-xs text-zinc-500">{s.period_type.toLowerCase()}</p>
                     </td>
                     <td className="px-4 py-2.5"><SettlementStatus status={s.status} /></td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{s.order_count}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{money(s.gross_minor, s.currency)}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{money(s.commission_minor, s.currency)}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{money(s.amount_due_minor, s.currency)}</td>
+                    <td className="px-4 py-2.5 text-end tabular-nums">{s.order_count}</td>
+                    <td className="px-4 py-2.5 text-end tabular-nums">{money(s.gross_minor, s.currency)}</td>
+                    <td className="px-4 py-2.5 text-end tabular-nums">{money(s.commission_minor, s.currency)}</td>
+                    <td className="px-4 py-2.5 text-end font-semibold tabular-nums">{money(s.amount_due_minor, s.currency)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -141,7 +141,7 @@ function NewSettlement({ open, onClose, onCreated }: { open: boolean; onClose: (
   const m = useMutation({
     mutationFn: () => api<{ id: string; settlement_no: string; entries: number }>('/admin/platform/settlements', { method: 'POST', body: { ...v, period_end: end } }),
     onSuccess: (r) => {
-      fb.success(`${r.settlement_no} created with ${r.entries} ledger entries`);
+      fb.success(tr('{0} created with {1} ledger entries', { 0: r.settlement_no, 1: r.entries }));
       qc.invalidateQueries({ queryKey: ['platform'] });
       setErrors({});
       onClose();
@@ -156,37 +156,37 @@ function NewSettlement({ open, onClose, onCreated }: { open: boolean; onClose: (
     <Sheet
       open={open}
       onClose={onClose}
-      title="New settlement"
-      description="Collects every unsettled, undisputed ledger entry earned in the period (hotel local dates). Periods of one hotel cannot overlap."
+      title={tr('New settlement')}
+      description={tr('Collects every unsettled, undisputed ledger entry earned in the period (hotel local dates). Periods of one hotel cannot overlap.')}
       size="md"
-      footer={<div className="flex justify-end"><Button disabled={!v.hotel_id || !end} loading={m.isPending} onClick={() => m.mutate()}>Create draft</Button></div>}
+      footer={<div className="flex justify-end"><Button disabled={!v.hotel_id || !end} loading={m.isPending} onClick={() => m.mutate()}>{tr('Create draft')}</Button></div>}
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <Field label="Hotel" htmlFor="ns-hotel" error={errors.hotel_id} required>
+          <Field label={tr('Hotel')} htmlFor="ns-hotel" error={errors.hotel_id} required>
             <Select id="ns-hotel" value={v.hotel_id} onChange={(e) => setV({ ...v, hotel_id: e.target.value })}>
-              <option value="">Choose a hotel…</option>
+              <option value="">{tr('Choose a hotel…')}</option>
               {(me.data?.hotels ?? []).map((h) => (
                 <option key={h.id} value={h.id}>{h.name_en}</option>
               ))}
             </Select>
           </Field>
         </div>
-        <Field label="Period" htmlFor="ns-type">
+        <Field label={tr('Period')} htmlFor="ns-type">
           <Select id="ns-type" value={v.period_type} onChange={(e) => setV({ ...v, period_type: e.target.value })}>
             {SETTLEMENT_PERIODS.map((p) => (
               <option key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Start" htmlFor="ns-start" error={errors.period_start} required>
+        <Field label={tr('Start')} htmlFor="ns-start" error={errors.period_start} required>
           <TextInput id="ns-start" type="date" value={v.period_start} onChange={(e) => setV({ ...v, period_start: e.target.value })} />
         </Field>
-        <Field label="End (inclusive)" htmlFor="ns-end" error={errors.period_end} hint={v.period_type === 'CUSTOM' ? undefined : 'Set by the period type'}>
+        <Field label={tr('End (inclusive)')} htmlFor="ns-end" error={errors.period_end} hint={v.period_type === 'CUSTOM' ? undefined : tr('Set by the period type')}>
           <TextInput id="ns-end" type="date" value={end} disabled={v.period_type !== 'CUSTOM'} onChange={(e) => setV({ ...v, period_end: e.target.value })} />
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Notes" htmlFor="ns-notes">
+          <Field label={tr('Notes')} htmlFor="ns-notes">
             <TextArea id="ns-notes" value={v.notes} onChange={(e) => setV({ ...v, notes: e.target.value })} />
           </Field>
         </div>

@@ -1,3 +1,4 @@
+import { track } from './track';
 import { useNavigate } from 'react-router-dom';
 import type { GuestPage } from '@shared/domain';
 import { useI18n } from '../lib/i18n';
@@ -39,7 +40,14 @@ export function useQuickAction() {
         const d = bundle.departments.find((x) => x.code === a.department);
         const room = identity?.type === 'IN_HOUSE' ? identity.room : '';
         const href = `/api/public/hotels/${slug}/whatsapp/${a.department}?lang=${lang}&room=${encodeURIComponent(room)}`;
-        return { available: !!d?.has_whatsapp, href, run: () => window.open(href, '_blank', 'noopener') };
+        return {
+          available: !!d?.has_whatsapp,
+          href,
+          run: () => {
+            track('whatsapp_click', { target_type: 'department', target_code: String(a.department) });
+            window.open(href, '_blank', 'noopener');
+          },
+        };
       }
       case 'feedback':
         return { available: true, run: () => navigate(path('feedback')) };
@@ -53,6 +61,7 @@ export function useQuickAction() {
       flow.open({ kind: 'identity', reason: 'in_house_required' });
       return;
     }
+    track('service_view', { target_type: entity === 'room_services' ? 'room_service' : 'hotel_service', target_code: String(service.code ?? '') });
     flow.open({ kind: 'service', entity, service });
   };
 

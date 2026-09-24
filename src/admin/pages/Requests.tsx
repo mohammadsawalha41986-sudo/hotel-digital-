@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, BedDouble, Clock, MessageCircle, Phone, RefreshCw, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   DEPARTMENT_LABELS, REQUEST_STATUS_LABELS, REQUEST_TYPES, REQUEST_TYPE_LABELS,
   type DepartmentCode, type RequestStatus, type RequestType,
@@ -11,6 +12,7 @@ import { Badge, Button, EmptyState, ErrorState, Field, Select, Sheet, Skeleton, 
 import { useMe } from '../data';
 import { useFeedback } from '../feedback';
 import { PageHeader } from '../layout/AdminLayout';
+import { tr, L, locale, adminLang } from '../i18n';
 
 interface Row {
   id: string;
@@ -77,7 +79,7 @@ const ago = (iso: string) => {
   if (m < 1) return 'just now';
   if (m < 60) return `${m} min ago`;
   if (m < 1440) return `${Math.floor(m / 60)} h ${m % 60} min ago`;
-  return new Date(iso).toLocaleString();
+  return new Date(iso).toLocaleString(locale());
 };
 
 export function Requests({ hid }: { hid: string }) {
@@ -88,7 +90,20 @@ export function Requests({ hid }: { hid: string }) {
   const [type, setType] = useState('ALL');
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
-  const [openId, setOpenId] = useState<string | null>(null);
+  // Deep link from the notification bell: ?open=<request id>
+  const [url, setUrl] = useSearchParams();
+  const [openId, setOpenIdState] = useState<string | null>(url.get('open'));
+  const setOpenId = (id: string | null) => {
+    setOpenIdState(id);
+    if (!id && url.has('open')) {
+      url.delete('open');
+      setUrl(url, { replace: true });
+    }
+  };
+  useEffect(() => {
+    const id = url.get('open');
+    if (id) setOpenIdState(id);
+  }, [url]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebounced(search), 300);
@@ -112,52 +127,51 @@ export function Requests({ hid }: { hid: string }) {
   return (
     <>
       <PageHeader
-        title="Requests"
-        description="Live queue of orders, service requests, bookings and feedback. Refreshes every 10 seconds."
+        title={tr('Requests')}
+        description={tr('Live queue of orders, service requests, bookings and feedback. Refreshes every 10 seconds.')}
         actions={
           <Button variant="secondary" size="sm" className="rounded-lg" onClick={() => q.refetch()} loading={q.isFetching}>
-            <RefreshCw className="h-4 w-4" aria-hidden="true" /> Refresh
-          </Button>
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />{' '}{tr('Refresh')}</Button>
         }
       />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,12rem))_1fr]">
         <div>
-          <label htmlFor="rq-status" className="sr-only">Status</label>
+          <label htmlFor="rq-status" className="sr-only">{tr('Status')}</label>
           <Select id="rq-status" value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 rounded-lg text-sm">
-            <option value="OPEN">Open ({(q.data?.open_counts.NEW ?? 0) + (q.data?.open_counts.ACCEPTED ?? 0) + (q.data?.open_counts.IN_PROGRESS ?? 0)})</option>
-            <option value="ALL">All statuses</option>
+            <option value="OPEN">{tr('Open ({0})', { 0: (q.data?.open_counts.NEW ?? 0) + (q.data?.open_counts.ACCEPTED ?? 0) + (q.data?.open_counts.IN_PROGRESS ?? 0) })}</option>
+            <option value="ALL">{tr('All statuses')}</option>
             {Object.keys(REQUEST_STATUS_LABELS).map((s) => (
               <option key={s} value={s}>
-                {REQUEST_STATUS_LABELS[s as RequestStatus].en}
+                {L(REQUEST_STATUS_LABELS[s as RequestStatus])}
               </option>
             ))}
           </Select>
         </div>
         <div>
-          <label htmlFor="rq-dept" className="sr-only">Department</label>
+          <label htmlFor="rq-dept" className="sr-only">{tr('Department')}</label>
           <Select id="rq-dept" value={department} onChange={(e) => setDepartment(e.target.value)} className="h-10 rounded-lg text-sm">
-            <option value="ALL">All my departments</option>
+            <option value="ALL">{tr('All my departments')}</option>
             {depts.map((d) => (
               <option key={d} value={d}>
-                {DEPARTMENT_LABELS[d].en}
+                {L(DEPARTMENT_LABELS[d])}
               </option>
             ))}
           </Select>
         </div>
         <div>
-          <label htmlFor="rq-type" className="sr-only">Type</label>
+          <label htmlFor="rq-type" className="sr-only">{tr('Type')}</label>
           <Select id="rq-type" value={type} onChange={(e) => setType(e.target.value)} className="h-10 rounded-lg text-sm">
-            <option value="ALL">All types</option>
+            <option value="ALL">{tr('All types')}</option>
             {REQUEST_TYPES.map((t) => (
               <option key={t} value={t}>
-                {REQUEST_TYPE_LABELS[t].en}
+                {L(REQUEST_TYPE_LABELS[t])}
               </option>
             ))}
           </Select>
         </div>
         <div className="relative">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
-          <TextInput aria-label="Search requests" placeholder="Reference, room, guest, phone…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-10 rounded-lg ps-9 text-sm" />
+          <TextInput aria-label={tr('Search requests')} placeholder={tr('Reference, room, guest, phone…')} value={search} onChange={(e) => setSearch(e.target.value)} className="h-10 rounded-lg ps-9 text-sm" />
         </div>
       </div>
 
@@ -169,9 +183,9 @@ export function Requests({ hid }: { hid: string }) {
             ))}
           </div>
         ) : q.error ? (
-          <ErrorState title="Could not load requests" description={errorMessage(q.error)} onRetry={() => q.refetch()} />
+          <ErrorState title={tr('Could not load requests')} description={errorMessage(q.error)} onRetry={() => q.refetch()} />
         ) : !q.data!.requests.length ? (
-          <EmptyState title={status === 'OPEN' ? 'All caught up' : 'No requests match these filters'} description={status === 'OPEN' ? 'New guest requests will appear here automatically.' : undefined} />
+          <EmptyState title={status === 'OPEN' ? tr('All caught up') : tr('No requests match these filters')} description={status === 'OPEN' ? tr('New guest requests will appear here automatically.') : undefined} />
         ) : (
           <ul className="divide-y divide-black/[0.06]">
             {q.data!.requests.map((r) => (
@@ -180,12 +194,12 @@ export function Requests({ hid }: { hid: string }) {
                   <span className="font-mono text-sm font-semibold">{r.reference}</span>
                   <span className="order-first min-w-0 sm:order-none">
                     <span className="flex items-center gap-2">
-                      {r.priority === 'HIGH' && <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" aria-label="High priority" />}
+                      {r.priority === 'HIGH' && <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" aria-label={tr('High priority')} />}
                       <span className="truncate font-medium">{r.title_en}</span>
                     </span>
                     <span className="block truncate text-xs text-zinc-500">
-                      {REQUEST_TYPE_LABELS[r.type].en} · {DEPARTMENT_LABELS[r.department]?.en}
-                      {r.line_count > 1 ? ` · ${r.line_count} items` : ''}
+                      {L(REQUEST_TYPE_LABELS[r.type])} · {L(DEPARTMENT_LABELS[r.department])}
+                      {r.line_count > 1 ? tr(' · {0} items', { 0: r.line_count }) : ''}
                     </span>
                   </span>
                   <span className="truncate text-sm">
@@ -194,7 +208,7 @@ export function Requests({ hid }: { hid: string }) {
                         <BedDouble className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" /> {r.room}
                       </span>
                     ) : (
-                      <span className="text-zinc-500">Visitor</span>
+                      <span className="text-zinc-500">{tr('Visitor')}</span>
                     )}{' '}
                     · {r.guest_name}
                   </span>
@@ -202,8 +216,8 @@ export function Requests({ hid }: { hid: string }) {
                     <Clock className="h-3.5 w-3.5" aria-hidden="true" /> {ago(r.created_at)}
                   </span>
                   <span className="flex items-center justify-end gap-2">
-                    {r.total ? <span className="hidden text-sm tabular-nums text-zinc-600 md:inline">{formatMoney(r.total, r.currency, 'en')}</span> : null}
-                    <Badge tone={STATUS_TONE[r.status]}>{REQUEST_STATUS_LABELS[r.status].en}</Badge>
+                    {r.total ? <span className="hidden text-sm tabular-nums text-zinc-600 md:inline">{formatMoney(r.total, r.currency, adminLang())}</span> : null}
+                    <Badge tone={STATUS_TONE[r.status]}>{L(REQUEST_STATUS_LABELS[r.status])}</Badge>
                   </span>
                 </button>
               </li>
@@ -240,7 +254,7 @@ function RequestDrawer({ hid, id, onClose }: { hid: string; id: string | null; o
   const status = useMutation({
     mutationFn: (s: RequestStatus) => api(`/admin/hotels/${hid}/requests/${id}/status`, { method: 'POST', body: { status: s, note, guest_message: guestMsg } }),
     onSuccess: (_d, s) => {
-      fb.success(`Request ${REQUEST_STATUS_LABELS[s].en.toLowerCase()}`);
+      fb.success(tr('Request {0}', { 0: L(REQUEST_STATUS_LABELS[s]).toLowerCase() }));
       setNote('');
       setGuestMsg('');
       setErrors({});
@@ -263,39 +277,39 @@ function RequestDrawer({ hid, id, onClose }: { hid: string; id: string | null; o
 
   const d = q.data;
   const r = d?.request;
-  const money = (v: number | null | undefined) => (v == null ? '' : formatMoney(v, r?.currency ?? 'SAR', 'en'));
+  const money = (v: number | null | undefined) => (v == null ? '' : formatMoney(v, r?.currency ?? 'SAR', adminLang()));
   const guestWa = r?.guest_phone ? `https://wa.me/${r.guest_phone.replace(/\D/g, '')}` : null;
 
   return (
-    <Sheet open={!!id} onClose={onClose} side="right" title={r ? `${r.reference} · ${r.title_en}` : 'Request'} description={r ? `${REQUEST_TYPE_LABELS[r.type].en} → ${DEPARTMENT_LABELS[r.department]?.en}` : undefined}>
+    <Sheet open={!!id} onClose={onClose} side="right" title={r ? `${r.reference} · ${r.title_en}` : tr('Request')} description={r ? `${L(REQUEST_TYPE_LABELS[r.type])} → ${L(DEPARTMENT_LABELS[r.department])}` : undefined}>
       {q.isLoading || !r ? (
-        q.error ? <ErrorState title="Could not load" description={errorMessage(q.error)} /> : <Skeleton className="h-64" />
+        q.error ? <ErrorState title={tr('Could not load')} description={errorMessage(q.error)} /> : <Skeleton className="h-64" />
       ) : (
         <div className="space-y-6">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone={STATUS_TONE[r.status]}>{REQUEST_STATUS_LABELS[r.status].en}</Badge>
-            {r.priority === 'HIGH' && <Badge tone="warning">High priority</Badge>}
-            <span className="text-xs text-zinc-500">Received {new Date(r.created_at).toLocaleString()} · guest language {r.lang.toUpperCase()}</span>
+            <Badge tone={STATUS_TONE[r.status]}>{L(REQUEST_STATUS_LABELS[r.status])}</Badge>
+            {r.priority === 'HIGH' && <Badge tone="warning">{tr('High priority')}</Badge>}
+            <span className="text-xs text-zinc-500">{tr('Received')}{' '}{new Date(r.created_at).toLocaleString(locale())}{' '}{tr('· guest language')}{' '}{r.lang.toUpperCase()}</span>
           </div>
 
           <section className="grid gap-3 rounded-xl bg-zinc-50 p-4 sm:grid-cols-3">
             <div>
-              <p className="text-xs text-zinc-500">Guest</p>
+              <p className="text-xs text-zinc-500">{tr('Guest')}</p>
               <p className="font-semibold">{r.guest_name}</p>
             </div>
             <div>
-              <p className="text-xs text-zinc-500">Room</p>
-              <p className="font-semibold">{r.room || 'External visitor'}</p>
+              <p className="text-xs text-zinc-500">{tr('Room')}</p>
+              <p className="font-semibold">{r.room || tr('External visitor')}</p>
             </div>
             <div>
-              <p className="text-xs text-zinc-500">Phone</p>
+              <p className="text-xs text-zinc-500">{tr('Phone')}</p>
               {r.guest_phone ? (
                 <div className="flex items-center gap-2">
                   <a href={`tel:${r.guest_phone}`} className="inline-flex items-center gap-1 font-semibold" dir="ltr">
                     <Phone className="h-3.5 w-3.5" aria-hidden="true" /> {r.guest_phone}
                   </a>
                   {guestWa && (
-                    <a href={guestWa} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp the guest" className="text-emerald-600">
+                    <a href={guestWa} target="_blank" rel="noopener noreferrer" aria-label={tr('WhatsApp the guest')} className="text-emerald-600">
                       <MessageCircle className="h-4 w-4" aria-hidden="true" />
                     </a>
                   )}
@@ -308,7 +322,7 @@ function RequestDrawer({ hid, id, onClose }: { hid: string; id: string | null; o
 
           {r.lines.length > 0 && (
             <section>
-              <h3 className="mb-2 text-sm font-semibold">Items</h3>
+              <h3 className="mb-2 text-sm font-semibold">{tr('Items')}</h3>
               <ul className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.07]">
                 {r.lines.map((l, i) => (
                   <li key={i} className="flex justify-between gap-3 px-4 py-2.5 text-sm">
@@ -325,9 +339,9 @@ function RequestDrawer({ hid, id, onClose }: { hid: string; id: string | null; o
               </ul>
               {r.total != null && (
                 <dl className="mt-2 space-y-0.5 px-1 text-sm">
-                  <div className="flex justify-between text-zinc-500"><dt>Subtotal</dt><dd className="tabular-nums">{money(r.subtotal)}</dd></div>
-                  <div className="flex justify-between text-zinc-500"><dt>VAT</dt><dd className="tabular-nums">{money(r.vat)}</dd></div>
-                  <div className="flex justify-between font-semibold"><dt>Estimated total</dt><dd className="tabular-nums">{money(r.total)}</dd></div>
+                  <div className="flex justify-between text-zinc-500"><dt>{tr('Subtotal')}</dt><dd className="tabular-nums">{money(r.subtotal)}</dd></div>
+                  <div className="flex justify-between text-zinc-500"><dt>{tr('VAT')}</dt><dd className="tabular-nums">{money(r.vat)}</dd></div>
+                  <div className="flex justify-between font-semibold"><dt>{tr('Estimated total')}</dt><dd className="tabular-nums">{money(r.total)}</dd></div>
                 </dl>
               )}
             </section>
@@ -339,9 +353,7 @@ function RequestDrawer({ hid, id, onClose }: { hid: string; id: string | null; o
                 <p key={i}>
                   <span className="text-zinc-500">{f.label_en}:</span>{' '}
                   {f.label_en === 'Attachment' ? (
-                    <a href={f.value} target="_blank" rel="noopener noreferrer" className="font-medium underline">
-                      View photo
-                    </a>
+                    <a href={f.value} target="_blank" rel="noopener noreferrer" className="font-medium underline">{tr('View photo')}</a>
                   ) : (
                     <span className="font-medium">{f.value}</span>
                   )}
@@ -349,41 +361,38 @@ function RequestDrawer({ hid, id, onClose }: { hid: string; id: string | null; o
               ))}
               {r.notes && (
                 <p className="rounded-lg bg-amber-50 px-3 py-2">
-                  <span className="text-amber-800">{r.type === 'FEEDBACK' ? 'Message' : 'Guest notes'}:</span> {r.notes}
+                  <span className="text-amber-800">{r.type === 'FEEDBACK' ? tr('Message') : tr('Guest notes')}:</span> {r.notes}
                 </p>
               )}
             </section>
           )}
 
           <section className="text-sm">
-            <h3 className="mb-1 font-semibold">WhatsApp routing</h3>
+            <h3 className="mb-1 font-semibold">{tr('WhatsApp routing')}</h3>
             {r.whatsapp_to ? (
-              <p className="text-zinc-600">
-                Routed to <span dir="ltr" className="font-medium">{r.whatsapp_to}</span>.{' '}
+              <p className="text-zinc-600">{tr('Routed to')}{' '}<span dir="ltr" className="font-medium">{r.whatsapp_to}</span>.{' '}
                 {r.whatsapp_url && (
-                  <a href={r.whatsapp_url} target="_blank" rel="noopener noreferrer" className="font-medium underline">
-                    Open message
-                  </a>
+                  <a href={r.whatsapp_url} target="_blank" rel="noopener noreferrer" className="font-medium underline">{tr('Open message')}</a>
                 )}
               </p>
             ) : (
-              <p className="text-amber-700">No WhatsApp number is configured for this department — the request is only in this queue.</p>
+              <p className="text-amber-700">{tr('No WhatsApp number is configured for this department — the request is only in this queue.')}</p>
             )}
           </section>
 
           {d!.transitions.length > 0 && (
             <section className="space-y-3 rounded-xl border border-black/[0.07] p-4">
-              <h3 className="text-sm font-semibold">Update status</h3>
-              <Field label="Internal note (staff only)" htmlFor="rq-note" error={errors.note}>
-                <TextArea id="rq-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} className="rounded-lg text-sm" placeholder="Required when declining" />
+              <h3 className="text-sm font-semibold">{tr('Update status')}</h3>
+              <Field label={tr('Internal note (staff only)')} htmlFor="rq-note" error={errors.note}>
+                <TextArea id="rq-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} className="rounded-lg text-sm" placeholder={tr('Required when declining')} />
               </Field>
-              <Field label="Message to guest (shown on their request page)" htmlFor="rq-guest">
-                <TextInput id="rq-guest" value={guestMsg} onChange={(e) => setGuestMsg(e.target.value)} className="h-10 rounded-lg text-sm" placeholder="e.g. Your order will arrive in 20 minutes" />
+              <Field label={tr('Message to guest (shown on their request page)')} htmlFor="rq-guest">
+                <TextInput id="rq-guest" value={guestMsg} onChange={(e) => setGuestMsg(e.target.value)} className="h-10 rounded-lg text-sm" placeholder={tr('e.g. Your order will arrive in 20 minutes')} />
               </Field>
               <div className="flex flex-wrap gap-2">
                 {d!.transitions.map((s) => (
                   <Button key={s} size="sm" className="rounded-lg" variant={s === 'REJECTED' || s === 'CANCELLED' ? 'secondary' : 'primary'} loading={status.isPending && status.variables === s} onClick={() => status.mutate(s)}>
-                    {ACTION_LABEL[s]}
+                    {L(ACTION_LABEL[s])}
                   </Button>
                 ))}
               </div>
@@ -391,27 +400,25 @@ function RequestDrawer({ hid, id, onClose }: { hid: string; id: string | null; o
           )}
 
           <section>
-            <h3 className="mb-2 text-sm font-semibold">Timeline</h3>
+            <h3 className="mb-2 text-sm font-semibold">{tr('Timeline')}</h3>
             <ol className="space-y-3 border-s border-black/10 ps-4">
               {d!.events.map((e) => (
                 <li key={e.id} className="relative text-sm">
                   <span className="absolute -start-[1.3rem] top-1.5 h-2 w-2 rounded-full bg-zinc-400" aria-hidden="true" />
                   <p>
-                    {e.to_status ? <strong>{e.from_status ? `${e.from_status} → ` : ''}{e.to_status}</strong> : <strong>Note</strong>}
-                    {!e.is_internal && <Badge tone="info" className="ms-2">Visible to guest</Badge>}
+                    {e.to_status ? <strong>{e.from_status ? `${e.from_status} → ` : ''}{e.to_status}</strong> : <strong>{tr('Note')}</strong>}
+                    {!e.is_internal && <Badge tone="info" className="ms-2">{tr('Visible to guest')}</Badge>}
                   </p>
                   {e.note && <p className="text-zinc-700">{e.note}</p>}
                   <p className="text-xs text-zinc-500">
-                    {new Date(e.created_at).toLocaleString()} {e.user_name ? `· ${e.user_name}` : '· Guest'}
+                    {new Date(e.created_at).toLocaleString(locale())} {e.user_name ? `· ${e.user_name}` : tr('· Guest')}
                   </p>
                 </li>
               ))}
             </ol>
             <div className="mt-4 flex gap-2">
-              <TextInput aria-label="Add internal note" value={internal} onChange={(e) => setInternal(e.target.value)} placeholder="Add an internal note…" className="h-10 rounded-lg text-sm" />
-              <Button size="sm" className="h-10 rounded-lg" disabled={!internal.trim()} loading={addNote.isPending} onClick={() => addNote.mutate()}>
-                Add
-              </Button>
+              <TextInput aria-label={tr('Add internal note')} value={internal} onChange={(e) => setInternal(e.target.value)} placeholder={tr('Add an internal note…')} className="h-10 rounded-lg text-sm" />
+              <Button size="sm" className="h-10 rounded-lg" disabled={!internal.trim()} loading={addNote.isPending} onClick={() => addNote.mutate()}>{tr('Add')}</Button>
             </div>
           </section>
         </div>

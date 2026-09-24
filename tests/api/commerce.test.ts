@@ -208,7 +208,12 @@ describe('§24 commercial acceptance', () => {
     // Overlapping periods are refused (an entry can only be settled once).
     assert.equal((await finance.post('/admin/platform/settlements', { hotel_id: A.id, period_type: 'CUSTOM', period_start: today(), period_end: today() })).status, 409);
     assert.equal((await finance.post(`/admin/platform/settlements/${settlementId}/status`, { status: 'SETTLED' })).status, 409, 'cannot skip review and approval');
-    for (const status of ['REVIEWED', 'APPROVED']) assert.equal((await finance.post(`/admin/platform/settlements/${settlementId}/status`, { status })).status, 200);
+    assert.equal((await finance.post(`/admin/platform/settlements/${settlementId}/status`, { status: 'REVIEWED' })).status, 200);
+    const selfApprove = await finance.post(`/admin/platform/settlements/${settlementId}/status`, { status: 'APPROVED' });
+    assert.equal(selfApprove.status, 409, 'maker–checker: the preparer/reviewer cannot approve');
+    assert.equal(selfApprove.body.error.code, 'four_eyes');
+    const checker = await login(users.superAdmin);
+    assert.equal((await checker.post(`/admin/platform/settlements/${settlementId}/status`, { status: 'APPROVED' })).status, 200);
     assert.equal((await finance.post(`/admin/platform/settlements/${settlementId}/status`, { status: 'SETTLED' })).status, 422, 'payment reference required');
     assert.equal((await finance.post(`/admin/platform/settlements/${settlementId}/status`, { status: 'SETTLED', payment_reference: 'TRX-889201' })).status, 200);
     assert.equal((await one(`SELECT status FROM commission_ledger WHERE request_id = $1`, [first.id])).status, 'SETTLED');

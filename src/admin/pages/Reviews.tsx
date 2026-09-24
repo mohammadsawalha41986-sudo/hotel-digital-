@@ -6,6 +6,7 @@ import { api, errorMessage } from '../../lib/api';
 import { Badge, Button, EmptyState, ErrorState, Segmented, Skeleton } from '../../components/ui';
 import { useFeedback } from '../feedback';
 import { PageHeader } from '../layout/AdminLayout';
+import { tr, locale } from '../i18n';
 
 interface Review {
   id: string;
@@ -30,6 +31,7 @@ const ACTIONS: Record<ReviewStatus, ReviewStatus[]> = {
   ARCHIVED: ['APPROVED'],
 };
 const VERB: Record<ReviewStatus, string> = { PENDING: 'Reset', APPROVED: 'Approve', REJECTED: 'Reject', HIDDEN: 'Hide', ARCHIVED: 'Archive' };
+const DONE: Record<ReviewStatus, string> = { PENDING: 'Review reset', APPROVED: 'Review approved', REJECTED: 'Review rejected', HIDDEN: 'Review hidden', ARCHIVED: 'Review archived' };
 
 export function Reviews({ hid }: { hid: string }) {
   const [status, setStatus] = useState<'ALL' | ReviewStatus>('PENDING');
@@ -39,7 +41,7 @@ export function Reviews({ hid }: { hid: string }) {
   const m = useMutation({
     mutationFn: ({ id, s }: { id: string; s: ReviewStatus }) => api(`/admin/hotels/${hid}/reviews/${id}/status`, { method: 'POST', body: { status: s } }),
     onSuccess: (_d, v) => {
-      fb.success(`Review ${VERB[v.s].toLowerCase()}d`.replace('ed d', 'ed'));
+      fb.success(tr(DONE[v.s]));
       qc.invalidateQueries({ queryKey: ['reviews-admin', hid] });
       qc.invalidateQueries({ queryKey: ['reviews'] });
     },
@@ -48,17 +50,17 @@ export function Reviews({ hid }: { hid: string }) {
 
   return (
     <>
-      <PageHeader title="Guest reviews" description="Nothing is published without approval. Only approved reviews appear on the guest site." />
+      <PageHeader title={tr('Guest reviews')} description={tr('Nothing is published without approval. Only approved reviews appear on the guest site.')} />
       <div className="mb-4 max-w-3xl">
-        <Segmented label="Filter by status" value={status} onChange={setStatus} options={[{ value: 'PENDING', label: 'Pending' }, ...REVIEW_STATUSES.filter((s) => s !== 'PENDING').map((s) => ({ value: s, label: s[0] + s.slice(1).toLowerCase() })), { value: 'ALL', label: 'All' }]} />
+        <Segmented label={tr('Filter by status')} value={status} onChange={setStatus} options={[{ value: 'PENDING', label: tr('Pending') }, ...REVIEW_STATUSES.filter((s) => s !== 'PENDING').map((s) => ({ value: s, label: s[0] + s.slice(1).toLowerCase() })), { value: 'ALL', label: tr('All') }]} />
       </div>
       {q.isLoading ? (
         <Skeleton className="h-64" />
       ) : q.error ? (
-        <ErrorState title="Could not load reviews" description={errorMessage(q.error)} onRetry={() => q.refetch()} />
+        <ErrorState title={tr('Could not load reviews')} description={errorMessage(q.error)} onRetry={() => q.refetch()} />
       ) : !q.data!.length ? (
         <div className="rounded-2xl border border-black/[0.07] bg-white">
-          <EmptyState title="No reviews here" description={status === 'PENDING' ? 'New guest reviews waiting for moderation will appear here.' : undefined} />
+          <EmptyState title={tr('No reviews here')} description={status === 'PENDING' ? tr('New guest reviews waiting for moderation will appear here.') : undefined} />
         </div>
       ) : (
         <ul className="grid gap-3 lg:grid-cols-2">
@@ -66,7 +68,7 @@ export function Reviews({ hid }: { hid: string }) {
             <li key={r.id} className="flex flex-col rounded-2xl border border-black/[0.07] bg-white p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="flex gap-0.5 text-amber-500" aria-label={`${r.rating} out of 5`}>
+                  <div className="flex gap-0.5 text-amber-500" aria-label={tr('{0} out of 5', { 0: r.rating })}>
                     {Array.from({ length: 5 }).map((_, i) => (
                       <Star key={i} className={`h-4 w-4 ${i < r.rating ? 'fill-current' : 'opacity-25'}`} aria-hidden="true" />
                     ))}
@@ -80,13 +82,13 @@ export function Reviews({ hid }: { hid: string }) {
               </p>
               <p className="mt-3 text-xs text-zinc-500">
                 {r.guest_name}
-                {r.room ? ` · Room ${r.room}` : ''} · {new Date(r.created_at).toLocaleString()}
-                {r.moderated_by_name ? ` · moderated by ${r.moderated_by_name}` : ''}
+                {r.room ? tr(' · Room {0}', { 0: r.room }) : ''} · {new Date(r.created_at).toLocaleString(locale())}
+                {r.moderated_by_name ? tr(' · moderated by {0}', { 0: r.moderated_by_name }) : ''}
               </p>
               <div className="mt-4 flex gap-2">
                 {ACTIONS[r.status].map((s) => (
                   <Button key={s} size="sm" className="rounded-lg" variant={s === 'APPROVED' ? 'primary' : 'secondary'} loading={m.isPending && m.variables?.id === r.id && m.variables.s === s} onClick={() => m.mutate({ id: r.id, s })}>
-                    {VERB[s]}
+                    {tr(VERB[s])}
                   </Button>
                 ))}
               </div>
