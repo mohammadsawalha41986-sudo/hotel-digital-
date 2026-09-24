@@ -119,6 +119,8 @@ export interface PublicBundle {
     info_items: Rec[];
   };
   preview: boolean;
+  /** Published content version (null in staff preview). */
+  version: number | null;
   generated_at: string;
 }
 

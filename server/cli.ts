@@ -5,6 +5,7 @@ import { seedDemoCatalog, seedDemoCommerce, seedDemoUsers, seedIsolationHotel, u
 import { seedSwissFlora } from './seed/swissflora';
 import { validatePasswordStrength } from './security';
 import { importFirestoreHotel } from './tools/firestoreImport';
+import { ensurePublications, publishHotel } from './services/publish';
 import fs from 'node:fs';
 
 const usage = `Usage:
@@ -19,12 +20,18 @@ async function main() {
   switch (cmd) {
     case 'migrate': {
       const ran = await migrate();
+      const published = await ensurePublications();
       console.log(ran.length ? `Applied: ${ran.join(', ')}` : 'Database is up to date');
+      if (published) console.log(`Created an initial publication for ${published} hotel(s)`);
       break;
     }
     case 'seed': {
       await migrate();
-      const r = await tx((c) => seedSwissFlora(c));
+      const r = await tx(async (c) => {
+        const res = await seedSwissFlora(c);
+        if (res.created) await publishHotel(c, res.id, null, 'Initial content');
+        return res;
+      });
       console.log(r.created ? `Seeded Swiss Flora Royal (${r.id})` : `Swiss Flora Royal already exists (${r.id}) — left unchanged`);
       break;
     }
@@ -37,6 +44,9 @@ async function main() {
         const harbour = await seedIsolationHotel(c);
         const users = await seedDemoUsers(c, royal.id, harbour);
         await seedDemoCommerce(c, royal.id);
+        // Demo content goes live like any staff edit: through a publication.
+        if (royal.created || added) await publishHotel(c, royal.id, null, 'Demo content');
+        await ensurePublications(c);
         console.log(`Demo catalog ${added ? 'added' : 'already present'}; users (password "${DEMO_PASSWORD}"):\n  ${users.join('\n  ')}`);
       });
       break;
@@ -73,6 +83,7 @@ async function main() {
         await client.query('BEGIN');
         for (const [key, doc] of Object.entries(hotels as Record<string, Record<string, unknown>>)) {
           const r = await importFirestoreHotel(client, key, doc);
+          await publishHotel(client, r.hotelId, null, 'Imported from Firebase');
           console.log(`${r.hotel} → ${r.hotelId}\n  created: ${JSON.stringify(r.created)}`);
           for (const s of r.skipped) console.log(`  skipped ${s.what}: ${s.reason}`);
         }

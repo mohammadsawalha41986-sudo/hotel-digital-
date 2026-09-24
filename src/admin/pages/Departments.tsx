@@ -1,14 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { DepartmentCode } from '@shared/domain';
 import { ApiError, api, errorMessage } from '../../lib/api';
-import { Badge, Button, ErrorState, Skeleton, TextInput, Toggle } from '../../components/ui';
+import { Badge, Button, ErrorState, Field, Sheet, Skeleton, TextInput, Toggle } from '../../components/ui';
 import { useFeedback } from '../feedback';
 import { PageHeader } from '../layout/AdminLayout';
 
 interface Dept {
-  code: DepartmentCode;
+  code: DepartmentCode | string;
+  is_custom?: boolean;
   name_en: string;
   name_ar: string;
   whatsapp: string;
@@ -55,6 +56,19 @@ export function Departments({ hid }: { hid: string }) {
   });
 
   const set = (i: number, d: Dept) => setRows(rows.map((x, j) => (j === i ? d : x)));
+  const [adding, setAdding] = useState(false);
+  const remove = async (d: Dept) => {
+    const ok = await fb.confirm({ title: `Delete ${d.name_en}?`, message: 'Only possible while no service and no open request uses it.', confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
+    try {
+      await api(`/admin/hotels/${hid}/departments/${d.code}`, { method: 'DELETE' });
+      fb.success('Department deleted');
+      qc.invalidateQueries({ queryKey: ['departments', hid] });
+      qc.invalidateQueries({ queryKey: ['department-options', hid] });
+    } catch (e) {
+      fb.error(errorMessage(e));
+    }
+  };
   const dirty = JSON.stringify(rows) !== JSON.stringify(q.data ?? []);
 
   return (
@@ -63,11 +77,17 @@ export function Departments({ hid }: { hid: string }) {
         title="Departments & WhatsApp routing"
         description="Every guest request is stored in the Requests queue and, when a WhatsApp number is set, the guest can also send a pre-filled message to that department."
         actions={
-          <Button size="sm" className="rounded-lg" onClick={() => save.mutate()} loading={save.isPending} disabled={!dirty}>
-            Save routing
-          </Button>
+          <>
+            <Button size="sm" variant="secondary" className="rounded-lg" onClick={() => setAdding(true)} disabled={dirty}>
+              <Plus className="h-4 w-4" aria-hidden="true" /> Add department
+            </Button>
+            <Button size="sm" className="rounded-lg" onClick={() => save.mutate()} loading={save.isPending} disabled={!dirty}>
+              Save routing
+            </Button>
+          </>
         }
       />
+      <AddDepartment hid={hid} open={adding} onClose={() => setAdding(false)} />
       {q.isLoading ? (
         <Skeleton className="h-96" />
       ) : q.error ? (
@@ -91,7 +111,7 @@ export function Departments({ hid }: { hid: string }) {
                     <div className="grid gap-1.5">
                       <TextInput aria-label={`${d.code} name (English)`} value={d.name_en} onChange={(e) => set(i, { ...d, name_en: e.target.value })} className="h-9 rounded-lg text-sm font-medium" />
                       <TextInput aria-label={`${d.code} name (Arabic)`} dir="rtl" value={d.name_ar} onChange={(e) => set(i, { ...d, name_ar: e.target.value })} className="h-9 rounded-lg text-sm" />
-                      <p className="max-w-xs text-xs text-zinc-500">{ROUTES[d.code]}</p>
+                      <p className="max-w-xs text-xs text-zinc-500">{d.is_custom ? `Hotel-defined · code ${d.code}` : ROUTES[d.code as DepartmentCode]}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -113,6 +133,11 @@ export function Departments({ hid }: { hid: string }) {
                   </td>
                   <td className="px-4 py-3">
                     <Toggle label={<span className="sr-only">{d.name_en} active</span>} checked={d.is_active} onChange={(v) => set(i, { ...d, is_active: v })} />
+                    {d.is_custom && (
+                      <Button size="sm" variant="ghost" className="mt-2" onClick={() => remove(d)} aria-label={`Delete ${d.name_en}`}>
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -121,5 +146,51 @@ export function Departments({ hid }: { hid: string }) {
         </div>
       )}
     </>
+  );
+}
+
+/** Hotel-defined routing target, e.g. Kids Club or Butler service. */
+function AddDepartment({ hid, open, onClose }: { hid: string; open: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const fb = useFeedback();
+  const blank = { code: '', name_en: '', name_ar: '', whatsapp: '', phone: '' };
+  const [v, setV] = useState(blank);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const m = useMutation({
+    mutationFn: () => api(`/admin/hotels/${hid}/departments`, { method: 'POST', body: v }),
+    onSuccess: () => {
+      fb.success('Department added — it can now be chosen on services');
+      qc.invalidateQueries({ queryKey: ['departments', hid] });
+      qc.invalidateQueries({ queryKey: ['department-options', hid] });
+      setV(blank);
+      setErrors({});
+      onClose();
+    },
+    onError: (e) => {
+      setErrors(e instanceof ApiError ? e.fields : {});
+      if (!(e instanceof ApiError) || !Object.keys(e.fields).length) fb.error(errorMessage(e));
+    },
+  });
+  const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV({ ...v, [k]: e.target.value });
+  return (
+    <Sheet open={open} onClose={onClose} title="Add department" description="Requests for services assigned to this department are routed to its WhatsApp number." size="sm" footer={<div className="flex justify-end"><Button loading={m.isPending} onClick={() => m.mutate()}>Add</Button></div>}>
+      <div className="grid gap-4">
+        <Field label="Code" htmlFor="ad-code" error={errors.code} hint="Capital letters, digits and _, e.g. KIDS_CLUB. Cannot be changed later." required>
+          <TextInput id="ad-code" value={v.code} onChange={(e) => setV({ ...v, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '_') })} />
+        </Field>
+        <Field label="Name (English)" htmlFor="ad-en" error={errors.name_en} required>
+          <TextInput id="ad-en" value={v.name_en} onChange={set('name_en')} />
+        </Field>
+        <Field label="Name (Arabic)" htmlFor="ad-ar" error={errors.name_ar} required>
+          <TextInput id="ad-ar" dir="rtl" value={v.name_ar} onChange={set('name_ar')} />
+        </Field>
+        <Field label="WhatsApp" htmlFor="ad-wa" error={errors.whatsapp}>
+          <TextInput id="ad-wa" type="tel" dir="ltr" placeholder="+9665XXXXXXXX" value={v.whatsapp} onChange={set('whatsapp')} />
+        </Field>
+        <Field label="Phone / extension" htmlFor="ad-ph" error={errors.phone}>
+          <TextInput id="ad-ph" type="tel" dir="ltr" value={v.phone} onChange={set('phone')} />
+        </Field>
+      </div>
+    </Sheet>
   );
 }

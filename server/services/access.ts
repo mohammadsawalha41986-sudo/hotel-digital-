@@ -1,7 +1,7 @@
 import type { HotelFinanceAccess } from '../../shared/commerce';
-import { PII_ROLES, ROLE_DEPARTMENTS, roleCan } from '../../shared/domain';
+import { DEPARTMENTS, PII_ROLES, ROLE_DEPARTMENTS, roleCan } from '../../shared/domain';
 import type { SessionUser } from '../context';
-import { one } from '../db';
+import { one, q } from '../db';
 import { forbidden } from '../errors';
 
 export const isPlatformFinance = (u: SessionUser) => u.role === 'SUPER_ADMIN' || u.role === 'PLATFORM_FINANCE';
@@ -27,3 +27,15 @@ export async function requireFinance(u: SessionUser, hotelId: string, level: 'SE
 
 export const canSeePii = (u: SessionUser) => PII_ROLES.includes(u.role);
 export const departmentsOf = (u: SessionUser) => ROLE_DEPARTMENTS[u.role];
+
+/**
+ * Departments whose requests this user sees in a hotel. Roles scoped to every
+ * department also see the hotel's own (custom) departments; department roles
+ * keep their fixed scope.
+ */
+export async function departmentScope(u: SessionUser, hotelId: string): Promise<string[]> {
+  const fixed = ROLE_DEPARTMENTS[u.role];
+  if (fixed.length < DEPARTMENTS.length) return [...fixed];
+  const rows = await q<{ code: string }>(`SELECT code FROM departments WHERE hotel_id = $1`, [hotelId]);
+  return [...new Set([...fixed, ...rows.map((r) => r.code)])];
+}

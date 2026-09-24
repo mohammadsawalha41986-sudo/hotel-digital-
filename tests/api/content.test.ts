@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
-import { Client, bundle, ids, login, menuItems, one, outletByName, setup, teardown, users } from './helpers';
+import { Client, bundle, ids, login, menuItems, one, outletByName, publish, setup, teardown, users } from './helpers';
 
 before(setup);
 after(teardown);
@@ -19,8 +19,12 @@ describe('admin → database → guest persistence', () => {
     assert.equal(r.status, 200);
     const reread = (await (await login(users.admin)).get(H())).body.branding;
     assert.equal(reread.logo, 'https://cdn.example.com/logo.png');
+    assert.notEqual((await bundle()).hotel.branding.colors.primary, '#112233', 'branding waits for publish');
+    assert.equal((await admin.get(H())).body.has_unpublished_changes, true);
+    await publish(admin);
     const b = await bundle();
     assert.equal(b.hotel.branding.colors.primary, '#112233');
+    assert.equal((await admin.get(H())).body.has_unpublished_changes, false);
     assert.equal((await admin.put(`${H()}/branding`, { ...current, colors: { ...current.colors, primary: 'red' } })).status, 422);
   });
 
@@ -42,8 +46,8 @@ describe('admin → database → guest persistence', () => {
     pub = await bundle();
     assert.equal(pub.site.hero.slides[0].headline_en, 'New hero headline');
     assert.equal(pub.site.sections.find((s: any) => s.type === 'gallery').visible, false);
-    const audit = await one(`SELECT COUNT(*) AS n FROM audit_log WHERE hotel_id = $1 AND entity = 'website' AND action = 'publish'`, [ids.royal]);
-    assert.equal(audit.n, 1);
+    const audit = await one(`SELECT COUNT(*) AS n FROM audit_log WHERE hotel_id = $1 AND entity = 'publication' AND action = 'publish' AND user_id IS NOT NULL`, [ids.royal]);
+    assert.ok(audit.n >= 1);
   });
 
   test('create offer, change outlet image, change item price, disable item', async () => {
@@ -61,6 +65,17 @@ describe('admin → database → guest persistence', () => {
     assert.equal(priced.body.price, 61.5);
     const disabled = (await menuItems(ird.id)).find((i: any) => i.name_en.includes('Fresh orange'));
     assert.equal((await admin.patch(`${H()}/entities/menu_items/${disabled.id}`, { available: false })).status, 200);
+
+    // Before publishing: new content and prices are not visible; availability applies at once.
+    const before = await bundle();
+    assert.ok(!before.catalog.offers.some((o: any) => o.title_en === 'Weekend brunch'));
+    const itemsBefore = await menuItems(ird.id);
+    assert.equal(itemsBefore.find((i: any) => i.id === club.id).price, 58);
+    assert.equal(itemsBefore.find((i: any) => i.id === disabled.id).available, false, 'sold out is operational');
+    const changes = (await admin.get(`${H()}/publishing`)).body;
+    assert.equal(changes.has_unpublished_changes, true);
+    assert.ok(changes.changes.some((c: any) => /price change/.test(c.summary)));
+    await publish(admin);
 
     const b = await bundle();
     assert.ok(b.catalog.offers.some((o: any) => o.title_en === 'Weekend brunch'));
@@ -80,9 +95,14 @@ describe('admin → database → guest persistence', () => {
     const b0 = await bundle();
     const pillow = b0.catalog.room_services.find((s: any) => s.name_en === 'Extra pillows');
     await admin.patch(`${H()}/entities/room_services/${pillow.id}`, { is_active: false });
-    const b1 = await bundle();
-    assert.ok(!b1.catalog.room_services.some((s: any) => s.id === pillow.id));
+    // Immediately unorderable; removed from the page with the next publish.
+    assert.equal((await bundle()).catalog.room_services.find((s: any) => s.id === pillow.id).available, false);
+    const r = await new Client().post('/public/hotels/swiss-flora-royal/requests', { guest: { type: 'IN_HOUSE', name: 'Sara', phone: '+966555000111', room: '301' }, payload: { kind: 'ROOM_SERVICE', service_id: pillow.id } });
+    assert.equal(r.status, 409);
+    await publish(admin);
+    assert.ok(!(await bundle()).catalog.room_services.some((s: any) => s.id === pillow.id));
     await admin.patch(`${H()}/entities/room_services/${pillow.id}`, { is_active: true });
+    await publish(admin);
   });
 
   test('add room service, change spa price, change laundry price', async () => {
@@ -94,6 +114,10 @@ describe('admin → database → guest persistence', () => {
     await admin.patch(`${H()}/entities/spa_services/${swedish.id}`, { price: 300 });
     const shirt = b0.catalog.laundry_items.find((s: any) => s.name_en.includes('Shirt'));
     await admin.patch(`${H()}/entities/laundry_items/${shirt.id}`, { wash_price: 13 });
+    const guest = { type: 'IN_HOUSE', name: 'Sara', phone: '+966555000111', room: '301' };
+    const unpublished = await new Client().post('/public/hotels/swiss-flora-royal/requests', { guest, payload: { kind: 'LAUNDRY', pickup: 'Now', lines: [{ item_id: shirt.id, service: 'wash', quantity: 2 }] } });
+    assert.equal(unpublished.body.totals.total, 24, 'guests pay the published price until the change is published');
+    await publish(admin);
     const b = await bundle();
     assert.ok(b.catalog.room_services.some((s: any) => s.name_en === 'Baby cot'));
     assert.equal(b.catalog.spa_services.find((s: any) => s.id === swedish.id).price, 300);
@@ -121,6 +145,7 @@ describe('admin → database → guest persistence', () => {
     const admin = await login(users.admin);
     const p = (await admin.get(H())).body.profile;
     assert.equal((await admin.put(`${H()}/profile`, { ...p, language_mode: 'ar', tagline_en: 'Updated tagline' })).status, 200);
+    await publish(admin);
     const b = await bundle();
     assert.equal(b.hotel.profile.language_mode, 'ar');
     assert.equal(b.hotel.profile.tagline_en, 'Updated tagline');

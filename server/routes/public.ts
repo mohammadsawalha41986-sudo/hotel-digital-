@@ -8,7 +8,6 @@ import { clientIp, type AppEnv, type Ctx } from '../context';
 import { one, q, tx } from '../db';
 import { HttpError, badRequest, notFound, validationError } from '../errors';
 import { rateLimit } from '../rateLimit';
-import { getEntityRow } from '../repos/entities';
 import { getHotelRowBySlug, hydrate, type HotelRow } from '../repos/hotels';
 import { sha256 } from '../security';
 import { buildOutletMenu, buildPublicBundle } from '../services/catalog';
@@ -61,18 +60,15 @@ publicRoutes.get('/hotels/:slug', async (c) => {
 });
 
 publicRoutes.get('/hotels/:slug/outlets/:outletId/menu', async (c) => {
-  const { row } = await resolveHotel(c);
-  const outlet = await getEntityRow('outlets', row.id, c.req.param('outletId'));
-  if (!outlet || !outlet.is_active) throw notFound('Outlet not found');
-  c.header('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
-  return c.json(await buildOutletMenu(row.id, outlet.id));
+  const { row, preview } = await resolveHotel(c);
+  const outletId = c.req.param('outletId');
+  if (!/^[0-9a-f-]{36}$/i.test(outletId)) throw notFound('Outlet not found');
+  const menu = await buildOutletMenu(row.id, outletId, preview);
+  if (!menu) throw notFound('Outlet not found');
+  c.header('Cache-Control', preview ? 'no-store' : 'public, max-age=30, stale-while-revalidate=120');
+  return c.json(menu);
 });
 
-/**
- * Called when a guest completes the welcome/identification step. Links the
- * device to a guest profile and stay ("QR session started" on the CRM
- * timeline). Returns nothing personal: the guest keeps their own details.
- */
 publicRoutes.post('/hotels/:slug/session', async (c) => {
   const { row } = await resolveHotel(c);
   rateLimit(`session:${row.id}:${clientIp(c)}`, 30, 10 * 60_000);

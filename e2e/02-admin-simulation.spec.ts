@@ -38,9 +38,6 @@ test('hotel admin edits every guest-facing module through the UI', async ({ page
   await page.getByRole('button', { name: 'Hide Gallery' }).click();
   await page.getByRole('button', { name: 'Save draft' }).click();
   await expect(page.getByText('Draft saved')).toBeVisible();
-  await page.getByRole('button', { name: 'Publish', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Publish' }).click();
-  await expect(page.getByText('Published — the guest site is updated')).toBeVisible();
 
   // New offer
   await go(page, 'offers');
@@ -93,6 +90,16 @@ test('hotel admin edits every guest-facing module through the UI', async ({ page
   await page.getByLabel('Housekeeping WhatsApp').fill('+966 51 111 1111');
   await page.getByRole('button', { name: 'Save routing' }).click();
   await expect(page.getByText('Routing saved')).toBeVisible();
+
+  // Nothing above reaches guests until it is published — then everything goes live together.
+  await expect(page.getByText('Unpublished changes')).toBeVisible();
+  await page.getByRole('button', { name: /^Publish updates/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Publish updates' });
+  await expect(dialog).toContainText('price change');
+  await dialog.getByLabel('Note (optional)').fill('E2E content refresh');
+  await dialog.getByRole('button', { name: 'Publish now' }).click();
+  await expect(page.getByText(/Published version \d+/)).toBeVisible();
+  await expect(page.getByText('All changes live')).toBeVisible();
 });
 
 test('every change persists after a full reload', async ({ page }) => {
@@ -101,7 +108,7 @@ test('every change persists after a full reload', async ({ page }) => {
   await expect(page.locator('#b-logo')).toHaveValue(/^\/media\//);
 
   await go(page, 'website');
-  await expect(page.getByText('Live = draft')).toBeVisible();
+  await expect(page.getByText('Everything published')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Show Gallery' })).toBeVisible();
   await page.getByRole('radio', { name: 'Hero' }).click();
   await page.getByRole('button', { name: 'Customize Your stay, perfected' }).click();
@@ -126,7 +133,7 @@ test('every change persists after a full reload', async ({ page }) => {
   await expect(page.getByLabel('Housekeeping WhatsApp')).toHaveValue('+966 51 111 1111');
   await go(page, 'audit');
   await expect(page.getByText(/Updated Menu item "\[Demo\] Club sandwich": price \(price change\)/)).toBeVisible();
-  await expect(page.getByText('Published website changes')).toBeVisible();
+  await expect(page.getByText(/Published version \d+ — E2E content refresh/)).toBeVisible();
 });
 
 test('the guest site reflects every published change', async ({ page, request }) => {

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { ROLE_DEPARTMENTS, roleCan } from '../../../shared/domain';
+import { roleCan } from '../../../shared/domain';
+import { departmentScope } from '../../services/access';
 import { requireHotelAccess } from '../../auth';
 import type { AppEnv } from '../../context';
 import { one, q } from '../../db';
@@ -20,7 +21,7 @@ analyticsRoutes.get('/:hid/analytics', async (c) => {
   const row = await getHotelRow(hid);
   if (!row) throw notFound('Hotel not found');
   const tz = hydrate(row).profile.timezone;
-  const depts = ROLE_DEPARTMENTS[u.role];
+  const depts = await departmentScope(u, hid);
   const base = [hid, depts, days];
   const withTz = [...base, tz];
   const scope = `hotel_id = $1 AND department = ANY($2::text[]) AND created_at >= now() - make_interval(days => $3)`;

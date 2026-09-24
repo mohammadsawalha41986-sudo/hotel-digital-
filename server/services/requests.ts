@@ -15,7 +15,9 @@ import { lineAmounts, resolveVatMode, sumLines, toMinor, type LineAmounts, type 
 import { buildWhatsAppMessage, waLink, type MessageLine } from '../../shared/whatsapp';
 import { one, q, tx } from '../db';
 import { HttpError, badRequest, validationError } from '../errors';
-import { getEntityRow, toRecord, type EntityRow } from '../repos/entities';
+import type { EntityName } from '../../shared/entities';
+import type { EntityRecord } from '../repos/entities';
+import { liveStates, publishedContent } from './publish';
 import type { Hotel } from '../repos/hotels';
 import type { SessionUser } from '../context';
 import type { OrderSource, OrderType } from '../../shared/commerce';
@@ -120,46 +122,81 @@ function checkAnswers(fields: CustomField[], answers: Record<string, unknown>) {
   return { facts, clean };
 }
 
-async function loadActive(name: Parameters<typeof getEntityRow>[0], hotelId: string, id: string, what: string) {
-  const row = await getEntityRow(name, hotelId, id);
-  if (!row || !row.is_active || row.archived_at) throw unavailable(`This ${what} is no longer available.`);
-  return { row, rec: toRecord(name, row) };
+/**
+ * The published catalog for pricing an order: prices, names and structure
+ * are exactly what guests were shown. Live state is enforced on top — an item
+ * hidden, archived, deleted or marked unavailable since the last publish
+ * cannot be ordered.
+ */
+class OrderCatalog {
+  private constructor(
+    private hotelId: string,
+    private byId: Map<string, Map<string, EntityRecord>>
+  ) {}
+
+  static async load(hotelId: string) {
+    const content = await publishedContent(hotelId);
+    const byId = new Map<string, Map<string, EntityRecord>>();
+    for (const [name, rows] of Object.entries(content.catalog)) byId.set(name, new Map(rows.map((r) => [r.id, r])));
+    return new OrderCatalog(hotelId, byId);
+  }
+
+  find(name: EntityName, id: string | null | undefined) {
+    return id ? this.byId.get(name)?.get(id) : undefined;
+  }
+
+  /** Published records that are still live, with live availability/status applied. Missing ids are absent from the result. */
+  async live(name: EntityName, ids: string[]): Promise<Map<string, EntityRecord>> {
+    const wanted = [...new Set(ids)].filter((id) => /^[0-9a-f-]{36}$/i.test(id) && this.find(name, id));
+    const states = await liveStates(this.hotelId, name, wanted);
+    const out = new Map<string, EntityRecord>();
+    for (const id of wanted) {
+      const st = states.get(id);
+      if (!st || !st.is_active || st.archived) continue;
+      const rec = { ...this.find(name, id)! };
+      if (st.available !== null && 'available' in rec) rec.available = st.available;
+      if (st.status_override !== null && 'status_override' in rec) rec.status_override = st.status_override;
+      out.set(id, rec);
+    }
+    return out;
+  }
+
+  async require(name: EntityName, id: string, what: string): Promise<EntityRecord> {
+    const rec = (await this.live(name, [id])).get(id);
+    if (!rec) throw unavailable(`This ${what} is no longer available.`);
+    return rec;
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Per-kind builders (all prices re-read from the database)
+// Per-kind builders (prices from the published catalog, never from the client)
 // ---------------------------------------------------------------------------
-async function buildOrder(hotel: Hotel, guest: GuestIdentity, p: Extract<ReturnType<typeof guestRequestSchema.parse>['payload'], { kind: 'ORDER' }>): Promise<Built> {
-  const { rec: outlet } = await loadActive('outlets', hotel.id, p.outlet_id, 'outlet');
+async function buildOrder(hotel: Hotel, guest: GuestIdentity, p: Extract<ReturnType<typeof guestRequestSchema.parse>['payload'], { kind: 'ORDER' }>, cat: OrderCatalog): Promise<Built> {
+  const outlet = await cat.require('outlets', p.outlet_id, 'outlet');
   const outletName = { en: String(outlet.name_en), ar: String(outlet.name_ar || outlet.name_en) };
   if (!outlet.accepts_orders) throw unavailable(`${outletName.en} does not take orders through the guest app.`);
   if (guest.type === 'EXTERNAL' && outlet.external_orders === false) throw unavailable(`${outletName.en} serves in-house guests only.`);
   assertOpen(outlet, hotel, outletName.en);
 
-  // Items must belong to an active category of an active menu of this outlet.
-  const itemIds = [...new Set(p.lines.map((l) => l.item_id))];
-  const rows = await q<EntityRow & { menu_active: boolean; cat_active: boolean; menu_data: Record<string, unknown>; cat_code: string }>(
-    `SELECT i.*, m.is_active AS menu_active, c.is_active AS cat_active, m.data AS menu_data, c.code AS cat_code
-       FROM menu_items i
-       JOIN menu_categories c ON c.id = i.parent_id AND c.hotel_id = i.hotel_id
-       JOIN menus m ON m.id = c.parent_id AND m.hotel_id = i.hotel_id
-      WHERE i.hotel_id = $1 AND m.parent_id = $2 AND i.id = ANY($3::uuid[])
-        AND i.archived_at IS NULL AND c.archived_at IS NULL AND m.archived_at IS NULL`,
-    [hotel.id, outlet.id, itemIds]
-  );
-  const byId = new Map(rows.map((r) => [r.id, r]));
+  // Items must belong to a live category of a live menu of this outlet.
+  const itemIds = p.lines.map((l) => l.item_id);
+  const items = await cat.live('menu_items', itemIds);
+  const catIds = [...items.values()].map((i) => i.parent_id!).filter(Boolean);
+  const categories = await cat.live('menu_categories', catIds);
+  const menus = await cat.live('menus', [...categories.values()].map((c) => c.parent_id!).filter(Boolean));
   const vat = { vat_rate: hotel.profile.vat_rate, prices_include_vat: hotel.profile.prices_include_vat };
   const amounts: LineAmounts[] = [];
   const lines: StoredLine[] = [];
   const orderLines: OrderLineInput[] = [];
 
   for (const [idx, l] of p.lines.entries()) {
-    const row = byId.get(l.item_id);
-    if (!row || !row.is_active || !row.menu_active || !row.cat_active) throw unavailable(`An item in your basket is no longer on the menu (line ${idx + 1}).`);
-    const item = toRecord('menu_items', row);
+    const item = items.get(l.item_id);
+    const category = item ? categories.get(item.parent_id ?? '') : undefined;
+    const menu = category ? menus.get(category.parent_id ?? '') : undefined;
+    if (!item || !category || !menu || menu.parent_id !== outlet.id) throw unavailable(`An item in your basket is no longer on the menu (line ${idx + 1}).`);
     const name = { en: String(item.name_en), ar: String(item.name_ar || item.name_en) };
     if (item.available === false) throw unavailable(`${name.en} is currently unavailable.`);
-    const menuHours = (row.menu_data as { hours?: unknown }).hours;
+    const menuHours = menu.hours as { mode?: string } | undefined;
     if (menuHours && !isAvailableNow('auto', menuHours as never, hotel.profile.timezone).open) throw unavailable(`${name.en} is not served at this time.`);
 
     let unit = Number(item.price ?? 0);
@@ -179,29 +216,18 @@ async function buildOrder(hotel: Hotel, guest: GuestIdentity, p: Extract<ReturnT
         return o;
       });
       if (opts.length) {
-        unit += opts.reduce((s, o) => s + o.price, 0);
+        unit += opts.reduce((sum, o) => sum + o.price, 0);
         chosen.push({ group_en: g.name_en, group_ar: g.name_ar || g.name_en, options: opts.map((o) => ({ en: o.name_en, ar: o.name_ar || o.name_en, price: o.price })) });
       }
     }
     const a = lineAmounts(unit, l.quantity, item.vat_mode as never, vat);
     amounts.push(a);
     orderLines.push(
-      finLine(hotel, { item_entity: 'menu_items', item_id: row.id, item_code: row.code, category_code: row.cat_code, name_en: name.en, name_ar: name.ar, quantity: l.quantity, modifiers: chosen, note: l.note }, unit, item.vat_mode as string, a)
+      finLine(hotel, { item_entity: 'menu_items', item_id: item.id, item_code: String(item.code ?? ''), category_code: String(category.code ?? ''), name_en: name.en, name_ar: name.ar, quantity: l.quantity, modifiers: chosen, note: l.note }, unit, item.vat_mode as string, a)
     );
     const detailEn = [...chosen.map((c) => `${c.group_en}: ${c.options.map((o) => o.en).join(', ')}`), l.note ? `Note: ${l.note}` : ''].filter(Boolean).join(' · ');
     const detailAr = [...chosen.map((c) => `${c.group_ar}: ${c.options.map((o) => o.ar).join('، ')}`), l.note ? `ملاحظة: ${l.note}` : ''].filter(Boolean).join(' · ');
-    lines.push({
-      item_id: row.id,
-      quantity: l.quantity,
-      name_en: name.en,
-      name_ar: name.ar,
-      unit_price: unit,
-      amount: a.gross / 100,
-      modifiers: chosen,
-      note: l.note,
-      detail_en: detailEn,
-      detail_ar: detailAr,
-    });
+    lines.push({ item_id: item.id, quantity: l.quantity, name_en: name.en, name_ar: name.ar, unit_price: unit, amount: a.gross / 100, modifiers: chosen, note: l.note, detail_en: detailEn, detail_ar: detailAr });
   }
 
   return {
@@ -221,9 +247,9 @@ async function buildOrder(hotel: Hotel, guest: GuestIdentity, p: Extract<ReturnT
   };
 }
 
-async function buildService(hotel: Hotel, guest: GuestIdentity, p: { kind: 'ROOM_SERVICE' | 'HOTEL_SERVICE'; service_id: string; quantity: number; answers: Record<string, unknown>; notes: string }): Promise<Built> {
+async function buildService(hotel: Hotel, guest: GuestIdentity, p: { kind: 'ROOM_SERVICE' | 'HOTEL_SERVICE'; service_id: string; quantity: number; answers: Record<string, unknown>; notes: string }, cat: OrderCatalog): Promise<Built> {
   const entity = p.kind === 'ROOM_SERVICE' ? 'room_services' : 'hotel_services';
-  const { row: svcRow, rec } = await loadActive(entity, hotel.id, p.service_id, 'service');
+  const rec = await cat.require(entity, p.service_id, 'service');
   const name = { en: String(rec.name_en), ar: String(rec.name_ar || rec.name_en) };
   if (rec.available === false) throw unavailable(`${name.en} is currently unavailable.`);
   if (p.kind === 'HOTEL_SERVICE' && rec.requestable === false) throw unavailable(`${name.en} cannot be requested online.`);
@@ -237,7 +263,7 @@ async function buildService(hotel: Hotel, guest: GuestIdentity, p: { kind: 'ROOM
   return {
     type: p.kind,
     orderLines: [
-      finLine(hotel, { item_entity: entity, item_id: svcRow.id, item_code: svcRow.code, category_code: String(rec.category ?? '').toUpperCase(), name_en: name.en, name_ar: name.ar, quantity: qty }, price ?? 0, 'inherit', svcAmounts),
+      finLine(hotel, { item_entity: entity, item_id: rec.id, item_code: String(rec.code ?? ''), category_code: String(rec.category ?? '').toUpperCase(), name_en: name.en, name_ar: name.ar, quantity: qty }, price ?? 0, 'inherit', svcAmounts),
     ],
     department: rec.department as DepartmentCode,
     title_en: name.en,
@@ -252,12 +278,12 @@ async function buildService(hotel: Hotel, guest: GuestIdentity, p: { kind: 'ROOM
   };
 }
 
-async function buildSpa(hotel: Hotel, p: { service_id: string; date: string; time: string; guests: number; answers: Record<string, unknown>; notes: string }): Promise<Built> {
-  const { row, rec } = await loadActive('spa_services', hotel.id, p.service_id, 'treatment');
+async function buildSpa(hotel: Hotel, p: { service_id: string; date: string; time: string; guests: number; answers: Record<string, unknown>; notes: string }, cat: OrderCatalog): Promise<Built> {
+  const rec = await cat.require('spa_services', p.service_id, 'treatment');
   const name = { en: String(rec.name_en), ar: String(rec.name_ar || rec.name_en) };
   if (rec.available === false || rec.bookable === false) throw unavailable(`${name.en} cannot be booked right now.`);
-  const cat = row.parent_id ? await getEntityRow('spa_categories', hotel.id, row.parent_id) : null;
-  if (cat && (!cat.is_active || cat.archived_at)) throw unavailable(`${name.en} is no longer available.`);
+  const category = rec.parent_id ? (await cat.live('spa_categories', [rec.parent_id])).get(rec.parent_id) : undefined;
+  if (!category) throw unavailable(`${name.en} is no longer available.`);
   const maxGuests = Number(rec.max_guests ?? 4);
   if (p.guests > maxGuests) throw new HttpError(422, 'validation_failed', `Maximum ${maxGuests} guests for this treatment`, { fields: { guests: `Maximum ${maxGuests}` } });
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: hotel.profile.timezone }).format(new Date());
@@ -270,9 +296,9 @@ async function buildSpa(hotel: Hotel, p: { service_id: string; date: string; tim
   return {
     type: 'SPA',
     orderLines: [
-      finLine(hotel, { item_entity: 'spa_services', item_id: row.id, item_code: row.code, category_code: cat?.code ?? '', name_en: name.en, name_ar: name.ar, quantity: p.guests }, price ?? 0, 'inherit', spaAmounts),
+      finLine(hotel, { item_entity: 'spa_services', item_id: rec.id, item_code: String(rec.code ?? ''), category_code: String(category.code ?? ''), name_en: name.en, name_ar: name.ar, quantity: p.guests }, price ?? 0, 'inherit', spaAmounts),
     ],
-    department: 'SPA',
+    department: (rec.department as DepartmentCode) || 'SPA',
     title_en: name.en,
     title_ar: name.ar,
     source_id: String(rec.id),
@@ -283,36 +309,33 @@ async function buildSpa(hotel: Hotel, p: { service_id: string; date: string; tim
       { label_en: 'Guests', label_ar: 'عدد الأشخاص', value: String(p.guests) },
       ...facts,
     ],
-    details: { date: p.date, time: p.time, guests: p.guests, answers: clean, category_id: row.parent_id },
+    details: { date: p.date, time: p.time, guests: p.guests, answers: clean, category_id: rec.parent_id },
     notes: p.notes,
     totals,
     priority: 'NORMAL',
   };
 }
 
-async function buildLaundry(hotel: Hotel, guest: GuestIdentity, p: { lines: { item_id: string; service: 'wash' | 'dry_clean' | 'press'; quantity: number }[]; express: boolean; pickup: string; notes: string }): Promise<Built> {
+async function buildLaundry(hotel: Hotel, guest: GuestIdentity, p: { lines: { item_id: string; service: 'wash' | 'dry_clean' | 'press'; quantity: number }[]; express: boolean; pickup: string; notes: string }, cat: OrderCatalog): Promise<Built> {
   if (guest.type !== 'IN_HOUSE') throw new HttpError(422, 'validation_failed', 'Laundry pickup is available to in-house guests.', { fields: { 'guest.room': 'Room number required' } });
-  const ids = [...new Set(p.lines.map((l) => l.item_id))];
-  const rows = await q<EntityRow & { cat_code: string }>(`SELECT i.*, c.code AS cat_code FROM laundry_items i JOIN laundry_categories c ON c.id = i.parent_id
-      WHERE i.hotel_id = $1 AND i.id = ANY($2::uuid[]) AND i.is_active AND i.archived_at IS NULL AND c.is_active AND c.archived_at IS NULL`, [hotel.id, ids]);
-  const byId = new Map(rows.map((r) => [r.id, toRecord('laundry_items', r)]));
-  const rowById = new Map(rows.map((r) => [r.id, r]));
+  const items = await cat.live('laundry_items', p.lines.map((l) => l.item_id));
+  const categories = await cat.live('laundry_categories', [...items.values()].map((i) => i.parent_id!).filter(Boolean));
   const vat = { vat_rate: hotel.profile.vat_rate, prices_include_vat: hotel.profile.prices_include_vat };
   const amounts: LineAmounts[] = [];
   const lines: StoredLine[] = [];
   const orderLines: OrderLineInput[] = [];
   for (const [idx, l] of p.lines.entries()) {
-    const item = byId.get(l.item_id);
-    if (!item) throw unavailable(`A laundry item is no longer available (line ${idx + 1}).`);
+    const item = items.get(l.item_id);
+    const category = item ? categories.get(item.parent_id ?? '') : undefined;
+    if (!item || !category || item.available === false) throw unavailable(`A laundry item is no longer available (line ${idx + 1}).`);
     const base = item[`${l.service}_price`];
     if (base == null) throw new HttpError(422, 'validation_failed', `${item.name_en} is not offered for ${LAUNDRY_SERVICE_LABELS[l.service].en}`);
     if (p.express && item.express_pct == null) throw new HttpError(422, 'validation_failed', `Express service is not available for ${item.name_en}`);
-    const unit = p.express ? Number(base) * (1 + Number(item.express_pct) / 100) : Number(base);
-    const a = lineAmounts(Math.round(unit * 100) / 100, l.quantity, 'inherit', vat);
+    const unit = Math.round((p.express ? Number(base) * (1 + Number(item.express_pct) / 100) : Number(base)) * 100) / 100;
+    const a = lineAmounts(unit, l.quantity, 'inherit', vat);
     amounts.push(a);
-    const raw = rowById.get(item.id)!;
     orderLines.push(
-      finLine(hotel, { item_entity: 'laundry_items', item_id: raw.id, item_code: raw.code, category_code: raw.cat_code, name_en: String(item.name_en), name_ar: String(item.name_ar || item.name_en), quantity: l.quantity, service: l.service + (p.express ? ':express' : '') }, Math.round(unit * 100) / 100, 'inherit', a)
+      finLine(hotel, { item_entity: 'laundry_items', item_id: item.id, item_code: String(item.code ?? ''), category_code: String(category.code ?? ''), name_en: String(item.name_en), name_ar: String(item.name_ar || item.name_en), quantity: l.quantity, service: l.service + (p.express ? ':express' : '') }, unit, 'inherit', a)
     );
     lines.push({
       item_id: item.id,
@@ -322,7 +345,7 @@ async function buildLaundry(hotel: Hotel, guest: GuestIdentity, p: { lines: { it
       name_ar: String(item.name_ar || item.name_en),
       detail_en: LAUNDRY_SERVICE_LABELS[l.service].en + (p.express ? ' · Express' : ''),
       detail_ar: LAUNDRY_SERVICE_LABELS[l.service].ar + (p.express ? ' · سريع' : ''),
-      unit_price: Math.round(unit * 100) / 100,
+      unit_price: unit,
       amount: a.gross / 100,
     });
   }
@@ -348,7 +371,7 @@ async function buildLaundry(hotel: Hotel, guest: GuestIdentity, p: { lines: { it
 function buildFeedback(p: { feedback_type: 'COMPLAINT' | 'SUGGESTION' | 'COMPLIMENT' | 'SERVICE_RECOVERY'; about_department: DepartmentCode | null; subject: string; message: string; urgency: 'LOW' | 'NORMAL' | 'HIGH'; attachment: string }): Built {
   const label = FEEDBACK_TYPE_LABELS[p.feedback_type];
   const facts: Built['facts'] = [{ label_en: 'Subject', label_ar: 'الموضوع', value: p.subject }];
-  if (p.about_department) facts.push({ label_en: 'About', label_ar: 'بخصوص', value: DEPARTMENT_LABELS[p.about_department].en });
+  if (p.about_department) facts.push({ label_en: 'About', label_ar: 'بخصوص', value: DEPARTMENT_LABELS[p.about_department]?.en ?? p.about_department });
   facts.push({ label_en: 'Urgency', label_ar: 'الأهمية', value: p.urgency });
   if (p.attachment) facts.push({ label_en: 'Attachment', label_ar: 'مرفق', value: p.attachment });
   return {
@@ -434,20 +457,21 @@ export async function createGuestRequest(hotel: Hotel, body: unknown, guestToken
   if (guest.type === 'EXTERNAL' && !hotel.settings.external_guests_enabled) throw new HttpError(422, 'validation_failed', 'This hotel serves in-house guests only.', { fields: { 'guest.type': 'In-house guests only' } });
   if (hotel.settings.require_phone && !guest.phone) throw new HttpError(422, 'validation_failed', 'Please add a phone number so the team can reach you', { fields: { 'guest.phone': 'Phone is required' } });
 
+  const cat = await OrderCatalog.load(hotel.id);
   let built: Built;
   switch (payload.kind) {
     case 'ORDER':
-      built = await buildOrder(hotel, guest, payload);
+      built = await buildOrder(hotel, guest, payload, cat);
       break;
     case 'ROOM_SERVICE':
     case 'HOTEL_SERVICE':
-      built = await buildService(hotel, guest, payload);
+      built = await buildService(hotel, guest, payload, cat);
       break;
     case 'SPA':
-      built = await buildSpa(hotel, payload);
+      built = await buildSpa(hotel, payload, cat);
       break;
     case 'LAUNDRY':
-      built = await buildLaundry(hotel, guest, payload);
+      built = await buildLaundry(hotel, guest, payload, cat);
       break;
     case 'FEEDBACK':
       built = buildFeedback(payload);
@@ -466,7 +490,9 @@ export async function createGuestRequest(hotel: Hotel, body: unknown, guestToken
     }
     const who = await identifyGuest(client, hotel, { ...guest, lang, ...opts.guestExtra }, guestTokenHash, source);
     const reference = await nextReference(client, hotel, built.type);
+    const deptRow = await one<{ name_en: string; name_ar: string }>(`SELECT name_en, name_ar FROM departments WHERE hotel_id = $1 AND code = $2`, [hotel.id, built.department], client);
     const message = buildWhatsAppMessage({
+      department_name: deptRow ? { en: deptRow.name_en, ar: deptRow.name_ar } : undefined,
       lang,
       hotel_en: hotel.profile.name_en,
       hotel_ar: hotel.profile.name_ar,

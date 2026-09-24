@@ -39,7 +39,25 @@ export function useHotelMutation<TBody>(hid: string, path: string, method: 'PUT'
       if (data && typeof data === 'object' && 'profile' in data) qc.setQueryData(['hotel', hid], data);
       qc.invalidateQueries({ queryKey: ['me'] });
       qc.invalidateQueries({ queryKey: ['bundle'] });
+      qc.invalidateQueries({ queryKey: ['publishing', hid] });
+      qc.invalidateQueries({ queryKey: ['hotel', hid] });
     },
+  });
+}
+
+export interface PublishingState {
+  has_unpublished_changes: boolean;
+  latest: { id: string; version: number; published_at: string } | null;
+  changes: { action: string; entity: string; summary: string; user_email: string; created_at: string }[];
+}
+
+/** Draft vs. live state for the "Publish updates" control. */
+export function usePublishing(hid: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ['publishing', hid],
+    queryFn: () => api<PublishingState>(`/admin/hotels/${hid}/publishing`),
+    enabled: !!hid && enabled,
+    refetchInterval: 30_000,
   });
 }
 
@@ -82,6 +100,7 @@ export function useEntityMutations(hid: string, entity: EntityName) {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['entities', hid, entity] });
     qc.invalidateQueries({ queryKey: ['bundle'] });
+    qc.invalidateQueries({ queryKey: ['publishing', hid] });
   };
   const base = `/admin/hotels/${hid}/entities/${entity}`;
   return {

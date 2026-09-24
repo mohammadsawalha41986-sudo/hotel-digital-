@@ -8,6 +8,7 @@ import { useAdminHotel, useHotelMutation, type AdminHotel } from '../data';
 import { useFeedback } from '../feedback';
 import { MediaInput } from '../components/MediaInput';
 import { PageHeader } from '../layout/AdminLayout';
+import { PublishDialog } from '../components/Publish';
 
 const SECTION_LABEL: Record<SectionType, string> = {
   offers: 'Offers slider',
@@ -61,7 +62,7 @@ function WebsiteEditor({ hid, hotel }: { hid: string; hotel: AdminHotel }) {
   const [previewKey, setPreviewKey] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const saveDraft = useHotelMutation<SiteConfig>(hid, '/site/draft');
-  const publish = useHotelMutation<Record<string, never>>(hid, '/site/publish', 'POST');
+  const [publishing, setPublishing] = useState(false);
   const discard = useHotelMutation<Record<string, never>>(hid, '/site/discard', 'POST');
   const serverDraft = useRef(JSON.stringify(hotel.site_draft));
 
@@ -104,15 +105,7 @@ function WebsiteEditor({ hid, hotel }: { hid: string; hotel: AdminHotel }) {
 
   const doPublish = async () => {
     if (dirty && !(await doSave())) return;
-    const ok = await fb.confirm({ title: 'Publish website changes?', message: 'Guests will see the new homepage, hero and navigation immediately.', confirmLabel: 'Publish' });
-    if (!ok) return;
-    try {
-      await publish.mutateAsync({});
-      fb.success('Published — the guest site is updated');
-      setPreviewKey((k) => k + 1);
-    } catch (e) {
-      fb.error(errorMessage(e));
-    }
+    setPublishing(true);
   };
 
   const doDiscard = async () => {
@@ -139,16 +132,24 @@ function WebsiteEditor({ hid, hotel }: { hid: string; hotel: AdminHotel }) {
         }
         actions={
           <>
-            {unpublished ? <Badge tone="warning">{dirty ? 'Unsaved changes' : 'Draft not published'}</Badge> : <Badge tone="success">Live = draft</Badge>}
+            {dirty ? <Badge tone="warning">Unsaved changes</Badge> : unpublished ? <Badge tone="warning">Not published yet</Badge> : <Badge tone="success">Everything published</Badge>}
             <Button variant="ghost" size="sm" className="rounded-lg" onClick={doDiscard} disabled={!hotel.has_unpublished_changes || discard.isPending}>
               <RotateCcw className="h-4 w-4" aria-hidden="true" /> Discard
             </Button>
             <Button variant="secondary" size="sm" className="rounded-lg" onClick={doSave} loading={saveDraft.isPending} disabled={!dirty}>
               Save draft
             </Button>
-            <Button size="sm" className="rounded-lg" onClick={doPublish} loading={publish.isPending} disabled={!unpublished}>
+            <Button size="sm" className="rounded-lg" onClick={doPublish} disabled={!unpublished}>
               <UploadCloud className="h-4 w-4" aria-hidden="true" /> Publish
             </Button>
+            <PublishDialog
+              hid={hid}
+              open={publishing}
+              onClose={() => {
+                setPublishing(false);
+                setPreviewKey((k) => k + 1);
+              }}
+            />
           </>
         }
       />

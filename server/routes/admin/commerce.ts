@@ -8,7 +8,7 @@ import { clientIp, type AppEnv, type Ctx } from '../../context';
 import { one, q, tx } from '../../db';
 import { badRequest, notFound, validationError } from '../../errors';
 import { getHotelRow, hydrate } from '../../repos/hotels';
-import { canSeePii, departmentsOf, financeAccess, requireFinance } from '../../services/access';
+import { canSeePii, departmentScope, financeAccess, requireFinance } from '../../services/access';
 import { settlementDetail } from '../../services/finance';
 import { anonymizeGuest, findDuplicates, getGuest, guestProfile, identifyGuest, mergeGuests, publicGuest, searchGuests } from '../../services/guests';
 import { REPORTS, exportFormat, orderDashboard, redact, reportFilterSchema, runReport, searchOrders, toCsv, toXlsx, type ReportKey, type Scope } from '../../services/reports';
@@ -208,9 +208,9 @@ commerceRoutes.get('/:hid/guests/:gid/export', async (c) => {
 });
 
 // ------------------------------------------------------------------ Orders
-function hotelScope(c: Ctx, hid: string): Scope {
+async function hotelScope(c: Ctx, hid: string): Promise<Scope> {
   const u = c.get('user')!;
-  return { hotelIds: [hid], departments: departmentsOf(u) };
+  return { hotelIds: [hid], departments: await departmentScope(u, hid) };
 }
 
 commerceRoutes.get('/:hid/orders', async (c) => {
@@ -221,7 +221,7 @@ commerceRoutes.get('/:hid/orders', async (c) => {
   const page = z.object({ limit: z.coerce.number().int().min(1).max(500).default(50), offset: z.coerce.number().int().min(0).default(0) }).parse(c.req.query());
   const access = await financeAccess(u, hid);
   const format = exportFormat(c.req.query('format'));
-  const result = await searchOrders(hotelScope(c, hid), { ...f.data, hotel_id: undefined }, { ...page, limit: format === 'json' ? page.limit : 5000, showPii: canSeePii(u), showFinance: access === 'FULL' });
+  const result = await searchOrders(await hotelScope(c, hid), { ...f.data, hotel_id: undefined }, { ...page, limit: format === 'json' ? page.limit : 5000, showPii: canSeePii(u), showFinance: access === 'FULL' });
   c.header('Cache-Control', 'no-store');
   if (format === 'json') return c.json(result);
   const report = {
@@ -246,7 +246,7 @@ commerceRoutes.get('/:hid/orders/dashboard', async (c) => {
   if (!f.success) throw validationError(f.error);
   const access = await financeAccess(u, hid);
   c.header('Cache-Control', 'no-store');
-  return c.json({ ...(await orderDashboard(hotelScope(c, hid), { ...f.data, hotel_id: undefined }, access === 'FULL')), finance_access: access });
+  return c.json({ ...(await orderDashboard(await hotelScope(c, hid), { ...f.data, hotel_id: undefined }, access === 'FULL')), finance_access: access });
 });
 
 commerceRoutes.get('/:hid/orders/:id', async (c) => {
@@ -260,7 +260,7 @@ commerceRoutes.get('/:hid/orders/:id', async (c) => {
       WHERE r.hotel_id = $1 AND r.id = $2`,
     [hid, id]
   );
-  if (!r || !departmentsOf(u).includes(r.department)) throw notFound('Order not found');
+  if (!r || !(await departmentScope(u, hid)).includes(r.department)) throw notFound('Order not found');
   const access = await financeAccess(u, hid);
   const [lines, events, snapshot, ledger, adjustments] = await Promise.all([
     q(`SELECT * FROM order_lines WHERE request_id = $1 ORDER BY line_no`, [r.id]),
@@ -363,7 +363,7 @@ commerceRoutes.get('/:hid/reports/:report', async (c) => {
   if (def.finance) await requireFinance(u, hid, key === 'settlements' ? 'SETTLEMENTS' : 'FULL');
   const f = reportFilterSchema.safeParse(c.req.query());
   if (!f.success) throw validationError(f.error);
-  const report = await runReport(key, hotelScope(c, hid), { ...f.data, hotel_id: undefined });
+  const report = await runReport(key, await hotelScope(c, hid), { ...f.data, hotel_id: undefined });
   return sendReport(c, report, exportFormat(c.req.query('format')), `${key}-${new Date().toISOString().slice(0, 10)}`);
 });
 

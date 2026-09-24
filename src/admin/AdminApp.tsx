@@ -27,6 +27,7 @@ import { Users } from './pages/Users';
 import { AuditLog } from './pages/AuditLog';
 import { Hotels } from './pages/Hotels';
 import { Guests } from './pages/Guests';
+import { PublishingHistory } from './pages/Publishing';
 import { GuestProfilePage } from './pages/GuestProfile';
 import { Orders } from './pages/Orders';
 import { HotelFinance } from './pages/HotelFinance';
@@ -167,6 +168,7 @@ function HotelScope() {
           <Route path="import" element={g('import', <ImportExport hid={hid} />)} />
           <Route path="users" element={g('users', <Users hid={hid} />)} />
           <Route path="audit" element={g('audit', <AuditLog hid={hid} />)} />
+          <Route path="publishing" element={g('hotel', <PublishingHistory hid={hid} />)} />
           <Route path="guests" element={g('guests', <Guests hid={hid} />)} />
           <Route path="guests/:gid" element={g('guests', <GuestProfilePage hid={hid} />)} />
           <Route path="orders" element={g('orders', <Orders hid={hid} />)} />

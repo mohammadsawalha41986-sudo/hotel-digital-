@@ -54,8 +54,8 @@ export function OutletPage() {
   const { t, pick } = useI18n();
   const outlet = bundle.catalog.outlets.find((o) => o.id === outletId);
   const menuQ = useQuery({
-    queryKey: ['menu', slug, outletId],
-    queryFn: () => api<{ menus: Menu[] }>(`/public/hotels/${slug}/outlets/${outletId}/menu`),
+    queryKey: ['menu', slug, outletId, bundle.preview, bundle.version],
+    queryFn: () => api<{ menus: Menu[] }>(`/public/hotels/${slug}/outlets/${outletId}/menu${bundle.preview ? '?preview=1' : ''}`),
     enabled: !!outlet,
   });
   const [menuIdx, setMenuIdx] = useState(0);

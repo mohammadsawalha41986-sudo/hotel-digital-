@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  BarChart3, BedDouble, BookOpen, Building2, ClipboardList, ConciergeBell, ExternalLink, FileSignature, FileSpreadsheet, Flower2, Image, Info, KeyRound, Landmark, LayoutTemplate,
+  BarChart3, BedDouble, BookOpen, History, Building2, ClipboardList, ConciergeBell, ExternalLink, FileSignature, FileSpreadsheet, Flower2, Image, Info, KeyRound, Landmark, LayoutTemplate,
   LineChart, LogOut, Menu, MessageSquareQuote, Palette, PhoneForwarded, QrCode, ReceiptText, ScrollText, Settings2, Shirt, ShoppingBag, Tag, UserRound, Users as UsersIcon, Utensils, Zap, type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -9,6 +9,7 @@ import { ROLE_LABELS, roleCan, type Module } from '@shared/domain';
 import { ApiError, api, errorMessage } from '../../lib/api';
 import { Button, Field, IconButton, Select, Sheet, TextInput, cx } from '../../components/ui';
 import { useMe } from '../data';
+import { PublishControls } from '../components/Publish';
 import { useFeedback } from '../feedback';
 
 interface NavItem {
@@ -58,6 +59,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
       { to: 'spa', label: 'Wellness & spa', icon: Flower2, module: 'spa' },
       { to: 'laundry', label: 'Laundry', icon: Shirt, module: 'laundry' },
       { to: 'info', label: 'Guest information', icon: Info, module: 'hotel' },
+      { to: 'publishing', label: 'Publishing history', icon: History, module: 'hotel' },
     ],
   },
   {
@@ -86,6 +88,7 @@ export function AdminLayout({ hid, children }: { hid?: string; children: ReactNo
   const [drawer, setDrawer] = useState(false);
   useEffect(() => setDrawer(false), [location.pathname]);
   const hotel = me.data?.hotels?.find((h) => h.id === hid);
+  const user = me.data?.user;
 
   return (
     <div className="min-h-dvh bg-canvas font-sans text-fg lg:grid lg:grid-cols-[17rem_1fr]">
@@ -102,6 +105,11 @@ export function AdminLayout({ hid, children }: { hid?: string; children: ReactNo
           </IconButton>
           <span className="truncate font-semibold">{hotel?.name_en ?? 'Guest Hub'}</span>
         </header>
+        {hid && user && roleCan(user.role, 'hotel') && (
+          <div className="sticky top-14 z-30 flex h-14 items-center justify-end gap-2 border-b border-black/[0.07] bg-white/90 px-4 backdrop-blur sm:px-6 lg:top-0 lg:px-10">
+            <PublishControls hid={hid} />
+          </div>
+        )}
         <main id="admin-main" className="mx-auto w-full max-w-[88rem] px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
           {children}
         </main>

@@ -32,6 +32,7 @@ async function createHotel(superAdmin: Client, slug: string, name: string, price
   const cat = await superAdmin.post(`/admin/hotels/${id}/entities/menu_categories`, { name_en: 'Mains', name_ar: 'الأطباق الرئيسية', parent_id: menu.body.id, code: 'CAT-MAINS' });
   const item = await superAdmin.post(`/admin/hotels/${id}/entities/menu_items`, { name_en: 'Mixed grill', name_ar: 'مشاوي مشكلة', price, parent_id: cat.body.id, code: 'ITEM-GRILL' });
   assert.equal(item.status, 201, JSON.stringify(item.body));
+  assert.equal((await superAdmin.post(`/admin/hotels/${id}/publish`, { note: 'Menu ready' })).status, 200);
   const u = await superAdmin.post(`/admin/hotels/${id}/users`, { email: adminEmail, name: `${name} Admin`, role: 'HOTEL_ADMIN', password: PASSWORD });
   assert.equal(u.status, 201, JSON.stringify(u.body));
   return { id, slug, outletId: outlet.body.id, itemId: item.body.id, admin: await login(adminEmail, PASSWORD) };

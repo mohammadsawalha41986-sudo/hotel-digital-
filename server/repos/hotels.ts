@@ -24,6 +24,7 @@ export interface HotelRow {
   site_published: Record<string, unknown>;
   site_published_at: Date | null;
   site_draft_updated_at: Date | null;
+  draft_updated_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
