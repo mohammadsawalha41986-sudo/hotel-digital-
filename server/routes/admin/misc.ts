@@ -44,7 +44,7 @@ miscRoutes.post('/:hid/reviews/:id/status', async (c) => {
 miscRoutes.get('/:hid/media', async (c) => {
   const hid = c.req.param('hid');
   requireHotelAccess(c, hid, 'hotel');
-  const rows = await q(`SELECT id, url, kind, source, mime, size_bytes, filename, label, created_at FROM media WHERE hotel_id = $1 ORDER BY created_at DESC LIMIT 500`, [hid]);
+  const rows = await q(`SELECT id, url, kind, source, mime, size_bytes, filename, label, width, height, variants, created_at FROM media WHERE hotel_id = $1 ORDER BY created_at DESC LIMIT 500`, [hid]);
   return c.json({ media: rows });
 });
 
@@ -66,7 +66,15 @@ miscRoutes.post('/:hid/media/upload', async (c) => {
   const form = await c.req.formData().catch(() => null);
   const file = form?.get('file');
   if (!(file instanceof File)) throw badRequest('No file received');
-  const media = await storeUpload(hid, file, { maxBytes: config.maxUploadBytes, allow: ['image', 'video'], source: 'upload', userId: u.id, label: String(form?.get('label') ?? '') });
+  const spec = String(form?.get('spec') ?? '');
+  const media = await storeUpload(hid, file, {
+    maxBytes: config.maxUploadBytes,
+    allow: ['image', 'video', 'svg'],
+    source: 'upload',
+    userId: u.id,
+    label: String(form?.get('label') ?? ''),
+    spec: /^[a-z_]{2,20}$/.test(spec) ? spec : undefined,
+  });
   await audit({ hotelId: hid, user: u, action: 'upload', entity: 'media', entityId: media.id, summary: `Uploaded ${media.filename}`, ip: clientIp(c) });
   return c.json(media, 201);
 });

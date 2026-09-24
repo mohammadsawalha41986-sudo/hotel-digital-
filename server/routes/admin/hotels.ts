@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { DEPARTMENTS } from '../../../shared/domain';
 import { defaultSiteConfig } from '../../../shared/defaults';
 import { phoneSchema } from '../../../shared/fields';
-import { brandingSchema, hotelProfileSchema, settingsSchema, siteConfigSchema } from '../../../shared/hotel';
+import { brandingObjectSchema, brandingSchema, hotelProfileSchema, settingsSchema, siteConfigSchema } from '../../../shared/hotel';
 import { audit, diff } from '../../audit';
 import { requireHotelAccess, requireUser } from '../../auth';
 import { clientIp, type AppEnv, type Ctx } from '../../context';
@@ -12,6 +12,12 @@ import { HttpError, badRequest, conflict, forbidden, notFound, validationError }
 import { ENTITIES, ENTITY_NAMES } from '../../../shared/entities';
 import { ensureDepartments, getHotelRow, hydrate, parseSite, splitProfile } from '../../repos/hotels';
 import { changesSincePublish, publishHotel, republish } from '../../services/publish';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { config } from '../../config';
+import { deriveTheme, extractPalette, type PaletteResult } from '../../../shared/theme';
+import { rasterForAnalysis } from '../../services/media';
+import { FetchError, safeFetch } from '../../services/net';
 
 export const hotelRoutes = new Hono<AppEnv>();
 
@@ -119,7 +125,7 @@ async function updateBranding(c: Ctx) {
   const u = requireHotelAccess(c, hid, 'hotel');
   const row = await loadHotel(hid);
   const before = hydrate(row).branding;
-  const parsed = brandingSchema.safeParse(mergePatch(before, await body(c), Object.keys(brandingSchema.shape), 'branding'));
+  const parsed = brandingSchema.safeParse(mergePatch(before, await body(c), Object.keys(brandingObjectSchema.shape), 'branding'));
   if (!parsed.success) throw validationError(parsed.error);
   if (same(before, parsed.data)) return c.json({ ...adminView(row), changed: false });
   await tx(async (client) => {
@@ -144,6 +150,44 @@ async function updateSettings(c: Ctx) {
   });
   return c.json({ ...adminView((await getHotelRow(hid))!), changed: true });
 }
+
+/**
+ * Logo → palette. Hotel media is read from storage; external URLs are fetched
+ * through the SSRF-safe fetcher. Returns suggested brand colours and the theme
+ * they produce; nothing is saved.
+ */
+hotelRoutes.post('/:hid/branding/analyze', async (c) => {
+  const hid = c.req.param('hid')!;
+  requireHotelAccess(c, hid, 'hotel');
+  const parsed = z.object({ url: z.string().trim().min(1).max(2000) }).safeParse(await body(c));
+  if (!parsed.success) throw validationError(parsed.error);
+  const url = parsed.data.url;
+  let buf: Buffer;
+  const local = new RegExp(`^/media/${hid}/([0-9a-f-]{36}(?:-o)?\\.[a-z0-9]+)$`).exec(url);
+  if (local) {
+    buf = await fs.readFile(path.join(config.uploadDir, hid, local[1])).catch(() => {
+      throw notFound('Logo file not found');
+    });
+  } else if (/^https?:\/\//i.test(url)) {
+    try {
+      buf = (await safeFetch(url, { maxBytes: 8 * 1024 * 1024, timeoutMs: 8000 })).body;
+    } catch (e) {
+      throw new HttpError(422, 'unreachable', `The logo could not be downloaded: ${e instanceof FetchError ? e.message : 'network error'}`, { fields: { url: 'Unreachable' } });
+    }
+  } else {
+    throw new HttpError(422, 'validation_failed', 'Use an uploaded logo or an http(s) URL', { fields: { url: 'Invalid' } });
+  }
+  let palette: PaletteResult | null = null;
+  try {
+    const { data, channels } = await rasterForAnalysis(buf);
+    palette = extractPalette(data, channels);
+  } catch (e) {
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(422, 'invalid_image', 'This file is not an image that can be analysed');
+  }
+  if (!palette) throw new HttpError(422, 'no_colours', 'No usable colours were found in this logo');
+  return c.json({ palette, tokens: deriveTheme(palette) });
+});
 
 // PUT is kept for existing clients; both verbs merge (a partial body never resets other fields).
 for (const verb of ['put', 'patch'] as const) {

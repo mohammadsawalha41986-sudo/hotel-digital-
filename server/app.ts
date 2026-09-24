@@ -36,6 +36,13 @@ export function createApp() {
     }
   });
 
+  // Registered before secureHeaders so it runs after it: an SVG opened directly is a document,
+  // so it gets a sandboxing policy with no scripts or external loads.
+  app.use('/media/*', async (c, next) => {
+    await next();
+    if (c.req.path.endsWith('.svg')) c.res.headers.set('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox");
+  });
+
   app.use(
     '*',
     secureHeaders({

@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, FolderOpen, Film, Upload, X } from 'lucide-react';
+import { AlertTriangle, Crop, FolderOpen, Film, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { IMAGE_URL_PATTERN, VIDEO_URL_PATTERN } from '@shared/fields';
+import { IMAGE_SPECS, checkImage } from '@shared/mediaSpecs';
+import { CropDialog } from './CropDialog';
 import { api, errorMessage } from '../../lib/api';
 import { Button, EmptyState, Sheet, Spinner, TextInput, cx } from '../../components/ui';
 import { embedUrl } from '../../guest/components/MediaBackground';
@@ -13,7 +15,11 @@ const isValidUrl = (v: string) => v === '' || /^https?:\/\/\S+$/i.test(v) || /^\
  * URL-or-upload media field with live preview. Broken media is reported
  * inline instead of silently rendering nothing.
  */
-export function MediaInput({ hid, id, value, onChange, kind = 'image', invalid }: { hid: string; id: string; value: string; onChange: (v: string) => void; kind?: 'image' | 'video'; invalid?: boolean }) {
+export function MediaInput({ hid, id, value, onChange, kind = 'image', invalid, spec }: { hid: string; id: string; value: string; onChange: (v: string) => void; kind?: 'image' | 'video'; invalid?: boolean; spec?: string }) {
+  const s = spec ? IMAGE_SPECS[spec] : undefined;
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [cropping, setCropping] = useState(false);
+  const allowSvg = !!spec && ['logo', 'mark', 'favicon'].includes(spec);
   const [draft, setDraft] = useState(value);
   const [previewError, setPreviewError] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -24,6 +30,7 @@ export function MediaInput({ hid, id, value, onChange, kind = 'image', invalid }
   useEffect(() => {
     setDraft(value);
     setPreviewError(false);
+    setWarnings([]);
   }, [value]);
 
   const commit = (v: string) => {
@@ -39,8 +46,10 @@ export function MediaInput({ hid, id, value, onChange, kind = 'image', invalid }
     setUploading(true);
     setUploadError('');
     try {
-      const m = await uploadMedia(hid, f);
+      const m = await uploadMedia(hid, f, '', spec);
       onChange(m.url);
+      // Set after onChange (which clears warnings for the new value).
+      setTimeout(() => setWarnings((m.warnings ?? []).map((w) => w.en)), 0);
     } catch (e) {
       setUploadError(errorMessage(e));
     } finally {
@@ -50,7 +59,7 @@ export function MediaInput({ hid, id, value, onChange, kind = 'image', invalid }
 
   return (
     <div className="space-y-2">
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <TextInput
           id={id}
           value={draft}
@@ -58,7 +67,7 @@ export function MediaInput({ hid, id, value, onChange, kind = 'image', invalid }
           onChange={(e) => setDraft(e.target.value)}
           onBlur={(e) => commit(e.target.value)}
           invalid={invalid || urlInvalid}
-          className="h-10 rounded-lg text-sm"
+          className="h-10 min-w-[12rem] flex-1 rounded-lg text-sm"
           aria-describedby={`${id}-media-help`}
         />
         <input
@@ -67,7 +76,7 @@ export function MediaInput({ hid, id, value, onChange, kind = 'image', invalid }
           className="sr-only"
           tabIndex={-1}
           aria-label={`Upload ${kind} file`}
-          accept={kind === 'video' ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/webp,image/avif,image/gif'}
+          accept={kind === 'video' ? 'video/mp4,video/webm' : `image/jpeg,image/png,image/webp,image/avif,image/gif${allowSvg ? ',image/svg+xml' : ''}`}
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) void onFile(f);
@@ -76,11 +85,16 @@ export function MediaInput({ hid, id, value, onChange, kind = 'image', invalid }
         />
         <Button variant="secondary" size="sm" className="h-10 shrink-0 rounded-lg" onClick={() => fileRef.current?.click()} loading={uploading} aria-label={`Upload ${kind}`}>
           <Upload className="h-4 w-4" aria-hidden="true" />
-          <span className="hidden sm:inline">Upload</span>
+          <span className="hidden sm:inline">{value ? 'Replace' : 'Upload'}</span>
         </Button>
         <Button variant="secondary" size="sm" className="h-10 shrink-0 rounded-lg" onClick={() => setLibrary(true)} aria-label="Choose from media library">
           <FolderOpen className="h-4 w-4" aria-hidden="true" />
         </Button>
+        {value && kind === 'image' && !/\.svg($|\?)/i.test(value) && (
+          <Button variant="secondary" size="sm" className="h-10 shrink-0 rounded-lg" onClick={() => setCropping(true)} aria-label="Crop image">
+            <Crop className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        )}
         {value && (
           <Button variant="ghost" size="sm" className="h-10 shrink-0 rounded-lg" onClick={() => onChange('')} aria-label="Remove media">
             <X className="h-4 w-4" aria-hidden="true" />
@@ -88,8 +102,25 @@ export function MediaInput({ hid, id, value, onChange, kind = 'image', invalid }
         )}
       </div>
       <p id={`${id}-media-help`} className={cx('text-xs', urlInvalid || uploadError ? 'text-red-600' : 'text-zinc-500')}>
-        {urlInvalid ? 'Enter a full http(s) URL.' : uploadError || (looksWrong ? `This URL does not look like a direct ${kind} link — check the preview.` : kind === 'image' ? 'Uploads are resized and converted to WebP automatically (max 8 MB).' : 'MP4/WebM file or a YouTube/Vimeo link.')}
+        {urlInvalid
+          ? 'Enter a full http(s) URL.'
+          : uploadError ||
+            (looksWrong
+              ? `This URL does not look like a direct ${kind} link — check the preview.`
+              : kind === 'image'
+                ? `${s ? `Recommended ${s.width}×${s.height} px${s.note_en ? ` · ${s.note_en}` : ''}. ` : ''}Uploads are optimised to WebP with responsive sizes automatically (max 8 MB).`
+                : 'MP4/WebM file or a YouTube/Vimeo link.')}
       </p>
+      {warnings.length > 0 && (
+        <ul role="status" className="space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          {warnings.map((w) => (
+            <li key={w} className="flex gap-2">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              {w}
+            </li>
+          ))}
+        </ul>
+      )}
       {value && (
         <div className="relative w-full max-w-sm overflow-hidden rounded-lg border border-black/10 bg-zinc-100">
           {kind === 'video' ? (
@@ -101,7 +132,18 @@ export function MediaInput({ hid, id, value, onChange, kind = 'image', invalid }
               <video src={value} className="aspect-video w-full" muted controls preload="metadata" onError={() => setPreviewError(true)} />
             )
           ) : (
-            <img src={value} alt="Preview" className="max-h-44 w-full object-contain" onError={() => setPreviewError(true)} onLoad={() => setPreviewError(false)} />
+            <img
+              src={value}
+              alt="Preview"
+              className="max-h-44 w-full object-contain"
+              onError={() => setPreviewError(true)}
+              onLoad={(e) => {
+                setPreviewError(false);
+                const el = e.currentTarget;
+                // URL images: warn from the real size; uploads already carry server warnings.
+                if (spec && !uploading && el.naturalWidth) setWarnings((prev) => (prev.length ? prev : checkImage(spec, el.naturalWidth, el.naturalHeight).warnings.map((w) => w.en)));
+              }}
+            />
           )}
           {previewError && (
             <p role="alert" className="flex items-center gap-2 bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -110,6 +152,18 @@ export function MediaInput({ hid, id, value, onChange, kind = 'image', invalid }
             </p>
           )}
         </div>
+      )}
+      {cropping && (
+        <CropDialog
+          open={cropping}
+          src={value}
+          spec={spec}
+          onClose={() => setCropping(false)}
+          onCropped={async (file) => {
+            const m = await uploadMedia(hid, file, 'Cropped', spec);
+            onChange(m.url);
+          }}
+        />
       )}
       <MediaPicker hid={hid} open={library} kind={kind} onClose={() => setLibrary(false)} onPick={(url) => { onChange(url); setLibrary(false); }} />
     </div>

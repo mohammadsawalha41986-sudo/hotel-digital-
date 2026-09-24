@@ -46,6 +46,9 @@ const ADMIN_VARS: Record<string, string> = {
   '--c-surface': '#ffffff',
   '--c-text': '#18181b',
   '--c-muted': '#6b6b73',
+  '--c-cta': '#1f2a24',
+  '--c-cta-hover': '#111714',
+  '--c-cta-ink': '#ffffff',
   '--font-body': "'Inter', system-ui, sans-serif",
 };
 

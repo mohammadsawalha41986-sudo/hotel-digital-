@@ -201,7 +201,8 @@ export function buildEntitySchema(fields: readonly FieldSpec[]) {
         break;
       }
       case 'gallery':
-        shape[f.key] = z.array(mediaUrlSchema.refine((v) => v !== '', 'Empty image URL')).max(24).default([]);
+        // Empty slots (an "Add image" row left blank) are dropped, not treated as errors.
+        shape[f.key] = z.preprocess((v) => (Array.isArray(v) ? v.filter((x) => typeof x !== 'string' || x.trim() !== '') : v), z.array(mediaUrlSchema).max(24)).default([]);
         break;
       case 'media':
       case 'video':

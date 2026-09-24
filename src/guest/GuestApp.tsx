@@ -83,7 +83,7 @@ function Localized({ bundle, slug }: { bundle: PublicBundle; slug: string }) {
     const root = document.documentElement;
     for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bundle.hotel.branding.colors.secondary);
-    const fav = bundle.hotel.branding.favicon || bundle.hotel.branding.logo;
+    const fav = bundle.hotel.branding.favicon || bundle.hotel.branding.mark || bundle.hotel.branding.logo;
     if (fav) document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.setAttribute('href', fav);
     return () => {
       for (const k of Object.keys(vars)) root.style.removeProperty(k);

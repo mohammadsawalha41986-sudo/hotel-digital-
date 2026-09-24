@@ -39,7 +39,7 @@ test('previous Firebase data is migrated with validation and reporting', async (
   const hotel = await one('SELECT is_published, branding, profile FROM hotels WHERE id = $1', [report.hotelId]);
   assert.equal(hotel.is_published, false, 'imported hotels start unpublished for review');
   assert.equal(hotel.branding.colors.primary, '#123456');
-  assert.equal(hotel.branding.colors.background, '#F8F5F0', 'invalid colors fall back to defaults');
+  assert.equal(hotel.branding.theme?.overrides?.page_background, undefined, 'an invalid colour is dropped (the theme derives it)');
   assert.equal(hotel.profile.social.x, 'https://x.com/legacy');
   assert.equal((await one(`SELECT whatsapp FROM departments WHERE hotel_id = $1 AND code = 'FNB'`, [report.hotelId])).whatsapp, '+966500001111');
   const ldy = await one(`SELECT i.data, c.code FROM laundry_items i JOIN laundry_categories c ON c.id = i.parent_id WHERE i.hotel_id = $1`, [report.hotelId]);

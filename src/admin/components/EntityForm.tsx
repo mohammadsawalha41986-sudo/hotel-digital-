@@ -3,7 +3,7 @@ import type { EntityName } from '@shared/entities';
 import { ENTITIES } from '@shared/entities';
 import type { CustomField, FieldSpec, Hours, ModifierGroup } from '@shared/fields';
 import { ICON_MAP } from '../../lib/icons';
-import { Field, Select, TextArea, TextInput, Toggle, cx } from '../../components/ui';
+import { Button, Field, Select, TextArea, TextInput, Toggle, cx } from '../../components/ui';
 import { useDepartmentOptions, useEntities } from '../data';
 import { MediaInput } from './MediaInput';
 import { CustomFieldsEditor, HoursEditor, ModifiersEditor } from './StructuredEditors';
@@ -98,9 +98,11 @@ function FieldInput({ hid, f, values, set, errors }: { hid: string; f: FieldSpec
     case 'video':
       return (
         <Field label={f.label} htmlFor={id} error={err} hint={f.help} required={f.required}>
-          <MediaInput hid={hid} id={id} kind={f.type === 'video' ? 'video' : 'image'} value={String(values[f.key] ?? '')} onChange={(v) => set(f.key, v)} invalid={!!err} />
+          <MediaInput hid={hid} id={id} kind={f.type === 'video' ? 'video' : 'image'} spec={f.imageSpec} value={String(values[f.key] ?? '')} onChange={(v) => set(f.key, v)} invalid={!!err} />
         </Field>
       );
+    case 'gallery':
+      return <GalleryEditor hid={hid} id={id} f={f} value={(values[f.key] as string[]) ?? []} onChange={(v) => set(f.key, v)} errors={errors} />;
     case 'tags': {
       const cur = (values[f.key] as string[]) ?? [];
       return (
@@ -232,5 +234,42 @@ function DepartmentSelect({ hid, id, f, value, onChange, err, control }: { hid: 
         ))}
       </Select>
     </Field>
+  );
+}
+
+/** Ordered list of images (up to 24), each uploadable, croppable and replaceable. */
+function GalleryEditor({ hid, id, f, value, onChange, errors }: { hid: string; id: string; f: FieldSpec; value: string[]; onChange: (v: string[]) => void; errors: Record<string, string> }) {
+  const move = (i: number, d: -1 | 1) => {
+    const next = [...value];
+    [next[i], next[i + d]] = [next[i + d], next[i]];
+    onChange(next);
+  };
+  return (
+    <fieldset>
+      <legend className="mb-1.5 text-sm font-medium">
+        {f.label} <span className="font-normal text-zinc-500">({value.length}/24)</span>
+      </legend>
+      <ol className="space-y-3">
+        {value.map((url, i) => (
+          <li key={i} className="rounded-xl border border-black/[0.07] p-3">
+            <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+              <span>Image {i + 1}</span>
+              <span className="flex gap-1">
+                <Button size="sm" variant="ghost" disabled={i === 0} onClick={() => move(i, -1)} aria-label={`Move image ${i + 1} up`}>↑</Button>
+                <Button size="sm" variant="ghost" disabled={i === value.length - 1} onClick={() => move(i, 1)} aria-label={`Move image ${i + 1} down`}>↓</Button>
+                <Button size="sm" variant="ghost" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label={`Remove image ${i + 1}`}>Remove</Button>
+              </span>
+            </div>
+            <MediaInput hid={hid} id={`${id}-${i}`} spec={f.imageSpec ?? 'gallery'} value={url} onChange={(v) => onChange(v ? value.map((x, j) => (j === i ? v : x)) : value.filter((_, j) => j !== i))} invalid={!!errors[`${f.key}.${i}`]} />
+            {errors[`${f.key}.${i}`] && <p className="mt-1 text-sm text-red-600">{errors[`${f.key}.${i}`]}</p>}
+          </li>
+        ))}
+      </ol>
+      {value.length < 24 && (
+        <Button size="sm" variant="secondary" className="mt-2" onClick={() => onChange([...value, ''])}>
+          Add image
+        </Button>
+      )}
+    </fieldset>
   );
 }

@@ -10,9 +10,13 @@ export interface MediaRow {
   filename: string;
   label: string;
   created_at: string;
+  width?: number | null;
+  height?: number | null;
+  variants?: Record<string, string>;
+  warnings?: { en: string; ar: string }[];
 }
 
-const MAX_EDGE = 2000;
+const MAX_EDGE = 2400;
 
 /**
  * Downscales large photos in the browser and re-encodes them as WebP before
@@ -38,10 +42,16 @@ export async function optimizeImage(file: File): Promise<File> {
   return new File([blob], file.name.replace(/\.\w+$/, '') + '.webp', { type: 'image/webp' });
 }
 
-export async function uploadMedia(hid: string, file: File, label = ''): Promise<MediaRow> {
-  const optimized = file.type.startsWith('image/') ? await optimizeImage(file) : file;
+/**
+ * Uploads a file. Large photos are downscaled in the browser first (faster on
+ * hotel Wi-Fi); the server then produces the optimised WebP and variants.
+ * `spec` (e.g. "logo", "hero_desktop") enables recommended-size warnings.
+ */
+export async function uploadMedia(hid: string, file: File, label = '', spec?: string): Promise<MediaRow> {
+  const optimized = /^image\/(jpeg|png|webp)$/.test(file.type) ? await optimizeImage(file) : file;
   const fd = new FormData();
   fd.append('file', optimized);
   fd.append('label', label);
+  if (spec) fd.append('spec', spec);
   return api<MediaRow>(`/admin/hotels/${hid}/media/upload`, { method: 'POST', body: fd });
 }

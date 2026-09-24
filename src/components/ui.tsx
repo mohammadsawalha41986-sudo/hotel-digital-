@@ -21,7 +21,7 @@ export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Bool
 // ---------------------------------------------------------------------------
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'light' | 'accent';
 const variants: Record<Variant, string> = {
-  primary: 'bg-brand text-brand-ink hover:brightness-110 shadow-sm',
+  primary: 'bg-cta text-cta-ink hover:bg-cta-hover shadow-sm',
   accent: 'bg-accent text-white hover:brightness-105 shadow-sm',
   secondary: 'bg-surface text-fg ring-1 ring-inset ring-line hover:bg-black/[0.03]',
   ghost: 'text-fg hover:bg-black/[0.05]',
@@ -125,7 +125,8 @@ export function Img({
         alt={alt}
         loading={eager ? 'eager' : 'lazy'}
         decoding="async"
-        sizes={sizesAttr}
+        srcSet={srcSetFor(src)}
+        sizes={srcSetFor(src) ? (sizesAttr ?? '100vw') : sizesAttr}
         {...(eager ? { fetchpriority: 'high' } : {})}
         onError={() => setFailed(true)}
         onLoad={() => setLoaded(true)}
@@ -133,6 +134,16 @@ export function Img({
       />
     </div>
   );
+}
+
+/**
+ * Uploaded images are stored as `<id>-o.webp` with 400/800/1600 px siblings,
+ * so the browser can pick the right size from the URL alone.
+ */
+export function srcSetFor(src: string | null | undefined): string | undefined {
+  const m = src ? /^(\/media\/[0-9a-f-]{36}\/[0-9a-f-]{36})-o\.webp$/.exec(src) : null;
+  if (!m) return undefined;
+  return `${m[1]}-400.webp 400w, ${m[1]}-800.webp 800w, ${m[1]}-1600.webp 1600w, ${src} 2400w`;
 }
 
 // ---------------------------------------------------------------------------
