@@ -40,3 +40,10 @@ bun.lockb
 .idea/
 .DS_Store
 Thumbs.db
+
+# Runtime data
+uploads/
+test-results/
+playwright-report/
+.test-uploads/
+.e2e-uploads/

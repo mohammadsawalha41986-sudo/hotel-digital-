@@ -1,51 +1,143 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
+/*
+ * Design tokens. Hotel branding writes the --c-* variables at runtime
+ * (see guest/theme.ts); Tailwind utilities read them through @theme.
+ */
 :root {
-  --hotel-primary: #8b6f4e;
-  --hotel-secondary: #2b2621;
-  --hotel-accent: #c49b66;
-  --hotel-background: #faf8f5;
-  --hotel-surface: #ffffff;
-  --hotel-text: #1c1917;
-  --hotel-muted: #78716c;
-  --hotel-border: #e7e5e4;
-  --hotel-button: #8b6f4e;
-  --hotel-radius: 12px;
+  --c-primary: #233b33;
+  --c-primary-ink: #ffffff;
+  --c-secondary: #15201c;
+  --c-accent: #a68633;
+  --c-bg: #f7f4ee;
+  --c-surface: #ffffff;
+  --c-text: #1b211e;
+  --c-muted: #66706a;
+  --c-line: color-mix(in oklab, var(--c-text) 10%, transparent);
+  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-ar: 'Tajawal', 'Segoe UI', system-ui, sans-serif;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@theme inline {
+  --color-brand: var(--c-primary);
+  --color-brand-ink: var(--c-primary-ink);
+  --color-ink: var(--c-secondary);
+  --color-accent: var(--c-accent);
+  --color-canvas: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-fg: var(--c-text);
+  --color-muted: var(--c-muted);
+  --color-line: var(--c-line);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --font-ar: var(--font-ar);
 }
 
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
   body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    background-color: var(--hotel-background, #faf8f5);
-    color: var(--hotel-text, #1c1917);
+    margin: 0;
+    background: var(--c-bg);
+    color: var(--c-text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
   }
-
-  [dir="rtl"], [lang="ar"] {
-    font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;
+  [dir='rtl'] body,
+  [dir='rtl'] {
+    font-family: var(--font-ar);
   }
-  
-  code, pre, .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+  :focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
   }
-
-  .font-serif {
-    font-family: 'Playfair Display', serif;
+  button,
+  [role='button'] {
+    cursor: pointer;
   }
-
-  [dir="rtl"] .font-serif {
-    font-family: 'Cairo', serif;
-    font-weight: 700;
+  button:disabled {
+    cursor: not-allowed;
+  }
+  img {
+    max-width: 100%;
   }
 }
 
-/* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
+@layer components {
+  /* Display headings: serif for Latin, the brand Arabic font (heavier) for RTL. */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  [dir='rtl'] .display {
+    font-family: var(--font-ar);
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+  .eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  [dir='rtl'] .eyebrow {
+    letter-spacing: 0;
+    font-size: 0.82rem;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .snap-row {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 1.25rem;
+    overscroll-behavior-x: contain;
+  }
+  .snap-row > * {
+    scroll-snap-align: start;
+  }
+  .pb-safe {
+    padding-bottom: calc(var(--safe-bottom) + 0.75rem);
+  }
+  .skeleton {
+    background: linear-gradient(90deg, rgb(0 0 0 / 0.05) 25%, rgb(0 0 0 / 0.09) 37%, rgb(0 0 0 / 0.05) 63%);
+    background-size: 400% 100%;
+    animation: skeleton 1.4s ease infinite;
+  }
+  .ltr-nums {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
 }
 
-/* Touch targets and luxury animations */
-.touch-target {
-  min-height: 44px;
-  min-width: 44px;
+@keyframes skeleton {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+@keyframes kenburns {
+  from { transform: scale(1.02); }
+  to { transform: scale(1.1); }
+}
+.kenburns {
+  animation: kenburns 14s ease-out forwards;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
