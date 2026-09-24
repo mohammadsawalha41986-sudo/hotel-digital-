@@ -23,7 +23,7 @@ test('hotel admin edits every guest-facing module through the UI', async ({ page
   // Logo upload (validated + stored server-side)
   await go(page, 'branding');
   const chooser = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: 'Upload image' }).first().click();
+  await page.getByRole('button', { name: 'Upload image', exact: true }).first().click();
   await (await chooser).setFiles({ name: 'logo.png', mimeType: 'image/png', buffer: PNG });
   await expect(page.locator('#b-logo')).toHaveValue(/^\/media\//);
   await page.getByRole('button', { name: 'Save branding' }).click();

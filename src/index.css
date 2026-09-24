@@ -66,6 +66,15 @@
   img {
     max-width: 100%;
   }
+  /* Grid/flex children must be allowed to shrink below their content width (long addresses, URLs). */
+  .grid > * {
+    min-width: 0;
+  }
+  p,
+  li,
+  dd {
+    overflow-wrap: anywhere;
+  }
 }
 
 @layer components {
