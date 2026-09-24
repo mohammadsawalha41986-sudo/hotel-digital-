@@ -70,7 +70,7 @@ test('hotel admin edits every guest-facing module through the UI', async ({ page
 
   // New room service
   await go(page, 'room-services');
-  await page.getByRole('button', { name: 'Add room service' }).click();
+  await page.getByRole('button', { name: 'Add in-room service' }).click();
   await page.locator('#f-name-en').fill('Baby cot');
   await page.locator('#f-name-ar').fill('سرير أطفال');
   await page.locator('#f-department').selectOption('HOUSEKEEPING');

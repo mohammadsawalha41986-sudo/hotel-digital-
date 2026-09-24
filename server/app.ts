@@ -21,6 +21,8 @@ import { requestRoutes } from './routes/admin/requests';
 import { analyticsRoutes } from './routes/admin/analytics';
 import { miscRoutes } from './routes/admin/misc';
 import { importRoutes } from './routes/admin/importExport';
+import { commerceRoutes } from './routes/admin/commerce';
+import { platformRoutes } from './routes/admin/platform';
 
 export function createApp() {
   const app = new Hono<AppEnv>();
@@ -72,6 +74,8 @@ export function createApp() {
   app.route('/api/admin/hotels', analyticsRoutes);
   app.route('/api/admin/hotels', miscRoutes);
   app.route('/api/admin/hotels', importRoutes);
+  app.route('/api/admin/hotels', commerceRoutes);
+  app.route('/api/admin/platform', platformRoutes);
 
   app.all('/api/*', (c) => c.json({ error: { code: 'not_found', message: 'Endpoint not found' } }, 404));
 
@@ -108,7 +112,14 @@ export function createApp() {
     let e: HttpError;
     if (err instanceof HttpError) e = err;
     else if (err instanceof ZodError) e = validationError(err);
-    else {
+    else if ((err as { code?: string }).code === '23000') {
+      // Raised by the immutability triggers (financial and history records).
+      log.warn('immutable_violation', { id: c.get('requestId'), path: c.req.path, message: err.message });
+      e = new HttpError(409, 'immutable_record', 'Financial and history records cannot be changed. Post an adjustment instead.');
+    } else if ((err as { code?: string }).code === '23514' || (err as { code?: string }).code === '23505') {
+      log.warn('constraint_violation', { id: c.get('requestId'), path: c.req.path, constraint: (err as { constraint?: string }).constraint });
+      e = new HttpError(409, 'conflict', 'This change conflicts with existing data. Refresh and try again.');
+    } else {
       log.error('unhandled', { id: c.get('requestId'), path: c.req.path, message: err.message, stack: config.isProd ? undefined : err.stack });
       e = new HttpError(500, 'internal', 'Something went wrong on our side. Please try again.');
     }

@@ -154,6 +154,8 @@ export async function upsertUser(client: pg.PoolClient, email: string, name: str
 export async function seedDemoUsers(client: pg.PoolClient, royalId: string, harbourId: string) {
   const users: [string, string, Role, string[]][] = [
     ['super@demo.hotelhub.local', 'Platform Owner', 'SUPER_ADMIN', []],
+    ['finance@demo.hotelhub.local', 'Platform Finance', 'PLATFORM_FINANCE', []],
+    ['hotelfinance@demo.hotelhub.local', 'Hotel Finance', 'HOTEL_FINANCE', [royalId]],
     ['admin@demo.hotelhub.local', 'Hotel Admin', 'HOTEL_ADMIN', [royalId]],
     ['management@demo.hotelhub.local', 'General Manager', 'MANAGEMENT', [royalId]],
     ['fnb@demo.hotelhub.local', 'F&B Supervisor', 'FNB', [royalId]],
@@ -168,3 +170,31 @@ export async function seedDemoUsers(client: pg.PoolClient, royalId: string, harb
   return users.map((u) => u[0]);
 }
 
+
+/**
+ * [Demo] commercial configuration so the finance screens have something to
+ * show in staging. Clearly labelled; never loaded by the production seed.
+ */
+export async function seedDemoCommerce(client: pg.PoolClient, royalId: string) {
+  if (await one(`SELECT 1 FROM commission_agreements WHERE hotel_id = $1`, [royalId], client)) return false;
+  const n = await one<{ n: number }>(`SELECT nextval('commission_agreement_seq') AS n`, [], client);
+  const a = await one<{ id: string }>(
+    `INSERT INTO commission_agreements (hotel_id, agreement_no, name, contract_reference, notes)
+     VALUES ($1, $2, '[Demo] Standard commission agreement', 'DEMO-ONLY', 'Demo configuration — replace with the signed commercial agreement.') RETURNING id`,
+    [royalId, `AGR-${String(n!.n).padStart(5, '0')}`],
+    client
+  );
+  await q(
+    `INSERT INTO commission_rules (agreement_id, hotel_id, rule_key, version, scope_level, scope_value, commission_type, rate_bps, basis, tax_treatment, effective_from, notes)
+     VALUES ($1, $2, gen_random_uuid(), 1, 'HOTEL', '', 'PERCENTAGE', 500, 'GROSS_INCL_VAT', 'NOT_APPLICABLE', now() - interval '30 days', '[Demo] 5% of gross order value')`,
+    [a!.id, royalId],
+    client
+  );
+  await q(
+    `INSERT INTO hotel_commercial_settings (hotel_id, hotel_finance_access, settlement_frequency) VALUES ($1, 'FULL', 'MONTHLY')
+     ON CONFLICT (hotel_id) DO NOTHING`,
+    [royalId],
+    client
+  );
+  return true;
+}

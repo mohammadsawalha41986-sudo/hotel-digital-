@@ -211,6 +211,23 @@ hotelRoutes.get('/:hid/departments', async (c) => {
   return c.json({ departments: rows });
 });
 
+/** Routing targets for department pickers — readable by every role of the hotel (no contact numbers). */
+hotelRoutes.get('/:hid/departments/options', async (c) => {
+  const hid = c.req.param('hid');
+  requireHotelAccess(c, hid, 'dashboard');
+  await ensureDepartments(hid);
+  const rows = await q<{ code: string; name_en: string; name_ar: string; is_active: boolean }>(
+    'SELECT code, name_en, name_ar, is_active FROM departments WHERE hotel_id = $1 ORDER BY sort_order, code',
+    [hid]
+  );
+  rows.sort((a, b) => {
+    const ia = (DEPARTMENTS as readonly string[]).indexOf(a.code);
+    const ib = (DEPARTMENTS as readonly string[]).indexOf(b.code);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.code.localeCompare(b.code);
+  });
+  return c.json({ departments: rows });
+});
+
 hotelRoutes.put('/:hid/departments', async (c) => {
   const hid = c.req.param('hid');
   const u = requireHotelAccess(c, hid, 'hotel');

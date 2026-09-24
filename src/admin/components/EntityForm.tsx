@@ -4,7 +4,7 @@ import { ENTITIES } from '@shared/entities';
 import type { CustomField, FieldSpec, Hours, ModifierGroup } from '@shared/fields';
 import { ICON_MAP } from '../../lib/icons';
 import { Field, Select, TextArea, TextInput, Toggle, cx } from '../../components/ui';
-import { useEntities } from '../data';
+import { useDepartmentOptions, useEntities } from '../data';
 import { MediaInput } from './MediaInput';
 import { CustomFieldsEditor, HoursEditor, ModifiersEditor } from './StructuredEditors';
 
@@ -120,8 +120,9 @@ function FieldInput({ hid, f, values, set, errors }: { hid: string; f: FieldSpec
         </fieldset>
       );
     }
-    case 'select':
     case 'department':
+      return <DepartmentSelect hid={hid} id={id} f={f} value={String(values[f.key] ?? '')} onChange={(v) => set(f.key, v)} err={err} control={control} />;
+    case 'select':
       return (
         <Field label={f.label} htmlFor={id} error={err} hint={f.help} required={f.required}>
           <Select id={id} value={String(values[f.key] ?? '')} onChange={(e) => set(f.key, e.target.value)} className={control} invalid={!!err}>
@@ -207,6 +208,26 @@ function RefSelect({ hid, f, id, value, onChange, error }: { hid: string; f: Fie
           <option key={o.id} value={o.id}>
             {String(o[`${title}_en`] ?? o.id)}
             {o.is_active ? '' : ' (hidden)'}
+          </option>
+        ))}
+      </Select>
+    </Field>
+  );
+}
+
+function DepartmentSelect({ hid, id, f, value, onChange, err, control }: { hid: string; id: string; f: FieldSpec; value: string; onChange: (v: string) => void; err?: string; control: string }) {
+  const q = useDepartmentOptions(hid);
+  const options = q.data ?? [];
+  const known = options.some((d) => d.code === value);
+  return (
+    <Field label={f.label} htmlFor={id} error={err ?? (q.isError ? 'Departments could not be loaded' : undefined)} hint={f.help} required={f.required}>
+      <Select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={control} invalid={!!err || q.isError} disabled={q.isLoading}>
+        {q.isLoading && <option value={value}>Loading…</option>}
+        {!q.isLoading && value && !known && <option value={value}>{value} (not configured)</option>}
+        {options.map((d) => (
+          <option key={d.code} value={d.code}>
+            {d.name_en}
+            {d.is_active ? '' : ' (inactive)'}
           </option>
         ))}
       </Select>

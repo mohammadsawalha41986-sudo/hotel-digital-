@@ -60,7 +60,9 @@ export function importColumns(name: EntityName): ImportColumn[] {
         ? 'yes / no'
         : f.type === 'tags'
           ? `comma separated: ${(f.options ?? []).map((o) => o.value).join(', ')}`
-          : f.type === 'select' || f.type === 'department'
+          : f.type === 'department'
+            ? 'department code, e.g. HOUSEKEEPING, FNB, FRONT_OFFICE'
+            : f.type === 'select'
             ? `one of: ${(f.options ?? []).map((o) => o.value).join(', ')}`
             : f.type === 'money' || f.type === 'number'
               ? 'number'
@@ -107,8 +109,13 @@ export function coerceCell(field: FieldSpec, raw: unknown): { value?: unknown; e
       const bad = values.filter((v) => !allowed.has(v));
       return bad.length ? { error: `Unknown value(s): ${bad.join(', ')}` } : { value: [...new Set(values.map((v) => allowed.get(v)!))] };
     }
-    case 'select':
     case 'department': {
+      // Existence in the hotel is checked by the API (built-in or hotel-defined department).
+      if (!str) return { value: undefined };
+      const code = str.toUpperCase().replace(/[\s&-]+/g, '_');
+      return /^[A-Z][A-Z0-9_]{1,31}$/.test(code) ? { value: code } : { error: `"${str}" is not a department code (e.g. HOUSEKEEPING)` };
+    }
+    case 'select': {
       if (!str) return { value: undefined };
       const match = (field.options ?? []).find((o) => o.value.toLowerCase() === str.toLowerCase() || o.en.toLowerCase() === str.toLowerCase());
       return match ? { value: match.value } : { error: `"${str}" is not one of ${(field.options ?? []).map((o) => o.value).join(', ')}` };

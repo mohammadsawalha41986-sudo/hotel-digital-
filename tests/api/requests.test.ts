@@ -220,7 +220,7 @@ describe('request lifecycle', () => {
     assert.equal((await other.get(`/public/hotels/${SLUG}/requests/${r.body.reference}`)).status, 404);
     assert.ok(!(await other.get(`/public/hotels/${SLUG}/requests`)).body.requests.some((x: any) => x.id === r.body.id));
     assert.ok((await mine.get(`/public/hotels/${SLUG}/requests`)).body.requests.some((x: any) => x.id === r.body.id));
-    assert.equal((await other.post(`/public/hotels/${SLUG}/requests/${r.body.reference}/cancel`)).status, 409);
+    assert.equal((await other.post(`/public/hotels/${SLUG}/requests/${r.body.reference}/cancel`)).status, 404, 'another device cannot see or cancel it');
     assert.equal((await mine.post(`/public/hotels/${SLUG}/requests/${r.body.reference}/cancel`)).status, 200);
     assert.equal((await mine.post(`/public/hotels/${SLUG}/requests/${r.body.reference}/cancel`)).status, 409);
   });

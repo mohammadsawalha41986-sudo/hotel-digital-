@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
 import { ROLES, type Role } from '../shared/domain';
 import { migrate, one, pool, tx } from './db';
-import { seedDemoCatalog, seedDemoUsers, seedIsolationHotel, upsertUser, DEMO_PASSWORD } from './seed/demo';
+import { seedDemoCatalog, seedDemoCommerce, seedDemoUsers, seedIsolationHotel, upsertUser, DEMO_PASSWORD } from './seed/demo';
 import { seedSwissFlora } from './seed/swissflora';
 import { validatePasswordStrength } from './security';
 import { importFirestoreHotel } from './tools/firestoreImport';
@@ -36,6 +36,7 @@ async function main() {
         const added = await seedDemoCatalog(c, royal.id);
         const harbour = await seedIsolationHotel(c);
         const users = await seedDemoUsers(c, royal.id, harbour);
+        await seedDemoCommerce(c, royal.id);
         console.log(`Demo catalog ${added ? 'added' : 'already present'}; users (password "${DEMO_PASSWORD}"):\n  ${users.join('\n  ')}`);
       });
       break;

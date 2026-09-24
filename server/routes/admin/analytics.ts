@@ -30,7 +30,7 @@ analyticsRoutes.get('/:hid/analytics', async (c) => {
       `SELECT
          COUNT(*) FILTER (WHERE (created_at AT TIME ZONE $4)::date = (now() AT TIME ZONE $4)::date) AS today,
          COUNT(*) AS total,
-         COUNT(*) FILTER (WHERE status IN ('NEW','ACCEPTED','IN_PROGRESS')) AS open,
+         COUNT(*) FILTER (WHERE status IN ('NEW','ACCEPTED','IN_PROGRESS','READY')) AS open,
          COUNT(*) FILTER (WHERE status = 'NEW') AS awaiting,
          ROUND(AVG(EXTRACT(EPOCH FROM (accepted_at - created_at)) / 60)::numeric, 1)::float AS avg_response_min,
          ROUND(AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) / 60)::numeric, 1)::float AS avg_completion_min,

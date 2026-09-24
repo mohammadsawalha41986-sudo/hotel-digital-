@@ -60,6 +60,23 @@ export function useEntities(hid: string, entity: EntityName, parentId?: string |
   });
 }
 
+export interface DepartmentOption {
+  code: string;
+  name_en: string;
+  name_ar: string;
+  is_active: boolean;
+}
+
+/** The hotel's routing departments (built-in and hotel-defined) for pickers. */
+export function useDepartmentOptions(hid: string) {
+  return useQuery({
+    queryKey: ['department-options', hid],
+    queryFn: () => api<{ departments: DepartmentOption[] }>(`/admin/hotels/${hid}/departments/options`).then((r) => r.departments),
+    enabled: !!hid,
+    staleTime: 60_000,
+  });
+}
+
 export function useEntityMutations(hid: string, entity: EntityName) {
   const qc = useQueryClient();
   const invalidate = () => {

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Plus, UserMinus } from 'lucide-react';
 import { useState } from 'react';
-import { ROLES, ROLE_LABELS, ROLE_MODULES, type Role } from '@shared/domain';
+import { ROLES, ROLE_LABELS, ROLE_MODULES, type Role, GLOBAL_ROLES } from '@shared/domain';
 import { ApiError, api, errorMessage } from '../../lib/api';
 import { Badge, Button, ErrorState, Field, IconButton, Select, Sheet, Skeleton, TextInput, Toggle } from '../../components/ui';
 import { useMe } from '../data';
@@ -70,12 +70,12 @@ export function Users({ hid }: { hid: string }) {
                   <td className="px-4 py-3">{u.is_active ? <Badge tone="success">Active</Badge> : <Badge>Disabled</Badge>}</td>
                   <td className="px-4 py-3 text-zinc-500">{u.last_login_at ? new Date(u.last_login_at).toLocaleString() : 'Never'}</td>
                   <td className="px-4 py-3 text-end">
-                    {u.role !== 'SUPER_ADMIN' || me.data?.user?.global ? (
+                    {!GLOBAL_ROLES.includes(u.role) || me.data?.user?.role === 'SUPER_ADMIN' ? (
                       <IconButton label={`Edit ${u.name}`} onClick={() => setEditing(u)} className="h-9 w-9">
                         <Pencil className="h-4 w-4" aria-hidden="true" />
                       </IconButton>
                     ) : null}
-                    {u.id !== me.data?.user?.id && u.role !== 'SUPER_ADMIN' && (
+                    {u.id !== me.data?.user?.id && !GLOBAL_ROLES.includes(u.role) && (
                       <IconButton
                         label={`Remove ${u.name} from this hotel`}
                         size="sm" className="text-red-600"
@@ -126,7 +126,7 @@ function UserEditor({ hid, user, onClose }: { hid: string; user: UserRow | 'new'
       fb.error(errorMessage(e));
     },
   });
-  const roles = ROLES.filter((r) => r !== 'SUPER_ADMIN' || me.data?.user?.global);
+  const roles = ROLES.filter((r) => !GLOBAL_ROLES.includes(r) || me.data?.user?.role === 'SUPER_ADMIN');
   return (
     <Sheet
       open={!!user}

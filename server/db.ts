@@ -9,6 +9,8 @@ import { log } from './log';
 pg.types.setTypeParser(1700, (v) => (v === null ? null : Number(v)));
 // int8 (count(*)) → number
 pg.types.setTypeParser(20, (v) => (v === null ? null : Number(v)));
+// date → 'YYYY-MM-DD' (calendar dates such as check-in must not shift with the server time zone)
+pg.types.setTypeParser(1082, (v) => v);
 
 export const pool = new pg.Pool({
   connectionString: config.databaseUrl,

@@ -116,6 +116,8 @@ export const settingsSchema = z.object({
   /** Department used when a request's department has no WhatsApp number. */
   fallback_department: z.enum(DEPARTMENTS).nullable().default('FRONT_OFFICE'),
   emergency_phone: phoneSchema.default(''),
+  /** Dialling code applied to local numbers (e.g. 0555… → +966555…). */
+  default_country_code: z.string().regex(/^[1-9][0-9]{0,3}$/, 'Digits only, e.g. 966').default('966'),
 });
 export type HotelSettings = z.infer<typeof settingsSchema>;
 
@@ -282,6 +284,13 @@ export const guestRequestSchema = z.object({
   ]),
 });
 export type GuestRequestInput = z.input<typeof guestRequestSchema>;
+
+export const guestSessionSchema = z.object({
+  guest: guestIdentitySchema,
+  lang: z.enum(['en', 'ar']).default('en'),
+  /** QR when the guest arrived through a printed code (?qr=1 / ?room=). */
+  entry: z.enum(['QR', 'GUEST_PORTAL']).default('GUEST_PORTAL'),
+});
 
 export const reviewInputSchema = z.object({
   guest_name: z.string().trim().min(2).max(80),
