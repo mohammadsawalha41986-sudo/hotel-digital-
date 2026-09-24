@@ -3,6 +3,7 @@ import {
   ALLERGENS,
   DIETARY,
   ICON_OPTIONS,
+  MERCH_BADGES,
   OUTLET_TYPES,
   SPICY_LEVELS,
   STATUS_OVERRIDES,
@@ -34,6 +35,7 @@ export interface EntityDef {
 }
 
 export const ENTITY_NAMES = [
+  'experiences',
   'offers',
   'quick_actions',
   'outlets',
@@ -59,6 +61,7 @@ const description: FieldSpec = { key: 'description', type: 'i18nText', label: 'D
 const icon: FieldSpec = { key: 'icon', type: 'icon', label: 'Icon', options: ICON_OPTIONS, default: 'sparkles' };
 const hours: FieldSpec = { key: 'hours', type: 'hours', label: 'Availability hours', noImport: true, wide: true };
 const featured: FieldSpec = { key: 'featured', type: 'boolean', label: 'Featured' };
+const badges: FieldSpec = { key: 'badges', type: 'tags', label: 'Badges', options: MERCH_BADGES, help: 'Merchandising labels shown on the guest site' };
 const internalNotes: FieldSpec = { key: 'internal_notes', type: 'textarea', label: 'Internal notes (staff only)', private: true, wide: true };
 const img = (spec: string, label = 'Image'): FieldSpec => ({ key: 'image', type: 'media', label, imageSpec: spec });
 const gallery = (spec: string): FieldSpec => ({ key: 'gallery', type: 'gallery', label: 'Gallery', imageSpec: spec, wide: true });
@@ -74,7 +77,46 @@ const department = (def: string): FieldSpec => ({ key: 'department', type: 'depa
 
 const lbl = (singular: string, plural: string, singular_ar: string, plural_ar: string) => ({ singular, plural, singular_ar, plural_ar });
 
+export const EXPERIENCE_TARGETS = ['page', 'outlet', 'spa_category', 'room_service', 'hotel_service', 'offer'] as const;
+
 export const ENTITIES: Record<EntityName, EntityDef> = {
+  experiences: {
+    name: 'experiences',
+    table: 'experiences',
+    label: lbl('Experience', 'Experience categories', 'تجربة', 'فئات التجارب'),
+    module: 'hotel',
+    titleField: 'title',
+    codePrefix: 'EXP',
+    imageField: 'image',
+    fields: [
+      { key: 'title', type: 'i18n', label: 'Title', required: true },
+      { key: 'subtitle', type: 'i18n', label: 'Subtitle', help: 'e.g. "Open until midnight"' },
+      { key: 'image', type: 'media', label: 'Image', imageSpec: 'experience' },
+      icon,
+      {
+        key: 'target',
+        type: 'select',
+        label: 'Opens',
+        options: [
+          o('page', 'A guest page', 'صفحة'),
+          o('outlet', 'A dining outlet', 'مطعم'),
+          o('spa_category', 'A wellness category', 'فئة عافية'),
+          o('room_service', 'A room service', 'خدمة غرفة'),
+          o('hotel_service', 'A guest service', 'خدمة نزلاء'),
+          o('offer', 'An offer', 'عرض'),
+        ],
+        default: 'page',
+      },
+      { key: 'page', type: 'select', label: 'Page', options: pageOptions, default: 'dining', showIf: { field: 'target', in: ['page'] } },
+      { key: 'outlet_id', type: 'ref', label: 'Outlet', refEntity: 'outlets', showIf: { field: 'target', in: ['outlet'] } },
+      { key: 'spa_category_id', type: 'ref', label: 'Wellness category', refEntity: 'spa_categories', showIf: { field: 'target', in: ['spa_category'] } },
+      { key: 'room_service_id', type: 'ref', label: 'Room service', refEntity: 'room_services', showIf: { field: 'target', in: ['room_service'] } },
+      { key: 'hotel_service_id', type: 'ref', label: 'Guest service', refEntity: 'hotel_services', showIf: { field: 'target', in: ['hotel_service'] } },
+      { key: 'offer_id', type: 'ref', label: 'Offer', refEntity: 'offers', showIf: { field: 'target', in: ['offer'] } },
+      badges,
+      featured,
+    ],
+  },
   offers: {
     name: 'offers',
     table: 'offers',
@@ -107,6 +149,7 @@ export const ENTITIES: Record<EntityName, EntityDef> = {
         default: ['home'],
       },
       featured,
+      badges,
       { key: 'starts_at', type: 'datetime', label: 'Starts' },
       { key: 'ends_at', type: 'datetime', label: 'Ends', help: 'Expired offers disappear automatically.' },
     ],
@@ -164,6 +207,7 @@ export const ENTITIES: Record<EntityName, EntityDef> = {
       { key: 'status_override', type: 'select', label: 'Status', options: STATUS_OVERRIDES, default: 'auto' },
       hours,
       featured,
+      badges,
       { key: 'accepts_orders', type: 'boolean', label: 'Guests can order from the menu', default: true },
       { key: 'room_delivery', type: 'boolean', label: 'Delivers to rooms', default: false },
       { key: 'external_orders', type: 'boolean', label: 'External visitors can order', default: true },
@@ -230,6 +274,7 @@ export const ENTITIES: Record<EntityName, EntityDef> = {
       available,
       { key: 'kind', type: 'select', label: 'Item type', options: [o('item', 'Single item', 'صنف'), o('combo', 'Combo / set', 'وجبة كومبو')], default: 'item' },
       featured,
+      badges,
       { key: 'recommended', type: 'boolean', label: "Chef's recommendation" },
       { key: 'calories', type: 'number', label: 'Calories (kcal)', min: 0, max: 10000 },
       { key: 'prep_minutes', type: 'number', label: 'Preparation time (min)', min: 0, max: 600 },
@@ -269,6 +314,7 @@ export const ENTITIES: Record<EntityName, EntityDef> = {
       img('service'),
       available,
       featured,
+      badges,
       { key: 'response_minutes', type: 'number', label: 'Expected response (min)', min: 1, max: 1440 },
       { key: 'price', type: 'money', label: 'Charge (optional)' },
       { key: 'allow_quantity', type: 'boolean', label: 'Guest can choose quantity' },
@@ -311,6 +357,7 @@ export const ENTITIES: Record<EntityName, EntityDef> = {
       img('service'),
       available,
       featured,
+      badges,
       { key: 'requestable', type: 'boolean', label: 'Guests can request it', help: 'Off = information only.', default: true },
       { key: 'price', type: 'money', label: 'Price (optional)' },
       { key: 'price_note', type: 'i18n', label: 'Price note', help: 'e.g. "per trip"' },
@@ -356,6 +403,7 @@ export const ENTITIES: Record<EntityName, EntityDef> = {
       { key: 'price_note', type: 'i18n', label: 'Price note', help: 'e.g. "Complimentary for in-house guests"' },
       available,
       featured,
+      badges,
       { key: 'bookable', type: 'boolean', label: 'Guests can request a booking', default: true },
       { key: 'max_guests', type: 'number', label: 'Capacity (guests per booking)', min: 1, max: 50 },
       { key: 'instructions', type: 'i18nText', label: 'Booking / request instructions', wide: true },
@@ -418,6 +466,7 @@ export const ENTITIES: Record<EntityName, EntityDef> = {
       img('laundry'),
       available,
       featured,
+      badges,
       { key: 'starts_at', type: 'datetime', label: 'Starts' },
       { key: 'ends_at', type: 'datetime', label: 'Ends' },
     ],

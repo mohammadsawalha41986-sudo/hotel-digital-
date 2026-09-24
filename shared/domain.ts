@@ -225,6 +225,7 @@ export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 // Homepage / website manager
 // ---------------------------------------------------------------------------
 export const SECTION_TYPES = [
+  'experiences',
   'offers',
   'quick_actions',
   'dining',

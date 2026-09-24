@@ -55,6 +55,9 @@ export async function buildPublicBundle(row: HotelRow, preview: boolean): Promis
   // Outlets expose their WhatsApp only as a flag; numbers stay server-side.
   catalog.outlets = catalog.outlets.map(({ whatsapp, ...o }) => ({ ...o, has_whatsapp: Boolean(whatsapp) }) as EntityRecord);
 
+  // Merchandised menu items (featured, chef's pick or badged) for homepage selling; each carries its outlet.
+  catalog.featured_items = await featuredItems(hotel.id, content);
+
   const departments = (
     await q<{ code: string; name_en: string; name_ar: string; phone: string; whatsapp: string }>(
       'SELECT code, name_en, name_ar, phone, whatsapp FROM departments WHERE hotel_id = $1 AND is_active ORDER BY sort_order, code',
@@ -84,6 +87,18 @@ export async function buildPublicBundle(row: HotelRow, preview: boolean): Promis
     version,
     generated_at: new Date().toISOString(),
   };
+}
+
+async function featuredItems(hotelId: string, content: ContentSnapshot): Promise<EntityRecord[]> {
+  const outlets = new Set((content.catalog.outlets ?? []).map((o) => o.id));
+  const menuOutlet = new Map((content.catalog.menus ?? []).map((m) => [m.id, m.parent_id]));
+  const catOutlet = new Map((content.catalog.menu_categories ?? []).map((c) => [c.id, menuOutlet.get(c.parent_id ?? '') ?? null]));
+  const picked = (content.catalog.menu_items ?? [])
+    .filter((i) => i.featured === true || i.recommended === true || (Array.isArray(i.badges) && i.badges.length > 0))
+    .map((i) => ({ ...i, outlet_id: catOutlet.get(i.parent_id ?? '') ?? null }) as EntityRecord)
+    .filter((i) => i.outlet_id && outlets.has(String(i.outlet_id)));
+  const live = await overlay(hotelId, 'menu_items' as EntityName, picked);
+  return live.filter((i) => i.available !== false).slice(0, 12);
 }
 
 /** Menus of one outlet, from the same content the bundle came from. Null when the outlet is not in it. */

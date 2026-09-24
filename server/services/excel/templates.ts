@@ -165,6 +165,16 @@ export const TEMPLATES: readonly TemplateAdapter[] = [
     examples: { code: 'INFO-CHECK-IN', title_en: 'Check-in', title_ar: 'تسجيل الدخول', category: 'stay', highlight_en: '15:00' },
   }),
   operatingHoursTemplate,
+  entityTemplate({
+    key: 'experiences',
+    number: '23',
+    title: 'Experience Categories',
+    title_ar: 'فئات التجارب',
+    sheet: 'Experience Categories',
+    description: 'Homepage discovery tiles (Dining, Spa, Pool…) with image and destination.',
+    entity: 'experiences',
+    examples: { code: 'EXP-POOL', title_en: 'Pool & cabanas', title_ar: 'المسبح والكبائن', target: 'page', page: 'spa' },
+  }),
 ];
 
 export const MASTER_KEY = 'master';

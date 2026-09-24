@@ -155,6 +155,7 @@ function HotelScope() {
           <Route path="reviews" element={g('reviews', <Reviews hid={hid} />)} />
           <Route path="website" element={g('hotel', <Website hid={hid} />)} />
           <Route path="offers" element={g('offers', <EntityPage hid={hid} entity="offers" description="Promotions shown on the homepage, dining and spa pages. Scheduled offers appear and disappear automatically." />)} />
+ <Route path="experiences" element={g('hotel', <EntityPage hid={hid} entity="experiences" description="Discovery tiles on the guest homepage — Dining, Spa, Pool, Concierge… Each opens a page, outlet, service or offer. Without any, the homepage builds tiles from your services automatically." />)} />
           <Route path="quick-actions" element={g('hotel', <EntityPage hid={hid} entity="quick_actions" description="One-tap shortcuts on the guest homepage. Order sets their position." />)} />
           <Route path="dining" element={g('dining', <Dining hid={hid} />)} />
           <Route path="dining/:outletId" element={g('dining', <OutletDetail hid={hid} />)} />

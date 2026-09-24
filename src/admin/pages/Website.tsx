@@ -11,6 +11,7 @@ import { PageHeader } from '../layout/AdminLayout';
 import { PublishDialog } from '../components/Publish';
 
 const SECTION_LABEL: Record<SectionType, string> = {
+  experiences: 'Experience categories',
   offers: 'Offers slider',
   quick_actions: 'Quick actions',
   dining: 'Dining outlets',
@@ -25,6 +26,7 @@ const SECTION_LABEL: Record<SectionType, string> = {
   custom: 'Custom content block',
 };
 const SOURCE: Partial<Record<SectionType, string>> = {
+  experiences: 'Experience categories (or automatic from your services)',
   offers: 'Offers',
   quick_actions: 'Quick actions',
   dining: 'Dining & menus',

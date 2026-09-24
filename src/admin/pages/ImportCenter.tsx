@@ -14,7 +14,7 @@ const GROUPS: { title: string; numbers: string[] }[] = [
   { title: 'Wellness & spa', numbers: ['10', '11'] },
   { title: 'Laundry', numbers: ['12', '13', '14', '15'] },
   { title: 'Offers & information', numbers: ['17', '21', '22'] },
-  { title: 'Website', numbers: ['18', '19', '20'] },
+  { title: 'Website', numbers: ['18', '19', '20', '23'] },
 ];
 
 const STATUS: Record<ImportBatch['status'], { label: string; tone: 'success' | 'info' | 'neutral' | 'warning' | 'danger' }> = {

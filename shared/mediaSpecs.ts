@@ -26,6 +26,7 @@ export const IMAGE_SPECS: Record<string, ImageSpec> = {
   spa: { key: 'spa', en: 'Spa service', ar: 'خدمة السبا', width: 1600, height: 1200, minLongest: 1000 },
   laundry: { key: 'laundry', en: 'Laundry category', ar: 'فئة الغسيل', width: 1200, height: 1200, minLongest: 600 },
   service: { key: 'service', en: 'Guest service', ar: 'خدمة النزلاء', width: 1200, height: 900, minLongest: 800 },
+  experience: { key: 'experience', en: 'Experience tile', ar: 'بطاقة التجربة', width: 1200, height: 1500, minLongest: 900, note_en: 'Portrait 4:5; keep the subject in the centre', note_ar: 'عمودية 4:5؛ اجعل العنصر الرئيسي في المنتصف' },
   gallery: { key: 'gallery', en: 'Gallery photo', ar: 'صورة المعرض', width: 1600, height: 1200, minLongest: 1600, note_en: '1600 px or more on the longest side', note_ar: '1600 بكسل أو أكثر للضلع الأطول' },
 };
 

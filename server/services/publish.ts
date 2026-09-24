@@ -25,6 +25,7 @@ import { getHotelRow, hydrate, parseSite, type Hotel } from '../repos/hotels';
 
 /** Entities in the guest bundle. Menus are served per outlet. */
 export const BUNDLE_ENTITIES: EntityName[] = [
+  'experiences',
   'offers',
   'quick_actions',
   'outlets',

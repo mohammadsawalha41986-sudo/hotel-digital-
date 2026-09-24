@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { DEPARTMENTS, type DepartmentCode } from '../../shared/domain';
+import { guestEventBatchSchema } from '../../shared/engagement';
 import { guestSessionSchema, reviewInputSchema } from '../../shared/hotel';
 import { waLink } from '../../shared/whatsapp';
 import { canAccessHotel } from '../auth';
@@ -12,6 +13,7 @@ import { getHotelRowBySlug, hydrate, type HotelRow } from '../repos/hotels';
 import { sha256 } from '../security';
 import { buildOutletMenu, buildPublicBundle } from '../services/catalog';
 import { storeUpload } from '../services/media';
+import { recordEvents } from '../services/engagement';
 import { identifyGuest } from '../services/guests';
 import { changeStatus } from '../services/orders';
 import { createGuestRequest, resolveWhatsApp } from '../services/requests';
@@ -57,6 +59,20 @@ publicRoutes.get('/hotels/:slug', async (c) => {
   const bundle = await buildPublicBundle(row, preview);
   c.header('Cache-Control', preview ? 'no-store' : 'public, max-age=30, stale-while-revalidate=120');
   return c.json(bundle);
+});
+
+/**
+ * Anonymous engagement counters (offer impressions/clicks, views, request
+ * funnel, WhatsApp clicks). Staff previews are not counted.
+ */
+publicRoutes.post('/hotels/:slug/events', async (c) => {
+  const { row, preview } = await resolveHotel(c);
+  rateLimit(`events:${row.id}:${clientIp(c)}`, 120, 10 * 60_000);
+  const parsed = guestEventBatchSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) throw validationError(parsed.error);
+  if (preview) return c.json({ recorded: 0, preview: true });
+  await recordEvents(row.id, hydrate(row).profile.timezone || 'UTC', parsed.data.events);
+  return c.json({ recorded: parsed.data.events.length });
 });
 
 publicRoutes.get('/hotels/:slug/outlets/:outletId/menu', async (c) => {

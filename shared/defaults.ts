@@ -2,6 +2,7 @@ import type { GuestPage, SectionType } from './domain';
 import { siteConfigSchema, type SiteConfig } from './hotel';
 
 const SECTION_DEFAULTS: { type: SectionType; en: string; ar: string; sub_en: string; sub_ar: string; layout: 'carousel' | 'grid' | 'list' | 'feature'; bg?: 'muted' | 'dark' }[] = [
+  { type: 'experiences', en: 'Explore the hotel', ar: 'اكتشف الفندق', sub_en: 'What would you like today?', sub_ar: 'ماذا تود اليوم؟', layout: 'grid' },
   { type: 'offers', en: 'Current offers', ar: 'العروض الحالية', sub_en: '', sub_ar: '', layout: 'carousel' },
   { type: 'quick_actions', en: 'How can we help?', ar: 'كيف يمكننا مساعدتك؟', sub_en: 'Most requests take a single tap', sub_ar: 'معظم الطلبات بلمسة واحدة', layout: 'grid' },
   { type: 'dining', en: 'Dining', ar: 'المطاعم والمقاهي', sub_en: 'Restaurants, cafés and in-room dining', sub_ar: 'المطاعم والمقاهي وخدمة الطعام في الغرف', layout: 'carousel' },

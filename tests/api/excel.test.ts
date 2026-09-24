@@ -85,14 +85,14 @@ async function upload(c: Client, template: string, buf: Buffer, mode = 'create_u
 const count = async (table: string) => (await one(`SELECT COUNT(*) AS n FROM ${table} WHERE hotel_id = $1`, [ids.royal])).n as number;
 
 describe('template catalogue', () => {
-  test('22 numbered templates plus the master workbook; access follows modules', async () => {
+  test('23 numbered templates plus the master workbook; access follows modules', async () => {
     const admin = await login(users.admin);
     const r = await admin.get(`${H()}/data/templates`);
     assert.equal(r.status, 200);
-    assert.equal(r.body.templates.length, 22);
+    assert.equal(r.body.templates.length, 23);
     assert.deepEqual(
       r.body.templates.map((t: any) => t.number),
-      Array.from({ length: 22 }, (_, i) => String(i + 1).padStart(2, '0'))
+      Array.from({ length: 23 }, (_, i) => String(i + 1).padStart(2, '0'))
     );
     assert.ok(r.body.templates.every((t: any) => t.allowed));
     assert.equal(r.body.master.title, 'MASTER HOTEL CONTENT TEMPLATE');
@@ -130,7 +130,7 @@ describe('template catalogue', () => {
     assert.match(text, /ITEM-LATTE/);
 
     const master = await load((await admin.download(`${H()}/data/templates/master`)).body);
-    assert.equal(master.worksheets.filter((w) => w.state === 'visible').length, 23);
+    assert.equal(master.worksheets.filter((w) => w.state === 'visible').length, 24);
   });
 });
 

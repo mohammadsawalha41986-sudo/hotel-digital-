@@ -7,6 +7,7 @@ import type { AppEnv } from '../../context';
 import { one, q } from '../../db';
 import { getHotelRow, hydrate } from '../../repos/hotels';
 import { notFound } from '../../errors';
+import { engagementSummary } from '../../services/engagement';
 
 export const analyticsRoutes = new Hono<AppEnv>();
 
@@ -26,7 +27,7 @@ analyticsRoutes.get('/:hid/analytics', async (c) => {
   const withTz = [...base, tz];
   const scope = `hotel_id = $1 AND department = ANY($2::text[]) AND created_at >= now() - make_interval(days => $3)`;
 
-  const [summary, byDept, byStatus, byType, topServices, popularItems, trend, feedback, reviews] = await Promise.all([
+  const [summary, byDept, byStatus, byType, topServices, popularItems, trend, feedback, reviews, engagement] = await Promise.all([
     one(
       `SELECT
          COUNT(*) FILTER (WHERE (created_at AT TIME ZONE $4)::date = (now() AT TIME ZONE $4)::date) AS today,
@@ -74,8 +75,10 @@ analyticsRoutes.get('/:hid/analytics', async (c) => {
           [hid]
         )
       : Promise.resolve(null),
+    // Guest engagement is hotel-wide marketing data: only for roles managing guest-facing content.
+    roleCan(u.role, 'hotel') || roleCan(u.role, 'offers') ? engagementSummary(hid, tz, days) : Promise.resolve(null),
   ]);
 
   c.header('Cache-Control', 'no-store');
-  return c.json({ days, scope: depts, summary, by_department: byDept, by_status: byStatus, by_type: byType, top_services: topServices, popular_items: popularItems, trend, feedback, reviews });
+  return c.json({ days, scope: depts, summary, by_department: byDept, by_status: byStatus, by_type: byType, top_services: topServices, popular_items: popularItems, trend, feedback, reviews, engagement });
 });

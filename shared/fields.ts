@@ -283,6 +283,16 @@ export const DIETARY = [
   opt('signature', 'Signature', 'طبق مميز'),
 ] as const;
 
+/** Merchandising badges that help sell products and services. */
+export const MERCH_BADGES = [
+  opt('popular', 'Popular', 'الأكثر طلباً'),
+  opt('recommended', 'Recommended', 'موصى به'),
+  opt('new', 'New', 'جديد'),
+  opt('limited', 'Limited time', 'لفترة محدودة'),
+  opt('exclusive', 'Hotel exclusive', 'حصري للفندق'),
+  opt('best_seller', 'Best seller', 'الأكثر مبيعاً'),
+] as const;
+
 export const SPICY_LEVELS = [
   opt('0', 'Not spicy', 'غير حار'),
   opt('1', 'Mild', 'حار خفيف'),
