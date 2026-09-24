@@ -7,7 +7,9 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
-    public fields: Record<string, string> = {}
+    public fields: Record<string, string> = {},
+    /** Structured error details (e.g. rollback conflicts, a re-validated import). */
+    public details: Record<string, unknown> = {}
   ) {
     super(message);
   }
@@ -48,10 +50,36 @@ export async function api<T = unknown>(path: string, opts: RequestOptions = {}):
     data = null;
   }
   if (!res.ok) {
-    const err = (data as { error?: { code?: string; message?: string; details?: { fields?: Record<string, string> } } } | null)?.error;
-    throw new ApiError(res.status, err?.code ?? 'http_error', err?.message ?? `Request failed (${res.status})`, err?.details?.fields ?? {});
+    const err = (data as { error?: { code?: string; message?: string; details?: { fields?: Record<string, string> } & Record<string, unknown> } } | null)?.error;
+    throw new ApiError(res.status, err?.code ?? 'http_error', err?.message ?? `Request failed (${res.status})`, err?.details?.fields ?? {}, err?.details ?? {});
   }
   return data as T;
 }
 
 export const errorMessage = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong');
+
+/** Downloads a file from the API (spreadsheets) and saves it with the server's file name. */
+export async function downloadFile(path: string, fallbackName = 'download'): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, { headers: { 'x-requested-with': 'hub' }, credentials: 'same-origin' });
+  } catch {
+    throw new ApiError(0, 'network', 'We could not reach the server. Check your connection and try again.');
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new ApiError(res.status, data?.error?.code ?? 'http_error', data?.error?.message ?? `Download failed (${res.status})`);
+  }
+  const cd = res.headers.get('content-disposition') ?? '';
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+  const plain = /filename="([^"]+)"/i.exec(cd);
+  const name = star ? decodeURIComponent(star[1]) : plain ? plain[1] : fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}

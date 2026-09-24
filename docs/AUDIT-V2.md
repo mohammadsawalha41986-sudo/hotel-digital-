@@ -8,7 +8,7 @@ Every defect marked **(verified)** was reproduced against the running API.
 | --- | --- |
 | Client | React 18 + Vite; `src/guest/*` (portal), `src/admin/*` (console), `src/components/ui.tsx` |
 | Shared | `shared/domain.ts` (roles, departments, statuses), `shared/fields.ts` + `shared/entities.ts` (schema-driven entities), `shared/hotel.ts` (profile/branding/site/guest payloads), pricing, hours, WhatsApp builder, import spec |
-| API | Hono. Routes: `auth`, `public`, `admin/{hotels,entities,requests,analytics,misc,importExport}` |
+| API | Hono. Routes: `auth`, `public`, `admin/{hotels,entities,requests,analytics,misc,imports,commerce,platform}` (see docs/EXCEL.md for the import engine) |
 | Data | PostgreSQL: `hotels` (profile/branding/settings JSONB, `site_draft`/`site_published`), 12 generic catalog tables (`parent_id` + `data` JSONB), `departments`, `requests`, `request_events`, `reviews`, `media`, `users`, `user_hotels`, `sessions`, `audit_log`, `counters` |
 | Tests | 69 API tests (node:test + Postgres), 25 Playwright E2E tests on the production build |
 

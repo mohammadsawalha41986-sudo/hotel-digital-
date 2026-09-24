@@ -22,7 +22,7 @@ import { BrandingPage } from './pages/Branding';
 import { Departments } from './pages/Departments';
 import { MediaLibrary } from './pages/MediaLibrary';
 import { QrCodes } from './pages/QrCodes';
-import { ImportExport } from './pages/ImportExport';
+import { ImportCenter } from './pages/ImportCenter';
 import { Users } from './pages/Users';
 import { AuditLog } from './pages/AuditLog';
 import { Hotels } from './pages/Hotels';
@@ -168,7 +168,7 @@ function HotelScope() {
           <Route path="departments" element={g('hotel', <Departments hid={hid} />)} />
           <Route path="media" element={g('hotel', <MediaLibrary hid={hid} />)} />
           <Route path="qr" element={g('hotel', <QrCodes hid={hid} />)} />
-          <Route path="import" element={g('import', <ImportExport hid={hid} />)} />
+          <Route path="import" element={g('import', <ImportCenter hid={hid} />)} />
           <Route path="users" element={g('users', <Users hid={hid} />)} />
           <Route path="audit" element={g('audit', <AuditLog hid={hid} />)} />
           <Route path="publishing" element={g('hotel', <PublishingHistory hid={hid} />)} />

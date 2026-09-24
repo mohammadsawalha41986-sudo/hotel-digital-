@@ -20,7 +20,7 @@ import { entityRoutes } from './routes/admin/entities';
 import { requestRoutes } from './routes/admin/requests';
 import { analyticsRoutes } from './routes/admin/analytics';
 import { miscRoutes } from './routes/admin/misc';
-import { importRoutes } from './routes/admin/importExport';
+import { importRoutes } from './routes/admin/imports';
 import { commerceRoutes } from './routes/admin/commerce';
 import { platformRoutes } from './routes/admin/platform';
 

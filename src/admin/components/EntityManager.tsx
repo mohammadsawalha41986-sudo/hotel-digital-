@@ -10,6 +10,7 @@ import { Badge, Button, EmptyState, ErrorState, IconButton, Sheet, Skeleton, Tex
 import { useEntities, useEntityMutations, type EntityRecord } from '../data';
 import { useFeedback } from '../feedback';
 import { EntityForm } from './EntityForm';
+import { DataButtons } from '../imports/DataButtons';
 
 export function recordTitle(entity: EntityName, r: Record<string, unknown>) {
   const k = ENTITIES[entity].titleField;
@@ -110,6 +111,7 @@ export function EntityManager({
           </div>
         )}
         {extraActions}
+        {!compact && <DataButtons hid={hid} entity={entity} />}
         <Button size="sm" className="rounded-lg" onClick={() => setEditing('new')}>
           <Plus className="h-4 w-4" aria-hidden="true" /> Add {def.label.singular.toLowerCase()}
         </Button>

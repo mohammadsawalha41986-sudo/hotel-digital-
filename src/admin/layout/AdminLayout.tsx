@@ -70,7 +70,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
       { to: 'departments', label: 'Departments & WhatsApp', icon: PhoneForwarded, module: 'hotel' },
       { to: 'media', label: 'Media library', icon: Image, module: 'hotel' },
       { to: 'qr', label: 'QR codes', icon: QrCode, module: 'hotel' },
-      { to: 'import', label: 'Import / export', icon: FileSpreadsheet, module: 'import' },
+      { to: 'import', label: 'Data import & export', icon: FileSpreadsheet, module: 'import' },
     ],
   },
   {

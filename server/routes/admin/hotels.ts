@@ -9,8 +9,7 @@ import { requireHotelAccess, requireUser } from '../../auth';
 import { clientIp, type AppEnv, type Ctx } from '../../context';
 import { one, q, tx } from '../../db';
 import { HttpError, badRequest, conflict, forbidden, notFound, validationError } from '../../errors';
-import { ENTITIES, ENTITY_NAMES } from '../../../shared/entities';
-import { ensureDepartments, getHotelRow, hydrate, parseSite, splitProfile } from '../../repos/hotels';
+import { departmentUsage, ensureDepartments, getHotelRow, hydrate, parseSite, splitProfile } from '../../repos/hotels';
 import { changesSincePublish, publishHotel, republish } from '../../services/publish';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -367,14 +366,7 @@ hotelRoutes.delete('/:hid/departments/:code', async (c) => {
   const d = await one<{ is_custom: boolean; name_en: string }>('SELECT is_custom, name_en FROM departments WHERE hotel_id = $1 AND code = $2', [hid, code]);
   if (!d) throw notFound('Department not found');
   if (!d.is_custom) throw conflict('Built-in departments cannot be deleted; deactivate them instead');
-  const used: string[] = [];
-  for (const name of ENTITY_NAMES) {
-    if (!ENTITIES[name].fields.some((f) => f.type === 'department')) continue;
-    const n = await one<{ n: number }>(`SELECT COUNT(*) AS n FROM ${ENTITIES[name].table} WHERE hotel_id = $1 AND data->>'department' = $2`, [hid, code]);
-    if (n && n.n > 0) used.push(`${n.n} ${ENTITIES[name].label.plural.toLowerCase()}`);
-  }
-  const open = await one<{ n: number }>(`SELECT COUNT(*) AS n FROM requests WHERE hotel_id = $1 AND department = $2 AND status IN ('NEW','ACCEPTED','IN_PROGRESS','READY')`, [hid, code]);
-  if (open && open.n > 0) used.push(`${open.n} open request(s)`);
+  const used = await departmentUsage(hid, code);
   if (used.length) throw conflict(`Still used by ${used.join(', ')}. Reassign them first, or deactivate the department.`);
   await q('DELETE FROM departments WHERE hotel_id = $1 AND code = $2', [hid, code]);
   await audit({ hotelId: hid, user: u, action: 'delete', entity: 'department_routing', entityId: code, summary: `Removed department ${code} (${d.name_en})`, ip: clientIp(c) });

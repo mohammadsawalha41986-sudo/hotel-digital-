@@ -86,6 +86,13 @@ export class Client {
   del<T = any>(p: string) {
     return this.req<T>('DELETE', p);
   }
+  /** Binary GET (spreadsheets, files). */
+  async download(path: string): Promise<{ status: number; body: Buffer; headers: Headers }> {
+    const headers: Record<string, string> = { 'x-requested-with': 'hub', host: 'localhost' };
+    if (this.cookie) headers.cookie = this.cookie;
+    const res = await app.request(`/api${path}`, { method: 'GET', headers });
+    return { status: res.status, body: Buffer.from(await res.arrayBuffer()), headers: res.headers };
+  }
 }
 
 export async function login(email: string, password = DEMO_PASSWORD) {
