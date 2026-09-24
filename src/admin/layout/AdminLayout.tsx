@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  BarChart3, BedDouble, Building2, ClipboardList, ConciergeBell, ExternalLink, FileSpreadsheet, Flower2, Image, Info, KeyRound, LayoutTemplate,
-  LogOut, Menu, MessageSquareQuote, Palette, PhoneForwarded, QrCode, ScrollText, Settings2, Shirt, Tag, Users as UsersIcon, Utensils, Zap, type LucideIcon,
+  BarChart3, BedDouble, BookOpen, Building2, ClipboardList, ConciergeBell, ExternalLink, FileSignature, FileSpreadsheet, Flower2, Image, Info, KeyRound, Landmark, LayoutTemplate,
+  LineChart, LogOut, Menu, MessageSquareQuote, Palette, PhoneForwarded, QrCode, ReceiptText, ScrollText, Settings2, Shirt, ShoppingBag, Tag, UserRound, Users as UsersIcon, Utensils, Zap, type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -18,6 +18,16 @@ interface NavItem {
   module: Module;
 }
 
+/** Platform-wide finance (not hotel-scoped). */
+const PLATFORM_ITEMS: { to: string; label: string; icon: LucideIcon }[] = [
+  { to: 'dashboard', label: 'Commercial dashboard', icon: BarChart3 },
+  { to: 'agreements', label: 'Agreements & rules', icon: FileSignature },
+  { to: 'orders', label: 'All orders', icon: ShoppingBag },
+  { to: 'settlements', label: 'Settlements', icon: ReceiptText },
+  { to: 'ledger', label: 'Commission ledger', icon: BookOpen },
+  { to: 'reports', label: 'Reports', icon: LineChart },
+];
+
 const GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'Operations',
@@ -25,6 +35,15 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
       { to: 'dashboard', label: 'Dashboard', icon: BarChart3, module: 'dashboard' },
       { to: 'requests', label: 'Requests', icon: ClipboardList, module: 'requests' },
       { to: 'reviews', label: 'Guest reviews', icon: MessageSquareQuote, module: 'reviews' },
+    ],
+  },
+  {
+    label: 'Guests & orders',
+    items: [
+      { to: 'guests', label: 'Guests', icon: UserRound, module: 'guests' },
+      { to: 'orders', label: 'Orders', icon: ShoppingBag, module: 'orders' },
+      { to: 'finance', label: 'Finance', icon: Landmark, module: 'finance' },
+      { to: 'reports', label: 'Reports', icon: LineChart, module: 'orders' },
     ],
   },
   {
@@ -171,7 +190,25 @@ function Sidebar({ hid }: { hid?: string }) {
               </div>
             );
           })}
-        {user.global && (
+        {user.global && roleCan(user.role, 'commercial') && (
+          <div>
+            <p className="px-2 pb-1.5 text-[0.7rem] font-semibold tracking-wider text-zinc-400 uppercase">Platform finance</p>
+            <ul className="space-y-0.5">
+              {PLATFORM_ITEMS.map((i) => (
+                <li key={i.to}>
+                  <NavLink
+                    to={`/admin/platform/${i.to}`}
+                    className={({ isActive }) => cx('flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition', isActive ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900')}
+                  >
+                    <i.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {i.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {user.global && roleCan(user.role, 'hotel') && (
           <NavLink to="/admin/hotels" className={({ isActive }) => cx('flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium', isActive ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100')}>
             <Building2 className="h-4 w-4" aria-hidden="true" />
             Hotel portfolio

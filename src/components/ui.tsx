@@ -240,7 +240,7 @@ export function Sheet({
             className={cx(
               'relative flex max-h-[92dvh] w-full flex-col overflow-hidden bg-surface text-fg shadow-2xl outline-none',
               'rounded-t-[1.75rem]',
-              isSide ? 'sm:h-full sm:max-h-none sm:max-w-2xl sm:rounded-none' : cx('sm:rounded-[1.75rem]', width)
+              isSide ? cx('sm:h-full sm:max-h-none sm:rounded-none', size === 'xl' ? 'sm:max-w-6xl' : 'sm:max-w-2xl') : cx('sm:rounded-[1.75rem]', width)
             )}
           >
             <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-black/15 sm:hidden" aria-hidden="true" />

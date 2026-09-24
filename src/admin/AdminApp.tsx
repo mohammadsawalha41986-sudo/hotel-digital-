@@ -26,6 +26,15 @@ import { ImportExport } from './pages/ImportExport';
 import { Users } from './pages/Users';
 import { AuditLog } from './pages/AuditLog';
 import { Hotels } from './pages/Hotels';
+import { Guests } from './pages/Guests';
+import { GuestProfilePage } from './pages/GuestProfile';
+import { Orders } from './pages/Orders';
+import { HotelFinance } from './pages/HotelFinance';
+import { Reports } from './pages/Reports';
+import { PlatformDashboard } from './pages/platform/PlatformDashboard';
+import { Agreements } from './pages/platform/Agreements';
+import { PlatformSettlements } from './pages/platform/Settlements';
+import { PlatformLedger } from './pages/platform/Ledger';
 
 const ADMIN_VARS: Record<string, string> = {
   '--c-primary': '#1f2a24',
@@ -71,8 +80,22 @@ function Authed() {
   const hotels = me.data.hotels ?? [];
   return (
     <Routes>
-      <Route index element={hotels.length ? <Navigate to={`/admin/h/${hotels[0].id}/dashboard`} replace /> : me.data.user.global ? <Navigate to="/admin/hotels" replace /> : <NoHotel />} />
+      <Route
+        index
+        element={
+          me.data.user.role === 'PLATFORM_FINANCE' ? (
+            <Navigate to="/admin/platform/dashboard" replace />
+          ) : hotels.length ? (
+            <Navigate to={`/admin/h/${hotels[0].id}/dashboard`} replace />
+          ) : me.data.user.global ? (
+            <Navigate to="/admin/hotels" replace />
+          ) : (
+            <NoHotel />
+          )
+        }
+      />
       <Route path="hotels" element={<AdminLayout><Hotels /></AdminLayout>} />
+      <Route path="platform/*" element={<PlatformScope />} />
       <Route path="h/:hid/*" element={<HotelScope />} />
       <Route path="*" element={<FullPageMessage code="404" title="Page not found" action={{ href: '/admin', label: 'Back to dashboard' }} />} />
     </Routes>
@@ -89,6 +112,27 @@ function Guard({ module, children }: { module: Module; children: ReactNode }) {
     return <FullPageMessage code="403" title="Access restricted" description="Your role does not include this section." action={{ href: '/admin', label: 'Back to dashboard' }} />;
   }
   return <>{children}</>;
+}
+
+/** Platform finance area (global roles with the commercial module). */
+function PlatformScope() {
+  const g = (el: ReactNode) => <Guard module="commercial">{el}</Guard>;
+  return (
+    <AdminLayout>
+      <ErrorBoundary fallback={(reset) => <ErrorState title="This screen failed to load" description="The error was logged in the browser console." onRetry={reset} />}>
+        <Routes>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={g(<PlatformDashboard />)} />
+          <Route path="agreements" element={g(<Agreements />)} />
+          <Route path="orders" element={g(<Orders platform />)} />
+          <Route path="settlements" element={g(<PlatformSettlements />)} />
+          <Route path="ledger" element={g(<PlatformLedger />)} />
+          <Route path="reports" element={g(<Reports platform />)} />
+          <Route path="*" element={<FullPageMessage code="404" title="Page not found" action={{ href: '/admin/platform/dashboard', label: 'Back' }} />} />
+        </Routes>
+      </ErrorBoundary>
+    </AdminLayout>
+  );
 }
 
 function HotelScope() {
@@ -123,6 +167,11 @@ function HotelScope() {
           <Route path="import" element={g('import', <ImportExport hid={hid} />)} />
           <Route path="users" element={g('users', <Users hid={hid} />)} />
           <Route path="audit" element={g('audit', <AuditLog hid={hid} />)} />
+          <Route path="guests" element={g('guests', <Guests hid={hid} />)} />
+          <Route path="guests/:gid" element={g('guests', <GuestProfilePage hid={hid} />)} />
+          <Route path="orders" element={g('orders', <Orders hid={hid} />)} />
+          <Route path="finance" element={g('finance', <HotelFinance hid={hid} />)} />
+          <Route path="reports" element={g('orders', <Reports hid={hid} />)} />
           <Route path="*" element={<FullPageMessage code="404" title="Page not found" action={{ href: `/admin/h/${hid}/dashboard`, label: 'Back to dashboard' }} />} />
         </Routes>
       </ErrorBoundary>

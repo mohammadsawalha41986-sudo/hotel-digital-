@@ -36,6 +36,7 @@ export function QrCodes({ hid }: { hid: string }) {
     const base = `${origin}/h/${slug}`;
     const params = new URLSearchParams();
     if (k === 'room' && r) params.set('room', r);
+    else params.set('qr', '1'); // marks the visit as a QR entry (order source)
     if (lang) params.set('lang', lang);
     const path = k === 'dining' ? '/dining' : k === 'outlet' && outletId ? `/dining/${outletId}` : k === 'spa' ? '/spa' : k === 'services' ? '/services' : '';
     const qs = params.toString();

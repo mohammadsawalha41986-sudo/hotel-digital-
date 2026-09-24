@@ -7,6 +7,7 @@ import { formatMoney } from '@shared/pricing';
 import { api, errorMessage } from '../../lib/api';
 import { EmptyState, ErrorState, Segmented, Skeleton, cx } from '../../components/ui';
 import { useAdminHotel, useMe } from '../data';
+import { OrdersOverview } from '../commerce/OrdersOverview';
 import { Card, PageHeader } from '../layout/AdminLayout';
 
 interface Analytics {
@@ -33,6 +34,9 @@ interface Analytics {
   feedback: { feedback_type: string; n: number }[];
   reviews: { average: number | null; approved: number; pending: number } | null;
 }
+
+/** First day (UTC date) of a period of `days` days ending today. */
+const fromDate = (days: number) => new Date(Date.now() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
 
 const fmtMin = (v: number | null) => (v == null ? '—' : v < 60 ? `${Math.round(v)} min` : `${(v / 60).toFixed(1)} h`);
 
@@ -65,6 +69,12 @@ export function Dashboard({ hid }: { hid: string }) {
           </div>
         }
       />
+      {me.data?.permissions?.modules.includes('orders') && (
+        <div className="mb-8">
+          <OrdersOverview hid={hid} from={fromDate(Number(days))} currency={currency} />
+        </div>
+      )}
+      <h2 className="mb-4 text-lg font-semibold">Service operations</h2>
       {q.isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
