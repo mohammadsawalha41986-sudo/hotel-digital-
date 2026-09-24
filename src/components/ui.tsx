@@ -62,9 +62,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
 });
 
-export function IconButton({ label, className, children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
+const iconSizes = { xs: 'h-6 w-6', sm: 'h-8 w-8', md: 'h-10 w-10' };
+
+export function IconButton({ label, className, children, size = 'md', ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string; size?: keyof typeof iconSizes }) {
   return (
-    <button type="button" aria-label={label} title={label} className={cx('inline-flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-black/5', className)} {...rest}>
+    <button type="button" aria-label={label} title={label} className={cx('inline-flex shrink-0 items-center justify-center rounded-full transition hover:bg-black/5 disabled:opacity-30', iconSizes[size], className)} {...rest}>
       {children}
     </button>
   );

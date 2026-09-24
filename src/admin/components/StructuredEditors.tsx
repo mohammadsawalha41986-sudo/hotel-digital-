@@ -41,7 +41,7 @@ export function HoursEditor({ value, onChange, id }: { value: Hours; onChange: (
                       <input type="time" aria-label={`${DAY_LABEL[d]} opens`} value={r.open} onChange={(e) => setDay(d, ranges.map((x, j) => (j === i ? { ...x, open: e.target.value } : x)))} className={cx(small, 'border border-black/15')} />
                       <span aria-hidden="true">–</span>
                       <input type="time" aria-label={`${DAY_LABEL[d]} closes`} value={r.close} onChange={(e) => setDay(d, ranges.map((x, j) => (j === i ? { ...x, close: e.target.value } : x)))} className={cx(small, 'border border-black/15')} />
-                      <IconButton label={`Remove ${DAY_LABEL[d]} range`} className="h-8 w-8" onClick={() => setDay(d, ranges.filter((_, j) => j !== i))}>
+                      <IconButton label={`Remove ${DAY_LABEL[d]} range`} size="sm" onClick={() => setDay(d, ranges.filter((_, j) => j !== i))}>
                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                       </IconButton>
                     </span>
@@ -104,13 +104,13 @@ export function ModifiersEditor({ value, onChange }: { value: ModifierGroup[]; o
             </label>
             <span className="text-xs text-zinc-500">{g.min > 0 ? 'Required' : 'Optional'} · {g.max === 1 ? 'single choice' : `up to ${g.max}`}</span>
             <span className="ms-auto flex gap-1">
-              <IconButton label="Move group up" className="h-8 w-8" onClick={() => onChange(move(groups, i, -1))}>
+              <IconButton label="Move group up" size="sm" onClick={() => onChange(move(groups, i, -1))}>
                 <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
               </IconButton>
-              <IconButton label="Move group down" className="h-8 w-8" onClick={() => onChange(move(groups, i, 1))}>
+              <IconButton label="Move group down" size="sm" onClick={() => onChange(move(groups, i, 1))}>
                 <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
               </IconButton>
-              <IconButton label="Delete group" className="h-8 w-8 text-red-600" onClick={() => onChange(groups.filter((_, j) => j !== i))}>
+              <IconButton label="Delete group" size="sm" className="text-red-600" onClick={() => onChange(groups.filter((_, j) => j !== i))}>
                 <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
               </IconButton>
             </span>
@@ -125,7 +125,7 @@ export function ModifiersEditor({ value, onChange }: { value: ModifierGroup[]; o
                   <input type="checkbox" checked={o.available} onChange={(e) => setGroup(i, { ...g, options: g.options.map((x, j) => (j === k ? { ...x, available: e.target.checked } : x)) })} />
                   On
                 </label>
-                <IconButton label="Delete option" className="h-8 w-8" onClick={() => setGroup(i, { ...g, options: g.options.filter((_, j) => j !== k) })} disabled={g.options.length === 1}>
+                <IconButton label="Delete option" size="sm" onClick={() => setGroup(i, { ...g, options: g.options.filter((_, j) => j !== k) })} disabled={g.options.length === 1}>
                   <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                 </IconButton>
               </li>
@@ -174,7 +174,7 @@ export function CustomFieldsEditor({ value, onChange }: { value: CustomField[]; 
               <input value={f.id} onChange={(e) => set(i, { ...f, id: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })} className={cx(small, 'w-40 border border-black/15 font-mono')} aria-label="Answer key" />
             </label>
             <Toggle label="Required" checked={f.required} onChange={(v) => set(i, { ...f, required: v })} />
-            <IconButton label="Delete question" className="ms-auto h-8 w-8 text-red-600" onClick={() => onChange(fields.filter((_, j) => j !== i))}>
+            <IconButton label="Delete question" size="sm" className="ms-auto text-red-600" onClick={() => onChange(fields.filter((_, j) => j !== i))}>
               <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
             </IconButton>
           </div>
@@ -185,7 +185,7 @@ export function CustomFieldsEditor({ value, onChange }: { value: CustomField[]; 
                   <input aria-label="Value" value={o.value} onChange={(e) => set(i, { ...f, options: f.options.map((x, j) => (j === k ? { ...x, value: e.target.value.replace(/\s/g, '_') } : x)) })} className={cx(small, 'border border-black/15 font-mono')} placeholder="value" />
                   <TextInput aria-label="Label (English)" value={o.en} onChange={(e) => set(i, { ...f, options: f.options.map((x, j) => (j === k ? { ...x, en: e.target.value } : x)) })} className={small} placeholder="Label" />
                   <TextInput aria-label="Label (Arabic)" dir="rtl" value={o.ar} onChange={(e) => set(i, { ...f, options: f.options.map((x, j) => (j === k ? { ...x, ar: e.target.value } : x)) })} className={small} placeholder="التسمية" />
-                  <IconButton label="Delete choice" className="h-8 w-8" onClick={() => set(i, { ...f, options: f.options.filter((_, j) => j !== k) })}>
+                  <IconButton label="Delete choice" size="sm" onClick={() => set(i, { ...f, options: f.options.filter((_, j) => j !== k) })}>
                     <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                   </IconButton>
                 </div>

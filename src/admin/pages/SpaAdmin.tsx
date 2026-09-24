@@ -13,8 +13,8 @@ export function SpaAdmin({ hid }: { hid: string }) {
   return (
     <>
       <PageHeader title="Wellness & spa" description="Categories (massage, pool, gym…) each contain services. Bookable services let guests request a preferred date and time." />
-      <div className="grid gap-4 xl:grid-cols-[22rem_1fr]">
-        <EntityManager hid={hid} entity="spa_categories" compact onOpen={setCat} title="Categories" />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+        <EntityManager hid={hid} entity="spa_categories" compact onOpen={setCat} selectedId={cat?.id} title="Categories" />
         {cat ? (
           <EntityManager hid={hid} entity="spa_services" parentId={cat.id} currency={hotel.data?.profile.currency} title={`Services · ${String(cat.name_en)}`} />
         ) : (

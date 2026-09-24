@@ -101,7 +101,7 @@ export function ItemSheet({ item, outlet, canOrder, onClose }: { item: MenuItem 
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <Stepper value={qty} onChange={setQty} label={t('quantity')} />
+              <Stepper incLabel={t('increase')} decLabel={t('decrease')} value={qty} onChange={setQty} label={t('quantity')} />
               <Button size="lg" className="flex-1 whitespace-nowrap px-4" onClick={() => add()} data-testid="add-to-order" aria-label={`${t('addToOrder')} · ${money(price * qty)}`}>
                 <span className="hidden min-[420px]:inline">{t('addToOrder')}</span>
                 <span className="min-[420px]:hidden">{t('add')}</span>

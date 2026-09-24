@@ -193,7 +193,7 @@ export function buildEntitySchema(fields: readonly FieldSpec[]) {
       }
       case 'tags': {
         const values = (f.options ?? []).map((o) => o.value) as [string, ...string[]];
-        shape[f.key] = z.array(z.enum(values)).max(values.length).default([]);
+        shape[f.key] = z.array(z.enum(values)).max(values.length).default(((f.default as string[] | undefined) ?? []) as never);
         break;
       }
       case 'media':

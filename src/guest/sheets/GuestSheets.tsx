@@ -124,7 +124,7 @@ function ServiceSheet({ open, service, entity, onClose }: { open: boolean; servi
           {service.allow_quantity && (
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">{t('quantity')}</span>
-              <Stepper value={qty} onChange={setQty} max={service.max_quantity ?? 10} label={t('quantity')} />
+              <Stepper incLabel={t('increase')} decLabel={t('decrease')} value={qty} onChange={setQty} max={service.max_quantity ?? 10} label={t('quantity')} />
             </div>
           )}
           <CustomFieldInputs fields={fields} value={answers} onChange={setAnswers} errors={errors} idPrefix={`svc-${service.id}`} />
@@ -215,7 +215,7 @@ function SpaSheet({ open, service, onClose }: { open: boolean; service: SpaServi
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">{t('guests')}</span>
-          <Stepper value={guests} onChange={setGuests} max={service.max_guests ?? 4} label={t('guests')} />
+          <Stepper incLabel={t('increase')} decLabel={t('decrease')} value={guests} onChange={setGuests} max={service.max_guests ?? 4} label={t('guests')} />
         </div>
         <CustomFieldInputs fields={fields} value={answers} onChange={setAnswers} errors={errors} idPrefix={`spa-${service.id}`} />
         <Field label={t('notes')} optionalLabel={t('optional')} htmlFor="spa-notes">
@@ -321,7 +321,7 @@ function BasketSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
                     {mods.length > 0 && <p className="mt-0.5 text-sm text-muted">{mods.join(' · ')}</p>}
                     {l.note && <p className="mt-0.5 text-sm text-muted italic">“{l.note}”</p>}
                     <div className="mt-2 flex items-center justify-between">
-                      <Stepper size="sm" value={l.quantity} onChange={(q) => basket.setQuantity(l.key, q)} label={t('quantity')} />
+                      <Stepper incLabel={t('increase')} decLabel={t('decrease')} size="sm" value={l.quantity} onChange={(q) => basket.setQuantity(l.key, q)} label={t('quantity')} />
                       <button type="button" onClick={() => basket.remove(l.key)} className="inline-flex h-9 items-center gap-1 rounded-full px-3 text-sm text-muted hover:bg-black/5" aria-label={`${t('remove')} ${l.name_en}`}>
                         <Trash2 className="h-4 w-4" aria-hidden="true" />
                         {t('remove')}

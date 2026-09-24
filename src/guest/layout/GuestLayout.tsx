@@ -107,7 +107,7 @@ function Header({ overlay, onMenu }: { overlay: boolean; onMenu: () => void }) {
     <header
       className={cx(
         'z-50 transition-colors duration-300',
-        overlay ? 'fixed inset-x-0 top-0' : 'sticky top-0',
+        overlay ? cx('fixed inset-x-0', bundle.preview ? 'top-7' : 'top-0') : bundle.preview ? 'sticky top-7' : 'sticky top-0',
         transparent ? 'bg-gradient-to-b from-black/45 to-transparent text-white' : 'border-b border-line bg-surface/90 text-fg backdrop-blur-xl'
       )}
     >

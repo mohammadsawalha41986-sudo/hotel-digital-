@@ -121,7 +121,7 @@ export function Laundry() {
                             <span className="block truncate">{t(SERVICE_KEY[s])}</span>
                             <span className="font-semibold tabular-nums">{money(Number(priceOf(i, s)))}</span>
                           </span>
-                          <Stepper size="sm" min={0} max={100} value={n} onChange={(v) => setQty((q) => ({ ...q, [k]: v }))} label={`${pick(i, 'name')} — ${t(SERVICE_KEY[s])}`} />
+                          <Stepper incLabel={t('increase')} decLabel={t('decrease')} size="sm" min={0} max={100} value={n} onChange={(v) => setQty((q) => ({ ...q, [k]: v }))} label={`${pick(i, 'name')} — ${t(SERVICE_KEY[s])}`} />
                         </div>
                       );
                     })}

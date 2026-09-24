@@ -78,7 +78,7 @@ export function Users({ hid }: { hid: string }) {
                     {u.id !== me.data?.user?.id && u.role !== 'SUPER_ADMIN' && (
                       <IconButton
                         label={`Remove ${u.name} from this hotel`}
-                        className="h-9 w-9 text-red-600"
+                        size="sm" className="text-red-600"
                         onClick={async () => {
                           if (await fb.confirm({ title: `Remove ${u.name}?`, message: 'They will be signed out and lose access to this hotel.', confirmLabel: 'Remove access', danger: true })) revoke.mutate(u.id);
                         }}

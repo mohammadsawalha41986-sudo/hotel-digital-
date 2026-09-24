@@ -45,3 +45,5 @@ Thumbs.db
 uploads/
 test-results/
 playwright-report/
+.test-uploads/
+.e2e-uploads/

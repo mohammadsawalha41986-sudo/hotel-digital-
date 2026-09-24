@@ -55,22 +55,16 @@ export function OutletDetail({ hid }: { hid: string }) {
           </Button>
         }
       />
-      <div className="grid gap-4 xl:grid-cols-[18rem_20rem_1fr]">
-        <div className="space-y-2">
-          <EntityManager hid={hid} entity="menus" parentId={outletId} compact onOpen={setMenu} title="Menus" />
-          {menu && <p className="px-1 text-xs text-zinc-500">Selected: <strong>{String(menu.name_en)}</strong></p>}
-        </div>
-        <div className="space-y-2">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          <EntityManager hid={hid} entity="menus" parentId={outletId} compact onOpen={setMenu} selectedId={menu?.id} title="Menus" />
           {menu ? (
-            <>
-              <EntityManager hid={hid} entity="menu_categories" parentId={menu.id} compact onOpen={setCategory} title={`Categories · ${String(menu.name_en)}`} />
-              {category && <p className="px-1 text-xs text-zinc-500">Selected: <strong>{String(category.name_en)}</strong></p>}
-            </>
+            <EntityManager hid={hid} entity="menu_categories" parentId={menu.id} compact onOpen={setCategory} selectedId={category?.id} title={`Categories · ${String(menu.name_en)}`} />
           ) : (
             <p className="rounded-2xl border border-dashed border-black/15 p-6 text-sm text-zinc-500">Create a menu first (e.g. “All-day menu”).</p>
           )}
         </div>
-        <div>
+        <div className="min-w-0">
           {category ? (
             <EntityManager hid={hid} entity="menu_items" parentId={category.id} currency={currency} title={`Items · ${String(category.name_en)}`} />
           ) : (

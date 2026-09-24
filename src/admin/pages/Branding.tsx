@@ -136,13 +136,13 @@ export function BrandingPage({ hid }: { hid: string }) {
                   <TextInput aria-label="Caption (English)" placeholder="Caption" value={g.caption_en} onChange={(e) => setB({ ...b, gallery: b.gallery.map((x, j) => (j === i ? { ...x, caption_en: e.target.value } : x)) })} className="h-10 rounded-lg text-sm" />
                   <TextInput aria-label="Caption (Arabic)" dir="rtl" placeholder="الوصف" value={g.caption_ar} onChange={(e) => setB({ ...b, gallery: b.gallery.map((x, j) => (j === i ? { ...x, caption_ar: e.target.value } : x)) })} className="h-10 rounded-lg text-sm" />
                   <div className="flex">
-                    <IconButton label="Move up" className="h-9 w-9" onClick={() => i > 0 && setB({ ...b, gallery: b.gallery.map((x, j) => (j === i - 1 ? b.gallery[i] : j === i ? b.gallery[i - 1] : x)) })}>
+                    <IconButton label="Move up" size="sm" onClick={() => i > 0 && setB({ ...b, gallery: b.gallery.map((x, j) => (j === i - 1 ? b.gallery[i] : j === i ? b.gallery[i - 1] : x)) })}>
                       <ArrowUp className="h-4 w-4" aria-hidden="true" />
                     </IconButton>
-                    <IconButton label="Move down" className="h-9 w-9" onClick={() => i < b.gallery.length - 1 && setB({ ...b, gallery: b.gallery.map((x, j) => (j === i + 1 ? b.gallery[i] : j === i ? b.gallery[i + 1] : x)) })}>
+                    <IconButton label="Move down" size="sm" onClick={() => i < b.gallery.length - 1 && setB({ ...b, gallery: b.gallery.map((x, j) => (j === i + 1 ? b.gallery[i] : j === i ? b.gallery[i + 1] : x)) })}>
                       <ArrowDown className="h-4 w-4" aria-hidden="true" />
                     </IconButton>
-                    <IconButton label="Remove photo" className="h-9 w-9 text-red-600" onClick={() => setB({ ...b, gallery: b.gallery.filter((_, j) => j !== i) })}>
+                    <IconButton label="Remove photo" size="sm" className="text-red-600" onClick={() => setB({ ...b, gallery: b.gallery.filter((_, j) => j !== i) })}>
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </IconButton>
                   </div>

@@ -113,7 +113,7 @@ export function MediaLibrary({ hid }: { hid: string }) {
                 </div>
                 <IconButton
                   label="Copy URL"
-                  className="h-8 w-8"
+                  size="sm"
                   onClick={() => {
                     const full = m.url.startsWith('/') ? window.location.origin + m.url : m.url;
                     navigator.clipboard?.writeText(full).then(() => fb.success('URL copied'), () => fb.error('Clipboard unavailable'));
@@ -123,7 +123,7 @@ export function MediaLibrary({ hid }: { hid: string }) {
                 </IconButton>
                 <IconButton
                   label="Delete media"
-                  className="h-8 w-8 text-red-600"
+                  size="sm" className="text-red-600"
                   onClick={async () => {
                     if (await fb.confirm({ title: 'Delete this file?', message: 'Content still using it will fall back to the branded placeholder.', confirmLabel: 'Delete', danger: true })) remove.mutate(m.id);
                   }}

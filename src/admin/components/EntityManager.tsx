@@ -46,6 +46,7 @@ export function EntityManager({
   title,
   compact,
   extraActions,
+  selectedId,
 }: {
   hid: string;
   entity: EntityName;
@@ -55,6 +56,8 @@ export function EntityManager({
   title?: string;
   compact?: boolean;
   extraActions?: ReactNode;
+  /** Highlights the row currently opened in a master/detail layout. */
+  selectedId?: string | null;
 }) {
   const def = ENTITIES[entity];
   const q = useEntities(hid, entity, parentId);
@@ -127,20 +130,22 @@ export function EntityManager({
             const t = recordTitle(entity, r);
             const img = (r.image || r.cover || r.logo) as string | undefined;
             return (
-              <li key={r.id} className={cx('flex items-center gap-3 px-4 py-3', !r.is_active && 'bg-zinc-50/70')}>
+              <li key={r.id} aria-current={selectedId === r.id ? 'true' : undefined} className={cx('flex items-center gap-3 px-4 py-3', compact && 'gap-2 px-3 py-2', !r.is_active && 'bg-zinc-50/70', selectedId === r.id && 'bg-amber-50/70 shadow-[inset_3px_0_0_#a68633]')}>
                 {!search && (
                   <div className="flex flex-col">
-                    <IconButton label={`Move ${t.en} up`} className="h-6 w-6" disabled={i === 0} onClick={() => reorder(i, -1)}>
+                    <IconButton label={`Move ${t.en} up`} size="xs" disabled={i === 0} onClick={() => reorder(i, -1)}>
                       <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
                     </IconButton>
-                    <IconButton label={`Move ${t.en} down`} className="h-6 w-6" disabled={i === items.length - 1} onClick={() => reorder(i, 1)}>
+                    <IconButton label={`Move ${t.en} down`} size="xs" disabled={i === items.length - 1} onClick={() => reorder(i, 1)}>
                       <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
                     </IconButton>
                   </div>
                 )}
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-100 text-zinc-600">
-                  {img ? <img src={img} alt="" className="h-full w-full object-cover" loading="lazy" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} /> : <Icon name={(r.icon as string) || 'sparkles'} className="h-5 w-5" />}
-                </span>
+                {!compact && (
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-100 text-zinc-600">
+                    {img ? <img src={img} alt="" className="h-full w-full object-cover" loading="lazy" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} /> : <Icon name={(r.icon as string) || 'sparkles'} className="h-5 w-5" />}
+                  </span>
+                )}
                 <button type="button" className="min-w-0 flex-1 text-start" onClick={() => (onOpen ? onOpen(r) : setEditing(r))}>
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="truncate font-medium">{t.en || <em className="text-zinc-400">Untitled</em>}</span>
@@ -167,7 +172,7 @@ export function EntityManager({
                 <IconButton label={`Delete ${t.en}`} onClick={() => remove(r)} className="h-9 w-9 text-red-600">
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </IconButton>
-                {onOpen && (
+                {onOpen && !compact && (
                   <IconButton label={`Open ${t.en}`} onClick={() => onOpen(r)} className="h-9 w-9">
                     <ChevronRight className="h-4 w-4" aria-hidden="true" />
                   </IconButton>

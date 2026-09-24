@@ -159,7 +159,9 @@ importRoutes.get('/:hid/export/:workbook', async (c) => {
   for (const e of wb.entities) requireHotelAccess(c, hid, ENTITIES[e].module);
   const nameById = new Map<string, { name: string; parent: string | null; entity: EntityName }>();
   const sheets = [];
-  for (const e of IMPORT_ORDER.filter((x) => wb.entities.includes(x) || wb.entities.some((w) => ancestorsOf(w).includes(x)))) {
+  // Ancestors (e.g. outlets) are loaded first so child rows can name their parents.
+  const order = [...new Set(wb.entities.flatMap((e) => [...ancestorsOf(e), e]))];
+  for (const e of order) {
     const recs = await listEntities(e, hid);
     for (const r of recs) nameById.set(r.id, { name: String(r[`${ENTITIES[e].titleField}_en`] ?? ''), parent: r.parent_id, entity: e });
     if (!wb.entities.includes(e)) continue;

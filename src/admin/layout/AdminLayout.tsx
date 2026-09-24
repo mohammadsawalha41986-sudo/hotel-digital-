@@ -185,7 +185,7 @@ function Sidebar({ hid }: { hid?: string }) {
             <p className="truncate text-sm font-semibold">{user.name}</p>
             <p className="truncate text-xs text-zinc-500">{ROLE_LABELS[user.role]}</p>
           </div>
-          <IconButton label="Sign out" onClick={logout} className="h-9 w-9">
+          <IconButton label="Sign out" onClick={logout} size="sm">
             <LogOut className="h-4 w-4" aria-hidden="true" />
           </IconButton>
         </div>

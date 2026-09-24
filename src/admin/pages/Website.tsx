@@ -197,7 +197,7 @@ function WebsiteEditor({ hid, hotel }: { hid: string; hotel: AdminHotel }) {
           <div className={cx('mx-auto overflow-hidden rounded-[2rem] border-8 border-zinc-900 bg-white shadow-xl', device === 'mobile' ? 'h-[760px] w-[390px] max-w-full' : 'h-[640px] w-full')}>
             <iframe key={previewKey} src={previewUrl} title="Guest site preview (draft)" className="h-full w-full border-0" />
           </div>
-          <p className="mt-2 text-center text-xs text-zinc-500">The preview shows the saved draft, including hidden catalog changes already saved.</p>
+          <p className="mt-2 text-center text-xs text-zinc-500">Shows the saved draft homepage with the live catalog. Guests keep seeing the published version until you publish.</p>
         </aside>
       </div>
     </>
@@ -210,10 +210,10 @@ function Row({ title, subtitle, visible, onToggle, onUp, onDown, onDelete, child
     <li className={cx('rounded-xl border border-black/[0.08] bg-white', visible === false && 'bg-zinc-50')}>
       <div className="flex items-center gap-2 px-3 py-2.5">
         <div className="flex flex-col">
-          <IconButton label={`Move ${title} up`} className="h-6 w-6" onClick={onUp}>
+          <IconButton label={`Move ${title} up`} size="xs" onClick={onUp}>
             <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
           </IconButton>
-          <IconButton label={`Move ${title} down`} className="h-6 w-6" onClick={onDown}>
+          <IconButton label={`Move ${title} down`} size="xs" onClick={onDown}>
             <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
           </IconButton>
         </div>
@@ -226,12 +226,12 @@ function Row({ title, subtitle, visible, onToggle, onUp, onDown, onDelete, child
           {subtitle && <span className="block truncate text-xs text-zinc-500">{subtitle}</span>}
         </button>
         {onToggle && (
-          <IconButton label={visible ? `Hide ${title}` : `Show ${title}`} onClick={onToggle} className="h-9 w-9">
+          <IconButton label={visible ? `Hide ${title}` : `Show ${title}`} onClick={onToggle} size="sm">
             {visible ? <Eye className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4 text-zinc-400" aria-hidden="true" />}
           </IconButton>
         )}
         {onDelete && (
-          <IconButton label={`Delete ${title}`} onClick={onDelete} className="h-9 w-9 text-red-600">
+          <IconButton label={`Delete ${title}`} onClick={onDelete} size="sm" className="text-red-600">
             <Trash2 className="h-4 w-4" aria-hidden="true" />
           </IconButton>
         )}
