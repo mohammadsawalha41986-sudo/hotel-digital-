@@ -66,6 +66,7 @@ export function MediaInput({ hid, id, value, onChange, kind = 'image', invalid }
           type="file"
           className="sr-only"
           tabIndex={-1}
+          aria-label={`Upload ${kind} file`}
           accept={kind === 'video' ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/webp,image/avif,image/gif'}
           onChange={(e) => {
             const f = e.target.files?.[0];

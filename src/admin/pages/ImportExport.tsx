@@ -155,7 +155,7 @@ export function ImportExport({ hid }: { hid: string }) {
               <Segmented label="Duplicate handling" value={mode} onChange={(v) => { setMode(v); setResult(null); }} options={[{ value: 'upsert', label: 'Update existing' }, { value: 'create_only', label: 'Reject duplicates' }]} />
               <p className="mt-1 text-xs text-zinc-500">Rows match by id, or by name within the same parent.</p>
             </div>
-            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="sr-only" tabIndex={-1} onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); e.target.value = ''; }} />
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="sr-only" tabIndex={-1} aria-label="Spreadsheet file" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); e.target.value = ''; }} />
             <Button block className="rounded-lg" onClick={() => fileRef.current?.click()} loading={run.isPending && !run.variables}>
               <Upload className="h-4 w-4" aria-hidden="true" /> Upload file & preview
             </Button>

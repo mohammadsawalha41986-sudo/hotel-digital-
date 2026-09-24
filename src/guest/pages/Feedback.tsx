@@ -128,6 +128,8 @@ export function Feedback() {
             accept="image/jpeg,image/png,image/webp"
             className="sr-only"
             id="fb-file"
+            tabIndex={-1}
+            aria-label={t('attachPhoto')}
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) upload.mutate(f);

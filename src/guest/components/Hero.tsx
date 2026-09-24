@@ -29,8 +29,9 @@ export function Hero() {
     cta_label_en: '', cta_label_ar: '', cta_page: 'none', starts_at: null, ends_at: null, visible: true,
   };
   const s = slides[i] ?? fallback;
-  const headline = (lang === 'ar' ? s.headline_ar : s.headline_en) || (i === 0 ? (lang === 'ar' ? p.name_ar : p.name_en) : '');
-  const subtitle = lang === 'ar' ? s.subtitle_ar : s.subtitle_en;
+  // Untitled slides still carry the hotel's name so the hero never reads empty.
+  const headline = (lang === 'ar' ? s.headline_ar || s.headline_en : s.headline_en || s.headline_ar) || (lang === 'ar' ? p.name_ar : p.name_en);
+  const subtitle = (lang === 'ar' ? s.subtitle_ar : s.subtitle_en) || (s.headline_en || s.headline_ar ? '' : lang === 'ar' ? p.tagline_ar : p.tagline_en);
   const cta = lang === 'ar' ? s.cta_label_ar : s.cta_label_en;
 
   return (

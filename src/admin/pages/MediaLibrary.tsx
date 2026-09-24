@@ -59,7 +59,7 @@ export function MediaLibrary({ hid }: { hid: string }) {
         description="Uploaded files and external links available to every image and video field. Uploads are validated by content (not file extension) and resized for fast loading."
         actions={
           <>
-            <input ref={fileRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif,image/gif,video/mp4,video/webm" className="sr-only" tabIndex={-1} onChange={(e) => e.target.files && onFiles(e.target.files).then(() => (e.target.value = ''))} />
+            <input ref={fileRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif,image/gif,video/mp4,video/webm" className="sr-only" tabIndex={-1} aria-label="Upload files" onChange={(e) => e.target.files && onFiles(e.target.files).then(() => (e.target.value = ''))} />
             <Button size="sm" className="rounded-lg" loading={uploading > 0} onClick={() => fileRef.current?.click()}>
               <Upload className="h-4 w-4" aria-hidden="true" /> Upload files
             </Button>

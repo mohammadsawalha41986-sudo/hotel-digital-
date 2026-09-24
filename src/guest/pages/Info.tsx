@@ -47,9 +47,9 @@ export function Info() {
                       <Icon name={i.icon as string} className="h-5 w-5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-baseline justify-between gap-3">
+                      <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                         <span className="font-semibold">{pick(i, 'title')}</span>
-                        {pick(i, 'highlight') && <span className="ltr-nums shrink-0 text-sm font-semibold text-brand">{pick(i, 'highlight')}</span>}
+                        {pick(i, 'highlight') && <span className="ltr-nums min-w-0 text-sm font-semibold text-brand [overflow-wrap:anywhere]">{pick(i, 'highlight')}</span>}
                       </span>
                       {body && <span className="mt-1 block text-sm leading-relaxed whitespace-pre-line text-muted">{body}</span>}
                     </span>
