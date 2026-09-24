@@ -27,7 +27,6 @@ import {
   Flame,
 } from 'lucide-react';
 import { Hotel, Language } from '../../types/hotel';
-import { getContactsForHotel } from '../../data/swissFloraData';
 import { GuestAssistanceModal, AssistanceFormMode } from './GuestAssistanceModal';
 
 interface HotelInfoContactSectionProps {
@@ -49,14 +48,27 @@ export const HotelInfoContactSection: React.FC<HotelInfoContactSectionProps> = (
   // Modal State for Complaints / Feedback / Suggestions
   const [modalMode, setModalMode] = useState<AssistanceFormMode | null>(null);
 
-  const contacts = getContactsForHotel(hotel.id);
+  const contacts = hotel.phone || hotel.whatsapp_number
+    ? [{
+        id: 'front-desk',
+        name_en: 'Reception & Guest Relations',
+        name_ar: 'الاستقبال وعلاقات النزلاء',
+        hours_en: '24/7 Available',
+        hours_ar: 'متاح على مدار الساعة',
+        extension: '',
+        default_message_en: 'Contact the hotel team for assistance during your stay.',
+        default_message_ar: 'تواصل مع فريق الفندق للمساعدة خلال إقامتك.',
+        phone: hotel.phone || '',
+        whatsapp_number: hotel.whatsapp_number || '',
+      }]
+    : [];
 
   const mapSearchQuery = encodeURIComponent(
     `${hotel.name_en} ${hotel.address_en || hotel.city_en || 'Riyadh'}`
   );
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapSearchQuery}`;
 
-  const frontDeskPhone = hotel.phone || '+966112349999';
+  const frontDeskPhone = hotel.phone || '';
   const frontDeskWhatsapp = hotel.whatsapp_number || frontDeskPhone;
 
   return (
@@ -198,7 +210,7 @@ export const HotelInfoContactSection: React.FC<HotelInfoContactSectionProps> = (
                   </h3>
 
                   <div className="space-y-3">
-                    <a
+                    {hotel.phone && <a
                       href={`tel:${hotel.phone}`}
                       className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-stone-50 border border-stone-200/80 hover:border-amber-400 transition-colors group"
                     >
@@ -213,9 +225,9 @@ export const HotelInfoContactSection: React.FC<HotelInfoContactSectionProps> = (
                           {hotel.phone}
                         </span>
                       </div>
-                    </a>
+                    </a>}
 
-                    <a
+                    {frontDeskWhatsapp && <a
                       href={`https://wa.me/${frontDeskWhatsapp.replace(/[^0-9]/g, '')}`}
                       target="_blank"
                       rel="noreferrer"
@@ -232,7 +244,7 @@ export const HotelInfoContactSection: React.FC<HotelInfoContactSectionProps> = (
                           {hotel.whatsapp_number || hotel.phone}
                         </span>
                       </div>
-                    </a>
+                    </a>}
                   </div>
                 </div>
 
@@ -450,10 +462,12 @@ export const HotelInfoContactSection: React.FC<HotelInfoContactSectionProps> = (
                 </p>
               </div>
 
-              <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold font-mono shrink-0">
-                <Phone size={14} />
-                <span>{isAr ? 'تحويلة الاستقبال السريع: 0' : 'Front Desk Fast Dial: 0'}</span>
-              </div>
+              {frontDeskPhone && (
+                <a href={`tel:${frontDeskPhone}`} className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold font-mono shrink-0">
+                  <Phone size={14} />
+                  <span>{frontDeskPhone}</span>
+                </a>
+              )}
             </div>
 
             {/* Department Cards Grid */}
@@ -474,9 +488,11 @@ export const HotelInfoContactSection: React.FC<HotelInfoContactSectionProps> = (
                         </span>
                       </div>
 
-                      <span className="px-2.5 py-1 rounded-xl bg-stone-100 text-stone-800 text-xs font-bold font-mono">
-                        {isAr ? `تحويلة ${contact.extension}` : `Ext ${contact.extension}`}
-                      </span>
+                      {contact.extension && (
+                        <span className="px-2.5 py-1 rounded-xl bg-stone-100 text-stone-800 text-xs font-bold font-mono">
+                          {isAr ? `تحويلة ${contact.extension}` : `Ext ${contact.extension}`}
+                        </span>
+                      )}
                     </div>
 
                     <p className="text-xs text-stone-600 leading-relaxed">
@@ -664,7 +680,7 @@ export const HotelInfoContactSection: React.FC<HotelInfoContactSectionProps> = (
               </div>
 
               {/* 6. Direct Front Desk Call fallback */}
-              <div className="bg-stone-100 rounded-3xl p-6 sm:p-7 border border-stone-200/90 shadow-2xs flex flex-col justify-between space-y-4">
+              {frontDeskPhone && <div className="bg-stone-100 rounded-3xl p-6 sm:p-7 border border-stone-200/90 shadow-2xs flex flex-col justify-between space-y-4">
                 <div className="space-y-3">
                   <div className="w-12 h-12 rounded-2xl bg-white text-stone-900 flex items-center justify-center shadow-2xs">
                     <Phone size={22} />
@@ -674,8 +690,8 @@ export const HotelInfoContactSection: React.FC<HotelInfoContactSectionProps> = (
                   </h4>
                   <p className="text-xs text-stone-600 leading-relaxed">
                     {isAr
-                      ? 'يمكنك دائماً رفع سماعة هاتف الغرفة والضغط على (0) للتحدث فوراً مع موظف الاستقبال.'
-                      : 'Pick up your room telephone and dial 0 to speak directly with an on-duty front desk agent.'}
+                      ? 'استخدم رقم الفندق المعتمد للتحدث مباشرة مع موظف الاستقبال.'
+                      : 'Use the verified hotel number to speak directly with the front desk team.'}
                   </p>
                 </div>
                 <a
@@ -685,7 +701,7 @@ export const HotelInfoContactSection: React.FC<HotelInfoContactSectionProps> = (
                   <Phone size={13} className="text-amber-300" />
                   <span>{isAr ? 'اتصل الآن بالاستقبال' : 'Call Front Desk Now'}</span>
                 </a>
-              </div>
+              </div>}
             </div>
           </div>
         )}
@@ -800,15 +816,15 @@ export const HotelInfoContactSection: React.FC<HotelInfoContactSectionProps> = (
                   </p>
                 </div>
 
-                <div className="pt-2 flex items-center gap-3">
+                {frontDeskPhone && <div className="pt-2 flex items-center gap-3">
                   <a
                     href={`tel:${frontDeskPhone}`}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold transition-colors"
                   >
                     <Phone size={13} className="text-amber-300" />
-                    <span>{isAr ? 'اتصال بأمن الفندق (0)' : 'Call Security / Reception (0)'}</span>
+                    <span>{isAr ? 'اتصال بأمن الفندق أو الاستقبال' : 'Call Security / Reception'}</span>
                   </a>
-                </div>
+                </div>}
               </div>
 
               {/* Management Escalation Guarantee */}

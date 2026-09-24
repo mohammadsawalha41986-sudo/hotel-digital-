@@ -1715,11 +1715,15 @@ export function getHotelWellnessServices(hotelId: string): WellnessService[] {
   return getWellnessForHotel(hotelId);
 }
 
-export function getHotelLaundryItems(hotelId: string): LaundryCatalogItem[] {
-  const isSwissFlora = hotelId === '11' || hotelId === '12' || hotelId.includes('swiss-flora');
-  if (!isSwissFlora) return DEFAULT_LAUNDRY_ITEMS;
-  
-  const phone = '+966112349999';
+export function getHotelLaundryItems(hotelId: string, customPhone?: string): LaundryCatalogItem[] {
+  const isRoyal = hotelId === '11' || hotelId === 'swiss-flora-royal';
+  const isInn = hotelId === '12' || hotelId === 'swiss-flora-inn';
+
+  if (!isRoyal && !isInn) {
+    return [];
+  }
+
+  const phone = customPhone || (isRoyal ? '+966539201105' : '+966112349999');
   const ext = '4'; // Housekeeping & laundry ext
   return DEFAULT_LAUNDRY_ITEMS.map((item) => ({
     ...item,
@@ -1730,11 +1734,15 @@ export function getHotelLaundryItems(hotelId: string): LaundryCatalogItem[] {
   }));
 }
 
-export function getHotelGuestServices(hotelId: string): GuestServiceCatalogItem[] {
-  const isSwissFlora = hotelId === '11' || hotelId === '12' || hotelId.includes('swiss-flora');
-  if (!isSwissFlora) return DEFAULT_GUEST_SERVICES;
+export function getHotelGuestServices(hotelId: string, customPhone?: string): GuestServiceCatalogItem[] {
+  const isRoyal = hotelId === '11' || hotelId === 'swiss-flora-royal';
+  const isInn = hotelId === '12' || hotelId === 'swiss-flora-inn';
 
-  const phone = '+966112349999';
+  if (!isRoyal && !isInn) {
+    return [];
+  }
+
+  const phone = customPhone || (isRoyal ? '+966555072806' : '+966112349999');
   return DEFAULT_GUEST_SERVICES.map((srv) => ({
     ...srv,
     hotel_id: hotelId,

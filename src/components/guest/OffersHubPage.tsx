@@ -92,16 +92,16 @@ export const OffersHubPage: React.FC<OffersHubPageProps> = ({
             </h1>
 
             <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
-              {isAr
-                ? `استمتع بأفضل العروض الحصرية لنزلاء ${hotel.name_ar}: وجبات إفطار مجانية، خصومات استثنائية على جلسات السبا، وعروض البوفيه الفاخر.`
-                : `Enjoy curated exclusive privileges at ${hotel.name_en}: dining promotions, wellness & spa rituals, and special seasonal offerings.`}
+              {offers.length > 0
+                ? (isAr ? `اكتشف العروض والباقات المنشورة لنزلاء ${hotel.name_ar}.` : `Discover the offers and packages currently published for guests of ${hotel.name_en}.`)
+                : (isAr ? 'لا توجد عروض منشورة حالياً. ستظهر العروض هنا بعد اعتمادها من إدارة الفندق.' : 'There are no published offers at the moment. New offers will appear here once approved by the hotel.')}
             </p>
           </div>
         </div>
       </div>
 
       {/* 2. Filter Navigation Chips */}
-      <div className="bg-white border-b border-stone-200 sticky top-16 z-20 shadow-2xs">
+      {offers.length > 0 && <div className="bg-white border-b border-stone-200 sticky top-16 z-20 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
             {categories.map((cat) => {
@@ -122,7 +122,7 @@ export const OffersHubPage: React.FC<OffersHubPageProps> = ({
             })}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* 3. Offers Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8">

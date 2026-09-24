@@ -24,7 +24,7 @@ import {
 
 interface ImportCenterViewProps {
   hotel: Hotel;
-  onImportCompleted: (templateType: ImportTemplateType, importedRows: any[]) => void;
+  onImportCompleted: (templateType: ImportTemplateType, importedRows: any[]) => Promise<void>;
   onMarkUnpublishedChanges: () => void;
 }
 
@@ -59,18 +59,22 @@ export const ImportCenterView: React.FC<ImportCenterViewProps> = ({
     }
   };
 
-  const handleCommitImport = () => {
-    if (!report || report.valid_count === 0) return;
-
-    onImportCompleted(selectedTemplate, rawRows);
-    onMarkUnpublishedChanges();
-
-    setSuccessToast(
-      `Successfully imported ${report.valid_count} records into ${hotel.name_en}!`
-    );
-    setTimeout(() => setSuccessToast(null), 4000);
-    setReport(null);
-    setRawRows([]);
+  const handleCommitImport = async () => {
+    if (!report || report.valid_count === 0 || report.invalid_count > 0) return;
+    setIsProcessing(true);
+    setErrorMessage(null);
+    try {
+      await onImportCompleted(selectedTemplate, rawRows);
+      onMarkUnpublishedChanges();
+      setSuccessToast(`Successfully imported ${report.valid_count} records into ${hotel.name_en}!`);
+      setTimeout(() => setSuccessToast(null), 4000);
+      setReport(null);
+      setRawRows([]);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'The import could not be saved.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -203,11 +207,15 @@ export const ImportCenterView: React.FC<ImportCenterViewProps> = ({
 
             <button
               onClick={handleCommitImport}
-              disabled={report.valid_count === 0}
+              disabled={report.valid_count === 0 || report.invalid_count > 0 || isProcessing}
               className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
             >
               <CheckCircle2 size={14} />
-              <span>Commit & Import ({report.valid_count} Valid Records)</span>
+              <span>
+                {report.invalid_count > 0
+                  ? `Fix ${report.invalid_count} Invalid Rows Before Import`
+                  : `Commit & Import (${report.valid_count} Valid Records)`}
+              </span>
             </button>
           </div>
 

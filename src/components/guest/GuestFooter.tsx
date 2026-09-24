@@ -17,6 +17,7 @@ interface GuestFooterProps {
   language: Language;
   onToggleLanguage: () => void;
   onNavigateSection?: (href: string) => void;
+  availableSectionIds?: string[];
 }
 
 export const GuestFooter: React.FC<GuestFooterProps> = ({
@@ -24,11 +25,16 @@ export const GuestFooter: React.FC<GuestFooterProps> = ({
   language,
   onToggleLanguage,
   onNavigateSection,
+  availableSectionIds,
 }) => {
   const isAr = language === 'ar';
   const t = (key: Parameters<typeof getTranslation>[1]) => getTranslation(language, key);
 
   const scrollToTop = () => {
+    if (onNavigateSection) {
+      onNavigateSection('#top');
+      return;
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -37,6 +43,9 @@ export const GuestFooter: React.FC<GuestFooterProps> = ({
     const found = hotel.portal_config.sections.find((s) => s.code === code);
     return found ? found.is_enabled : true;
   };
+
+  const isLinkAvailable = (href: string) =>
+    !availableSectionIds || availableSectionIds.includes(href.replace(/^#/, ''));
 
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     if (onNavigateSection) {
@@ -70,8 +79,8 @@ export const GuestFooter: React.FC<GuestFooterProps> = ({
             <button
               onClick={scrollToTop}
               className="p-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-700 cursor-pointer transition-colors"
-              title="Back to Top"
-              aria-label="Back to Top"
+              title={isAr ? 'العودة إلى الأعلى' : 'Back to Top'}
+              aria-label={isAr ? 'العودة إلى الأعلى' : 'Back to Top'}
             >
               <ChevronUp size={16} />
             </button>
@@ -127,7 +136,7 @@ export const GuestFooter: React.FC<GuestFooterProps> = ({
               {isAr ? 'تجربة الإقامة' : 'GUEST EXPERIENCE'}
             </h4>
             <ul className="space-y-2.5 text-stone-400">
-              {isSectionEnabled('rooms') && (
+              {isSectionEnabled('rooms') && isLinkAvailable('#rooms-suites') && (
                 <li>
                   <a
                     href="#rooms-suites"
@@ -138,7 +147,7 @@ export const GuestFooter: React.FC<GuestFooterProps> = ({
                   </a>
                 </li>
               )}
-              {isSectionEnabled('offers') && (
+              {isSectionEnabled('offers') && isLinkAvailable('#hotel-offers') && (
                 <li>
                   <a
                     href="#hotel-offers"
@@ -149,7 +158,7 @@ export const GuestFooter: React.FC<GuestFooterProps> = ({
                   </a>
                 </li>
               )}
-              {isSectionEnabled('about') && (
+              {isSectionEnabled('about') && isLinkAvailable('#about-hotel') && (
                 <li>
                   <a
                     href="#about-hotel"
@@ -160,7 +169,7 @@ export const GuestFooter: React.FC<GuestFooterProps> = ({
                   </a>
                 </li>
               )}
-              {isSectionEnabled('facilities') && (
+              {isSectionEnabled('facilities') && isLinkAvailable('#hotel-facilities') && (
                 <li>
                   <a
                     href="#hotel-facilities"
@@ -180,7 +189,7 @@ export const GuestFooter: React.FC<GuestFooterProps> = ({
               {isAr ? 'المطاعم والسبا' : 'DINING & WELLNESS'}
             </h4>
             <ul className="space-y-2.5 text-stone-400">
-              {isSectionEnabled('dining') && (
+              {isSectionEnabled('dining') && isLinkAvailable('#dining-venues') && (
                 <li>
                   <a
                     href="#dining-venues"
@@ -191,7 +200,7 @@ export const GuestFooter: React.FC<GuestFooterProps> = ({
                   </a>
                 </li>
               )}
-              {isSectionEnabled('wellness') && (
+              {isSectionEnabled('wellness') && isLinkAvailable('#wellness-spa') && (
                 <li>
                   <a
                     href="#wellness-spa"
@@ -202,7 +211,7 @@ export const GuestFooter: React.FC<GuestFooterProps> = ({
                   </a>
                 </li>
               )}
-              {isSectionEnabled('room_service_cafe') && (
+              {isSectionEnabled('room_service_cafe') && isLinkAvailable('#room-service-cafe') && (
                 <>
                   <li>
                     <a
@@ -233,7 +242,7 @@ export const GuestFooter: React.FC<GuestFooterProps> = ({
               {isAr ? 'خدمات النزلاء' : 'GUEST SERVICES'}
             </h4>
             <ul className="space-y-2.5 text-stone-400">
-              {isSectionEnabled('services') && (
+              {isSectionEnabled('services') && isLinkAvailable('#hotel-services') && (
                 <>
                   <li>
                     <a
@@ -255,7 +264,7 @@ export const GuestFooter: React.FC<GuestFooterProps> = ({
                   </li>
                 </>
               )}
-              {isSectionEnabled('contact') && (
+              {isSectionEnabled('contact') && isLinkAvailable('#contact-location') && (
                 <li>
                   <a
                     href="#contact-location"

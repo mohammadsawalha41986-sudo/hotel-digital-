@@ -22,6 +22,8 @@ import { OrderBasketDrawer } from './OrderBasketDrawer';
 
 interface FBOutletDetailPageProps {
   outlet: FBOutlet;
+  hotelNameEn?: string;
+  hotelNameAr?: string;
   currency: string;
   language: Language;
   roomNumber: string;
@@ -31,6 +33,8 @@ interface FBOutletDetailPageProps {
 
 export const FBOutletDetailPage: React.FC<FBOutletDetailPageProps> = ({
   outlet,
+  hotelNameEn,
+  hotelNameAr,
   currency,
   language,
   roomNumber,
@@ -651,6 +655,8 @@ export const FBOutletDetailPage: React.FC<FBOutletDetailPageProps> = ({
       {isBasketOpen && (
         <OrderBasketDrawer
           outlet={outlet}
+          hotelNameEn={hotelNameEn}
+          hotelNameAr={hotelNameAr}
           items={basketItems}
           currency={currency}
           language={language}

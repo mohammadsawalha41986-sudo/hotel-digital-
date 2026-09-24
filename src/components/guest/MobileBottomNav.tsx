@@ -14,6 +14,7 @@ interface MobileBottomNavProps {
   onSelectTab: (tab: TopLevelDepartment) => void;
   language: Language;
   offersCount?: number;
+  availableDepartments?: TopLevelDepartment[];
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -21,6 +22,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onSelectTab,
   language,
   offersCount = 0,
+  availableDepartments,
 }) => {
   const isAr = language === 'ar';
 
@@ -58,14 +60,21 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     },
   ];
 
+  const visibleItems = navItems.filter(
+    (item) => !availableDepartments || availableDepartments.includes(item.id)
+  );
+
   return (
     <nav
       id="mobile-bottom-nav"
       aria-label="Mobile Bottom Navigation"
       className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-stone-900/95 backdrop-blur-xl border-t border-stone-800 text-stone-300 shadow-2xl pb-[env(safe-area-inset-bottom)] select-none"
     >
-      <div className="grid grid-cols-5 h-16 max-w-lg mx-auto">
-        {navItems.map((item) => {
+      <div
+        className="grid h-16 max-w-lg mx-auto"
+        style={{ gridTemplateColumns: `repeat(${visibleItems.length}, minmax(0, 1fr))` }}
+      >
+        {visibleItems.map((item) => {
           const IconComp = item.icon;
           const isActive = activeTab === item.id;
 

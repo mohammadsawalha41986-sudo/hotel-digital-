@@ -16,6 +16,7 @@ import {
   generateOperationalReference,
   saveOperationalRequest,
 } from '../../utils/requestStore';
+import { updateRequestStatus, normalizeRequestStatus, submitProductionRequest } from '../../services/requestService';
 
 interface OperationsViewProps {
   hotel: Hotel;
@@ -51,14 +52,24 @@ export const OperationsView: React.FC<OperationsViewProps> = ({
   const handleStatusChange = (status: OperationalRequestStatus) => {
     if (!activeRequest) return;
     updateOperationalRequestStatus(activeRequest.id, status);
+    updateRequestStatus(hotel.id, activeRequest.id, normalizeRequestStatus(status)).catch((err) =>
+      console.warn('[OperationsView] Status update sync error:', err)
+    );
     setActiveRequest({ ...activeRequest, status, updated_at: new Date().toISOString() });
     onRefreshRequests();
   };
 
   const handleAssignStaff = () => {
     if (!activeRequest || !staffNameInput.trim()) return;
-    assignStaffToRequest(activeRequest.id, staffNameInput.trim());
-    setActiveRequest({ ...activeRequest, assigned_staff: staffNameInput.trim() });
+    const staff = staffNameInput.trim();
+    assignStaffToRequest(activeRequest.id, staff);
+    updateRequestStatus(
+      hotel.id,
+      activeRequest.id,
+      normalizeRequestStatus(activeRequest.status),
+      staff
+    ).catch((err) => console.warn('[OperationsView] Assign staff sync error:', err));
+    setActiveRequest({ ...activeRequest, assigned_staff: staff });
     setStaffNameInput('');
     onRefreshRequests();
   };
@@ -109,6 +120,37 @@ export const OperationsView: React.FC<OperationsViewProps> = ({
       updated_at: new Date().toISOString(),
     };
     saveOperationalRequest(sample);
+    submitProductionRequest({
+      id: ref,
+      reference: ref,
+      hotelId: hotel.id,
+      hotelNameEn: hotel.name_en,
+      hotelNameAr: hotel.name_ar,
+      department: 'FNB',
+      requestType: 'In-Room Dining Kitchen',
+      customerType: 'IN_HOUSE',
+      roomNumber: '402',
+      guestName: 'VIP Guest (Suite 402)',
+      guestPhone: '+966551234567',
+      items: sample.items?.map((it) => ({
+        id: it.id,
+        nameEn: it.name_en,
+        nameAr: it.name_ar,
+        quantity: it.quantity,
+        unitPrice: it.unit_price,
+        totalPrice: it.total_price,
+        options: it.options,
+      })),
+      total: 240,
+      currency: 'SAR',
+      notes: sample.notes,
+      status: 'NEW',
+      channel: 'DIRECT_PORTAL',
+      targetWhatsApp: '+966112000002',
+      whatsappMessageEn: sample.whatsapp_message_en,
+      whatsappMessageAr: sample.whatsapp_message_ar,
+    }).catch((err) => console.warn('[OperationsView] Sample order sync error:', err));
+
     onRefreshRequests();
     setActiveRequest(sample);
   };

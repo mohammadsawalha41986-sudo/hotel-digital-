@@ -17,6 +17,7 @@ interface GuestHeaderProps {
   roomNumber: string;
   onSetRoomNumber: (num: string) => void;
   onNavigateSection?: (sectionHref: string) => void;
+  availableSectionIds?: string[];
 }
 
 export const GuestHeader: React.FC<GuestHeaderProps> = ({
@@ -26,6 +27,7 @@ export const GuestHeader: React.FC<GuestHeaderProps> = ({
   roomNumber,
   onSetRoomNumber,
   onNavigateSection,
+  availableSectionIds,
 }) => {
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [tempRoomInput, setTempRoomInput] = useState(roomNumber);
@@ -46,8 +48,18 @@ export const GuestHeader: React.FC<GuestHeaderProps> = ({
     return found ? found.is_enabled : true;
   };
 
-  // Nav links strictly filtered by enabled sections in portal config
-  const navLinks = [
+  const configuredNavLinks = (currentHotel.portal_config?.navigation_items || [])
+    .filter((item) => item.is_enabled)
+    .filter((item) => !availableSectionIds || availableSectionIds.includes(item.target_section.replace(/^#/, '')))
+    .sort((a, b) => a.order - b.order)
+    .map((item) => ({
+      href: item.target_section.startsWith('#') ? item.target_section : `#${item.target_section}`,
+      label: isAr ? item.label_ar : item.label_en,
+    }));
+
+  // Use the persisted navigation menu when configured; otherwise retain the
+  // platform defaults filtered by section visibility.
+  const defaultNavLinks = [
     { href: '#top', label: isAr ? 'الرئيسية' : 'Home' },
     ...(isSectionEnabled('offers') ? [{ href: '#hotel-offers', label: t('nav_offers') }] : []),
     ...(isSectionEnabled('about') ? [{ href: '#about-hotel', label: isAr ? 'عن الفندق' : 'About' }] : []),
@@ -57,11 +69,13 @@ export const GuestHeader: React.FC<GuestHeaderProps> = ({
     ...(isSectionEnabled('room_service_cafe') ? [{ href: '#room-service-cafe', label: t('nav_cafe') || 'In-Room & Café' }] : []),
     ...(isSectionEnabled('services') ? [{ href: '#hotel-services', label: t('nav_services') }] : []),
     ...(isSectionEnabled('contact') ? [{ href: '#contact-location', label: t('nav_contact') }] : []),
-  ];
+  ].filter((link) => !availableSectionIds || availableSectionIds.includes(link.href.replace(/^#/, '')));
+  const navLinks = configuredNavLinks.length > 0 ? configuredNavLinks : defaultNavLinks;
 
-  const handleNavClick = (_e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     setMobileMenuOpen(false);
     if (onNavigateSection) {
+      e.preventDefault();
       onNavigateSection(href);
     }
   };
@@ -146,7 +160,7 @@ export const GuestHeader: React.FC<GuestHeaderProps> = ({
                 <img
                   src={currentHotel.logo_url}
                   alt={currentHotel.name_en}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain bg-white p-1"
                 />
               ) : (
                 <span>{currentHotel.name_en.charAt(0)}</span>
@@ -156,6 +170,7 @@ export const GuestHeader: React.FC<GuestHeaderProps> = ({
             <div>
               <a
                 href="#top"
+                onClick={(e) => handleNavClick(e, '#top')}
                 className="text-base sm:text-lg font-serif font-bold tracking-tight text-stone-900 hover:opacity-90 transition-opacity block"
                 style={{ color: 'var(--hotel-secondary, #1c1917)' }}
               >
@@ -168,7 +183,7 @@ export const GuestHeader: React.FC<GuestHeaderProps> = ({
           </div>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden xl:flex items-center gap-6 text-xs font-medium text-stone-700">
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-6 text-xs font-medium text-stone-700">
             {navLinks.map((link) => (
               <a
                 key={link.href}
@@ -183,7 +198,7 @@ export const GuestHeader: React.FC<GuestHeaderProps> = ({
           </nav>
 
           {/* Mobile Menu Toggle Button */}
-          <div className="flex items-center gap-2 xl:hidden">
+          <div className="flex items-center gap-2 lg:hidden">
             <button
               id="header-mobile-menu-btn"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -197,7 +212,7 @@ export const GuestHeader: React.FC<GuestHeaderProps> = ({
 
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="xl:hidden pt-4 pb-2 border-t border-stone-100 mt-3 space-y-2 text-sm">
+          <div className="lg:hidden pt-4 pb-2 border-t border-stone-100 mt-3 space-y-2 text-sm">
             <div className="grid grid-cols-2 gap-2">
               {navLinks.map((link) => (
                 <a

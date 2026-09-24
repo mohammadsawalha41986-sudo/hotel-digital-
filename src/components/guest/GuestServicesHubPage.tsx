@@ -17,8 +17,12 @@ import { GuestServiceCatalogItem, GuestServiceRequest } from '../../types/depart
 import { Language } from '../../types/hotel';
 import { generateOperationalReference, saveOperationalRequest } from '../../utils/requestStore';
 import { buildBilingualWhatsAppMessage, buildEncodedWhatsAppUrl } from '../../utils/whatsappMessageBuilder';
+import { submitProductionRequest, normalizeDepartmentCode } from '../../services/requestService';
 
 interface GuestServicesHubPageProps {
+  hotelId?: string;
+  hotelNameEn?: string;
+  hotelNameAr?: string;
   services: GuestServiceCatalogItem[];
   currency: string;
   language: Language;
@@ -26,6 +30,9 @@ interface GuestServicesHubPageProps {
 }
 
 export const GuestServicesHubPage: React.FC<GuestServicesHubPageProps> = ({
+  hotelId,
+  hotelNameEn,
+  hotelNameAr,
   services,
   currency: _currency,
   language,
@@ -78,13 +85,17 @@ export const GuestServicesHubPage: React.FC<GuestServicesHubPageProps> = ({
     const guestDisplayName = guestName.trim() || (isAr ? 'نزيل الفندق' : 'In-House Guest');
     const deptText = isAr ? selectedService.responsible_department_ar : selectedService.responsible_department_en;
 
+    const effectiveHotelId = hotelId || selectedService.hotel_id || '11';
+    const effectiveHotelNameEn = hotelNameEn || 'Swiss Flora Royal Hotel Riyadh';
+    const effectiveHotelNameAr = hotelNameAr || 'فندق سويس فلورا رويال الرياض';
+
     // 1. Build standardized bilingual WhatsApp message (English first, separator, Arabic second)
     const { englishText, arabicText, fullMessage } = buildBilingualWhatsAppMessage({
       requestTypeEn: `Guest Service Request (${deptText})`,
       requestTypeAr: `طلب خدمة نزيل (${deptText})`,
       referenceNumber: refId,
-      hotelNameEn: 'Swiss Flora Royal Hotel Riyadh',
-      hotelNameAr: 'فندق سويس فلورا رويال الرياض',
+      hotelNameEn: effectiveHotelNameEn,
+      hotelNameAr: effectiveHotelNameAr,
       outletOrServiceNameEn: selectedService.title_en,
       outletOrServiceNameAr: selectedService.title_ar,
       roomNumber: roomNumber || undefined,
@@ -107,9 +118,9 @@ export const GuestServicesHubPage: React.FC<GuestServicesHubPageProps> = ({
     // 2. Critical Rule: SAVE TO SYSTEM BEFORE WHATSAPP!
     saveOperationalRequest({
       id: refId,
-      hotel_id: selectedService.hotel_id || '11',
-      hotel_name_en: 'Swiss Flora Royal Hotel Riyadh',
-      hotel_name_ar: 'فندق سويس فلورا رويال الرياض',
+      hotel_id: effectiveHotelId,
+      hotel_name_en: effectiveHotelNameEn,
+      hotel_name_ar: effectiveHotelNameAr,
       department: selectedService.department === 'housekeeping' ? 'housekeeping' : selectedService.department === 'engineering' ? 'engineering' : 'guest_services',
       department_name_en: selectedService.responsible_department_en,
       department_name_ar: selectedService.responsible_department_ar,
@@ -129,6 +140,35 @@ export const GuestServicesHubPage: React.FC<GuestServicesHubPageProps> = ({
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
+
+    submitProductionRequest({
+      id: refId,
+      reference: refId,
+      hotelId: effectiveHotelId,
+      hotelNameEn: effectiveHotelNameEn,
+      hotelNameAr: effectiveHotelNameAr,
+      department: normalizeDepartmentCode(selectedService.department),
+      requestType: selectedService.title_en,
+      customerType: roomNumber ? 'IN_HOUSE' : 'EXTERNAL',
+      roomNumber: roomNumber || undefined,
+      guestName: guestDisplayName,
+      services: [
+        {
+          id: selectedService.id,
+          nameEn: `${selectedService.title_en}${selectedService.requires_quantity ? ` (Qty: ${quantity})` : ''}`,
+          nameAr: `${selectedService.title_ar}${selectedService.requires_quantity ? ` (العدد: ${quantity})` : ''}`,
+          time: preferredTime,
+        },
+      ],
+      total: 0,
+      currency: 'SAR',
+      notes: notes.trim() || undefined,
+      status: 'NEW',
+      channel: 'WHATSAPP',
+      targetWhatsApp: selectedService.whatsapp_number,
+      whatsappMessageEn: englishText,
+      whatsappMessageAr: arabicText,
+    }).catch((err) => console.error('[GuestServicesHubPage] Production request failed:', err));
 
     const req: GuestServiceRequest = {
       id: refId,
@@ -193,9 +233,9 @@ export const GuestServicesHubPage: React.FC<GuestServicesHubPageProps> = ({
             </h1>
 
             <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
-              {isAr
-                ? 'فريق الضيافة والصيانة في خدمتك على مدار الساعة. اطلب مستلزمات الغرف الإضافية، صيانة التكييف، نقل الحقائب، أو خدمة فتح الأغطية المسائية بضغطة زر وبزمن استجابة قياسي.'
-                : 'Round-the-clock rapid dispatch for housekeeping amenities, engineering diagnostics, luggage transport, and personalized comfort items with guaranteed SLA targets.'}
+              {services.length > 0
+                ? (isAr ? 'اختر إحدى الخدمات المنشورة وأرسل طلبك مباشرة إلى القسم المسؤول.' : 'Choose a published service and send your request directly to the responsible department.')
+                : (isAr ? 'لم تنشر إدارة الفندق خدمات للطلب المباشر بعد.' : 'The hotel has not published any direct-request services yet.')}
             </p>
           </div>
         </div>

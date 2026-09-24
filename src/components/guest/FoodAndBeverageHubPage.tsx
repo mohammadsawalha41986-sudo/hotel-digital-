@@ -16,10 +16,9 @@ import {
   Flame,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FBOutlet } from '../../types/department';
+import { FBDiningOffer, FBOutlet } from '../../types/department';
 import { Language, HotelOffer } from '../../types/hotel';
 import { getOperatingStatus, buildWhatsAppLink } from '../../utils/operatingStatus';
-import { DEFAULT_DINING_OFFERS } from '../../data/diningOffersData';
 
 interface FoodAndBeverageHubPageProps {
   outlets: FBOutlet[];
@@ -45,9 +44,9 @@ export const FoodAndBeverageHubPage: React.FC<FoodAndBeverageHubPageProps> = ({
   const [isSliderHovered, setIsSliderHovered] = useState(false);
   const autoplayTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const activeOffers = useMemo(() => {
-    return DEFAULT_DINING_OFFERS.filter((o) => o.active);
-  }, []);
+  // Offers must come from the hotel CMS. Do not expose platform demo offers
+  // on a live tenant merely because its outlet catalog is empty.
+  const activeOffers = useMemo<FBDiningOffer[]>(() => [], []);
 
   // Autoplay for offers slider (pauses on hover)
   useEffect(() => {
@@ -142,7 +141,11 @@ export const FoodAndBeverageHubPage: React.FC<FoodAndBeverageHubPageProps> = ({
 
           <div className="flex items-center gap-2 text-xs text-stone-500 font-medium">
             <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-            <span>{isAr ? 'خدمات الطعام والشراب متوفرة' : 'F&B Services Active'}</span>
+            <span>
+              {outlets.length > 0
+                ? (isAr ? 'خدمات الطعام والشراب متوفرة' : 'F&B Services Active')
+                : (isAr ? 'لم تتم إضافة منافذ بعد' : 'No outlets configured yet')}
+            </span>
           </div>
         </div>
       </div>
@@ -163,9 +166,9 @@ export const FoodAndBeverageHubPage: React.FC<FoodAndBeverageHubPageProps> = ({
           </h1>
 
           <p className="text-stone-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-            {isAr
-              ? 'اكتشف المطعم الرئيسي والكافيه والشيشة وخدمة الغرف والميني بار داخل الفندق.'
-              : 'Discover the hotel’s restaurants, café, shisha lounge, room service and minibar offerings.'}
+            {outlets.length > 0
+              ? (isAr ? 'استكشف منافذ الطعام والشراب المتاحة داخل الفندق.' : 'Explore the dining and beverage outlets currently available at the hotel.')
+              : (isAr ? 'سيتم نشر منافذ الطعام والشراب هنا فور اعتمادها من إدارة الفندق.' : 'Dining and beverage outlets will appear here once published by the hotel.')}
           </p>
         </div>
       </div>
@@ -337,7 +340,7 @@ export const FoodAndBeverageHubPage: React.FC<FoodAndBeverageHubPageProps> = ({
             </div>
 
             {/* Simple Filter Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {outlets.length > 0 && <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
               {filterTabs.map((tab) => {
                 const isActive = filterType === tab.id;
                 return (
@@ -354,7 +357,7 @@ export const FoodAndBeverageHubPage: React.FC<FoodAndBeverageHubPageProps> = ({
                   </button>
                 );
               })}
-            </div>
+            </div>}
           </div>
 
           {/* Outlets Grid */}
@@ -575,6 +578,17 @@ export const FoodAndBeverageHubPage: React.FC<FoodAndBeverageHubPageProps> = ({
               );
             })}
           </div>
+          {filteredOutlets.length === 0 && (
+            <div className="rounded-3xl border border-stone-200 bg-white px-6 py-14 text-center shadow-xs">
+              <UtensilsCrossed size={30} className="mx-auto mb-3 text-amber-700" />
+              <h3 className="font-serif text-xl font-bold text-stone-900">
+                {isAr ? 'لا توجد منافذ منشورة حالياً' : 'No published outlets yet'}
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-sm text-stone-500">
+                {isAr ? 'يرجى العودة لاحقاً أو التواصل مع الاستقبال للمساعدة.' : 'Please check back later or contact reception for assistance.'}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

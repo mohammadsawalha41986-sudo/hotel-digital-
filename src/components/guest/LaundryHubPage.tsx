@@ -51,8 +51,12 @@ import {
   buildBilingualWhatsAppMessage,
   buildEncodedWhatsAppUrl,
 } from '../../utils/whatsappMessageBuilder';
+import { submitProductionRequest } from '../../services/requestService';
 
 interface LaundryHubPageProps {
+  hotelId?: string;
+  hotelNameEn?: string;
+  hotelNameAr?: string;
   items?: LaundryCatalogItem[];
   contact?: DepartmentContact;
   operatingInfo?: OperatingInfo;
@@ -63,6 +67,9 @@ interface LaundryHubPageProps {
 }
 
 export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
+  hotelId,
+  hotelNameEn,
+  hotelNameAr,
   items: propItems,
   contact,
   operatingInfo: _operatingInfo,
@@ -78,12 +85,10 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
   // 1. DATA MERGING & CATEGORY NORMALIZATION
   // -------------------------------------------------------------------------
   const allGarments: LaundryGarmentItem[] = useMemo(() => {
-    // If props items are provided, merge or match them into the category-first schema
-    if (propItems && propItems.length > 0) {
+    // A provided collection is authoritative, including an explicitly empty
+    // collection. Static fixtures are only used when the prop is omitted.
+    if (propItems !== undefined) {
       const mergedMap = new Map<string, LaundryGarmentItem>();
-
-      // Populate with default rich catalog
-      DEFAULT_LAUNDRY_GARMENTS.forEach((g) => mergedMap.set(g.id, g));
 
       // Overwrite or add prop items
       propItems.forEach((pi) => {
@@ -97,12 +102,12 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
         else if (cLower.includes('under') || cLower.includes('sleep') || cLower.includes('sock')) catId = 'underwear_sleepwear';
         else if (cLower.includes('dress') || cLower.includes('gown')) catId = 'dresses_special';
 
-        const existing = mergedMap.get(pi.id);
         mergedMap.set(pi.id, {
-          ...(existing || {}),
           ...pi,
-          category_id: existing?.category_id || catId,
-        });
+          category_id: catId,
+          category_en: pi.category_en || 'Other Items',
+          category_ar: pi.category_ar || 'أصناف أخرى',
+        } as LaundryGarmentItem);
       });
 
       return Array.from(mergedMap.values()).filter((g) => g.is_active);
@@ -332,8 +337,7 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
   // -------------------------------------------------------------------------
   // 6. WHATSAPP & OPERATIONAL SUBMISSION
   // -------------------------------------------------------------------------
-  const valetWhatsApp =
-    contact?.whatsapp_number || '+966539201105'; // Configured Valet Laundry number
+  const valetWhatsApp = contact?.whatsapp_number || '';
 
   const handlePlaceLaundryRequest = () => {
     if (totalItemCount === 0) return;
@@ -381,13 +385,17 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
       .filter(Boolean)
       .join(' | ');
 
+    const effectiveHotelId = hotelId || '11';
+    const effectiveHotelNameEn = hotelNameEn || 'Swiss Flora Royal Hotel Riyadh';
+    const effectiveHotelNameAr = hotelNameAr || 'فندق سويس فلورا رويال الرياض';
+
     // 1. Build standardized bilingual WhatsApp message (English first, divider, Arabic second)
     const { englishText, arabicText, fullMessage } = buildBilingualWhatsAppMessage({
       requestTypeEn: `Valet Laundry & Garment Care (${isExpress ? 'Express 4-Hour' : 'Standard'})`,
       requestTypeAr: `طلب استلام ملابس للغسيل والمصبغة (${isExpress ? 'خدمة سريعة 4 ساعات' : 'خدمة قياسية'})`,
       referenceNumber: refCode,
-      hotelNameEn: 'Swiss Flora Royal Hotel Riyadh',
-      hotelNameAr: 'فندق سويس فلورا رويال الرياض',
+      hotelNameEn: effectiveHotelNameEn,
+      hotelNameAr: effectiveHotelNameAr,
       outletOrServiceNameEn: 'Valet Laundry Service',
       outletOrServiceNameAr: 'خدمة المغسلة والمصبغة الملكية',
       roomNumber: effectiveRoom,
@@ -404,9 +412,9 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
     // 2. Persist to system operational request store
     saveOperationalRequest({
       id: refCode,
-      hotel_id: '11',
-      hotel_name_en: 'Swiss Flora Royal Hotel Riyadh',
-      hotel_name_ar: 'فندق سويس فلورا رويال الرياض',
+      hotel_id: effectiveHotelId,
+      hotel_name_en: effectiveHotelNameEn,
+      hotel_name_ar: effectiveHotelNameAr,
       department: 'laundry',
       department_name_en: 'Valet Laundry',
       department_name_ar: 'المغسلة والمصبغة',
@@ -427,6 +435,36 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
+
+    submitProductionRequest({
+      id: refCode,
+      reference: refCode,
+      hotelId: effectiveHotelId,
+      hotelNameEn: effectiveHotelNameEn,
+      hotelNameAr: effectiveHotelNameAr,
+      department: 'LDY',
+      requestType: isExpress ? 'Express Valet Laundry (4-Hr)' : 'Standard Valet Laundry',
+      customerType: effectiveRoom !== 'Room Not Specified' ? 'IN_HOUSE' : 'EXTERNAL',
+      roomNumber: effectiveRoom !== 'Room Not Specified' ? effectiveRoom : undefined,
+      guestName: guestDisplayName,
+      items: formattedItems.map((it) => ({
+        id: it.id,
+        nameEn: it.name_en,
+        nameAr: it.name_ar,
+        quantity: it.quantity,
+        unitPrice: it.unit_price,
+        totalPrice: it.total_price,
+        options: it.options,
+      })),
+      total: grandTotal,
+      currency,
+      notes: combinedNotes || undefined,
+      status: 'NEW',
+      channel: 'WHATSAPP',
+      targetWhatsApp: valetWhatsApp,
+      whatsappMessageEn: englishText,
+      whatsappMessageAr: arabicText,
+    }).catch((err) => console.error('[LaundryHubPage] Production request failed:', err));
 
     // 3. Open WhatsApp pre-filled
     const waUrl = buildEncodedWhatsAppUrl(valetWhatsApp, fullMessage);
@@ -665,20 +703,20 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
 
             <p className="text-stone-300 text-sm sm:text-base leading-relaxed max-w-2xl">
               {isAr
-                ? 'عناية فائقة بملابسك الرسمية والتراثية بأيدي خبراء متخصصين. اختر نوع المعالجة، حدد قطع الملابس، واستلمها جاهزة ومعقمة في موعدك المحدد.'
-                : 'Master garment care for bespoke suits, traditional wear, and daily apparel. Choose your service, select pieces, and schedule room valet collection.'}
+                ? 'اختر القطع والخدمة المطلوبة من قائمة المغسلة المنشورة من إدارة الفندق.'
+                : 'Choose garments and services from the laundry catalog published by the hotel.'}
             </p>
 
             {/* Quick Status Badges */}
             <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-stone-400">
               <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-emerald-400" />
-                <span>{isAr ? 'ساعات الاستلام: 07:00 ص – 09:00 م' : 'Valet Hours: 07:00 AM – 09:00 PM'}</span>
+                <span>{isAr ? `${allGarments.length.toLocaleString('ar-SA')} قطعة منشورة` : `${allGarments.length} published items`}</span>
               </div>
-              <div className="flex items-center gap-1.5">
+              {contact?.hours_en && <div className="flex items-center gap-1.5">
                 <Zap className="w-4 h-4 text-amber-400" />
-                <span>{isAr ? 'الخدمة السريعة (4 ساعات): متاحة 24/7' : 'Express (4-Hr Return): 24/7'}</span>
-              </div>
+                <span>{isAr ? contact.hours_ar : contact.hours_en}</span>
+              </div>}
             </div>
           </div>
         </div>
@@ -687,7 +725,7 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
       {/* =====================================================================
           2. FEATURED LAUNDRY OFFERS FIRST (SLIDER / BANNER)
       ====================================================================== */}
-      <section id="laundry-featured-offers" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+      {propItems === undefined && <section id="laundry-featured-offers" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="flex items-center gap-2">
@@ -730,7 +768,7 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
           className="flex gap-4 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {DEFAULT_LAUNDRY_OFFERS.filter((off) => off.active).map((offer) => (
+          {(propItems === undefined ? DEFAULT_LAUNDRY_OFFERS.filter((off) => off.active) : []).map((offer) => (
             <div
               key={offer.id}
               id={`laundry-offer-card-${offer.id}`}
@@ -798,7 +836,7 @@ export const LaundryHubPage: React.FC<LaundryHubPageProps> = ({
             </div>
           ))}
         </div>
-      </section>
+      </section>}
 
       {/* =====================================================================
           MAIN LAYOUT: 70% INTERACTIVE FLOW + 30% STICKY LAUNDRY BAG

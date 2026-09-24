@@ -7,12 +7,16 @@ interface DepartmentTabBarProps {
   activeDepartment: TopLevelDepartment;
   onSelectDepartment: (dept: TopLevelDepartment) => void;
   language: Language;
+  availableDepartments?: TopLevelDepartment[];
+  counts?: Partial<Record<TopLevelDepartment, number>>;
 }
 
 export const DepartmentTabBar: React.FC<DepartmentTabBarProps> = ({
   activeDepartment,
   onSelectDepartment,
   language,
+  availableDepartments,
+  counts = {},
 }) => {
   const isAr = language === 'ar';
 
@@ -49,8 +53,6 @@ export const DepartmentTabBar: React.FC<DepartmentTabBarProps> = ({
       subtitle_en: 'Dining Hub',
       subtitle_ar: 'مركز المأكولات',
       icon: UtensilsCrossed,
-      badge_en: '5 Outlets',
-      badge_ar: '٥ منافذ',
     },
     {
       id: 'wellness',
@@ -59,8 +61,6 @@ export const DepartmentTabBar: React.FC<DepartmentTabBarProps> = ({
       subtitle_en: 'Health Club & Spa',
       subtitle_ar: 'النادي والسبا',
       icon: Sparkles,
-      badge_en: 'Pool & Gym',
-      badge_ar: 'مسبح ونادي',
     },
     {
       id: 'laundry',
@@ -85,8 +85,6 @@ export const DepartmentTabBar: React.FC<DepartmentTabBarProps> = ({
       subtitle_en: 'Promotions',
       subtitle_ar: 'باقات خاصة',
       icon: Tag,
-      badge_en: 'Special',
-      badge_ar: 'مميز',
     },
   ];
 
@@ -94,9 +92,12 @@ export const DepartmentTabBar: React.FC<DepartmentTabBarProps> = ({
     <div className="bg-stone-900 border-b border-stone-800 text-stone-200">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto py-2.5 scrollbar-none">
-          {departments.map((dept) => {
+          {departments
+            .filter((dept) => !availableDepartments || availableDepartments.includes(dept.id))
+            .map((dept) => {
             const Icon = dept.icon;
             const isActive = activeDepartment === dept.id;
+            const count = counts[dept.id];
             return (
               <button
                 key={dept.id}
@@ -116,7 +117,7 @@ export const DepartmentTabBar: React.FC<DepartmentTabBarProps> = ({
                 <div className="text-start leading-tight">
                   <div className="font-semibold text-xs">{isAr ? dept.name_ar : dept.name_en}</div>
                 </div>
-                {dept.badge_en && (
+                {typeof count === 'number' && count > 0 && (
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold ${
                       isActive
@@ -124,7 +125,7 @@ export const DepartmentTabBar: React.FC<DepartmentTabBarProps> = ({
                         : 'bg-stone-800 text-stone-400 group-hover:text-stone-200'
                     }`}
                   >
-                    {isAr ? dept.badge_ar : dept.badge_en}
+                    {isAr ? count.toLocaleString('ar-SA') : count}
                   </span>
                 )}
               </button>

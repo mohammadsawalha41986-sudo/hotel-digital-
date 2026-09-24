@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   LucideIcon,
+  Building2,
   LayoutDashboard,
   Globe,
   Layers,
@@ -24,7 +25,9 @@ import {
 import { Hotel } from '../../types/hotel';
 
 export type AdminSectionTab =
+  | 'portfolio'
   | 'dashboard'
+  | 'hotel_info'
   | 'website_manager'
   | 'homepage_sections'
   | 'navigation'
@@ -87,6 +90,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     {
       title: 'CORE',
       items: [
+        { id: 'portfolio', label: 'Hotel Portfolio', icon: Building2 },
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         {
           id: 'operations_requests',
@@ -100,6 +104,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     {
       title: 'WEBSITE & CMS',
       items: [
+        { id: 'hotel_info', label: 'Hotel Information', icon: Building2 },
         { id: 'website_manager', label: 'Website Manager', icon: Globe },
         { id: 'homepage_sections', label: 'Homepage Sections', icon: Layers },
         { id: 'navigation', label: 'Navigation Menu', icon: ChevronRight },

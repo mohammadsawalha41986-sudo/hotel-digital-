@@ -22,8 +22,8 @@ import {
   Type,
 } from 'lucide-react';
 import { Hotel, Language } from '../../types/hotel';
-import { INITIAL_HOTELS } from '../../data/mockHotels';
 import { createDefaultPortalConfig } from '../../utils/portalConfig';
+import { createHotel } from '../../services/hotelService';
 
 interface HotelCreationWizardProps {
   onClose: () => void;
@@ -42,6 +42,8 @@ export const HotelCreationWizard: React.FC<HotelCreationWizardProps> = ({
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [showMobilePreview, setShowMobilePreview] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [creationError, setCreationError] = useState<string | null>(null);
 
   // Form State for initial onboarding
   const [formData, setFormData] = useState({
@@ -140,9 +142,54 @@ export const HotelCreationWizard: React.FC<HotelCreationWizardProps> = ({
     { num: 11, title: isAr ? 'المراجعة والتدشين' : 'Review & Publish', icon: CheckCircle2 },
   ];
 
-  const handlePublish = () => {
-    const newId = `hotel-${formData.slug || 'property'}-${Date.now()}`;
-    const baseHotel = INITIAL_HOTELS[0];
+  const handlePublish = async () => {
+    setCreationError(null);
+
+    // Validation 1: Required Bilingual Names
+    if (!formData.name_en.trim()) {
+      setCreationError(isAr ? 'يرجى إدخال اسم الفندق بالإنجليزية.' : 'English hotel name is required.');
+      setCurrentStep(1);
+      return;
+    }
+    if (!formData.name_ar.trim()) {
+      setCreationError(isAr ? 'يرجى إدخال اسم الفندق بالعربية.' : 'Arabic hotel name is required.');
+      setCurrentStep(1);
+      return;
+    }
+
+    // Validation 2: Slug validation
+    const cleanSlug = formData.slug
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    if (!cleanSlug || cleanSlug.length < 3) {
+      setCreationError(
+        isAr
+          ? 'معرّف الرابط (Slug) يجب أن يحتوي على أحرف إنجليزية وأرقام وشرطات فقط ولا يقل عن 3 أحرف.'
+          : 'URL slug must be at least 3 characters and contain only lowercase letters, numbers, and hyphens.'
+      );
+      setCurrentStep(1);
+      return;
+    }
+
+    // Validation 3: Contact details format
+    if (formData.email_address && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email_address.trim())) {
+      setCreationError(isAr ? 'صيغة البريد الإلكتروني غير صحيحة.' : 'Invalid email address format.');
+      setCurrentStep(4);
+      return;
+    }
+
+    // Validation 4: Required location
+    if (!formData.city_en.trim() || !formData.city_ar.trim()) {
+      setCreationError(isAr ? 'يرجى إدخال المدينة باللغتين.' : 'Bilingual city name is required.');
+      setCurrentStep(1);
+      return;
+    }
+
+    setIsSubmitting(true);
 
     // Build portal configuration reflecting initial department settings
     const portalConfig = createDefaultPortalConfig({
@@ -156,59 +203,55 @@ export const HotelCreationWizard: React.FC<HotelCreationWizardProps> = ({
       contact: true,
     });
 
-    const constructedHotel: Hotel = {
-      ...baseHotel,
-      id: newId,
-      slug: formData.slug || `property-${Date.now()}`,
-      name_en: formData.name_en,
-      name_ar: formData.name_ar,
-      tagline_en: formData.tagline_en,
-      tagline_ar: formData.tagline_ar,
-      classification_stars: formData.stars || 5,
-      classification_label_en: formData.classification_label_en || `${formData.stars}-Star Hotel`,
-      classification_label_ar: formData.classification_label_ar || `فندق فاخر فئة ${formData.stars} نجوم`,
-      description_en: formData.description_en,
-      description_ar: formData.description_ar,
-      city_en: formData.city_en,
-      city_ar: formData.city_ar,
-      country_en: formData.country_en,
-      country_ar: formData.country_ar,
-      address_en: formData.address_en,
-      address_ar: formData.address_ar,
-      phone: formData.phone_number,
-      whatsapp_number: formData.whatsapp_number,
-      email: formData.email_address,
-      logo_url: formData.logo_url || baseHotel.logo_url,
-      branding: {
-        primary: formData.brand_primary,
-        secondary: formData.brand_secondary,
-        accent: formData.brand_accent,
-        background: formData.brand_background,
-        surface: formData.brand_card,
-        text: formData.brand_text,
-        button: formData.brand_button,
-        muted: '#78716c',
-        border: '#e7e5e4',
-        radius: formData.brand_radius || '14px',
-      },
-      typography: {
-        arHeadingFont: formData.arHeadingFont,
-        arBodyFont: formData.arBodyFont,
-        enHeadingFont: formData.enHeadingFont,
-        enBodyFont: formData.enBodyFont,
-      },
-      portal_config: portalConfig,
-      hero_images: formData.hero_images.length > 0 ? formData.hero_images : baseHotel.hero_images,
-      rooms: baseHotel.rooms.map((r) => ({ ...r, hotel_id: newId })),
-      offers: baseHotel.offers.map((o) => ({ ...o, hotel_id: newId })),
-      diningVenues: baseHotel.diningVenues.map((d) => ({ ...d, hotel_id: newId })),
-      wellnessFacilities: baseHotel.wellnessFacilities.map((w) => ({ ...w, hotel_id: newId })),
-      services: baseHotel.services.map((s) => ({ ...s, hotel_id: newId })),
-      currency: 'SAR',
-      is_published: true,
-    };
+    try {
+      const createdHotel = await createHotel({
+        name_en: formData.name_en.trim(),
+        name_ar: formData.name_ar.trim(),
+        slug: cleanSlug,
+        classification_stars: formData.stars || 5,
+        currency: 'SAR',
+        city_en: formData.city_en,
+        city_ar: formData.city_ar,
+        country_en: formData.country_en,
+        country_ar: formData.country_ar,
+        address_en: formData.address_en,
+        address_ar: formData.address_ar,
+        phone: formData.phone_number,
+        whatsapp_number: formData.whatsapp_number,
+        email: formData.email_address,
+        tagline_en: formData.tagline_en,
+        tagline_ar: formData.tagline_ar,
+        description_en: formData.description_en,
+        description_ar: formData.description_ar,
+        logo_url: formData.logo_url,
+        branding: {
+          primary: formData.brand_primary,
+          secondary: formData.brand_secondary,
+          accent: formData.brand_accent,
+          background: formData.brand_background,
+          surface: formData.brand_card,
+          text: formData.brand_text,
+          button: formData.brand_button,
+          muted: '#78716c',
+          border: '#e7e5e4',
+          radius: formData.brand_radius || '14px',
+        },
+        typography: {
+          arHeadingFont: formData.arHeadingFont,
+          arBodyFont: formData.arBodyFont,
+          enHeadingFont: formData.enHeadingFont,
+          enBodyFont: formData.enBodyFont,
+        },
+        portal_config: portalConfig,
+      });
 
-    onHotelCreated(constructedHotel);
+      onHotelCreated(createdHotel);
+    } catch (err: any) {
+      console.error('[HotelCreationWizard] Failed to create hotel:', err);
+      setCreationError(err?.message || 'Failed to create hotel in Firestore.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const addHeroSlide = () => {
@@ -348,11 +391,33 @@ export const HotelCreationWizard: React.FC<HotelCreationWizardProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">URL Identifier (Slug)</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-semibold text-stone-700">URL Identifier (Slug) *</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const generated = formData.name_en
+                            .toLowerCase()
+                            .trim()
+                            .replace(/[^a-z0-9]+/g, '-')
+                            .replace(/^-|-$/g, '');
+                          if (generated) setFormData((prev) => ({ ...prev, slug: generated }));
+                        }}
+                        className="text-[10px] font-semibold text-amber-700 hover:text-amber-600 underline cursor-pointer"
+                      >
+                        {isAr ? 'توليد تلقائي من الاسم' : 'Auto-generate from name'}
+                      </button>
+                    </div>
                     <input
                       type="text"
                       value={formData.slug}
-                      onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+                        })
+                      }
+                      placeholder="e.g. royal-oasis-resort"
                       className="w-full text-xs bg-stone-50 border border-stone-300 rounded-xl px-3 py-2.5 text-stone-900 font-mono"
                     />
                   </div>
@@ -900,14 +965,21 @@ export const HotelCreationWizard: React.FC<HotelCreationWizardProps> = ({
                   </div>
                 </div>
 
+                {creationError && (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-700 text-xs rounded-xl">
+                    {creationError}
+                  </div>
+                )}
+
                 <button
                   id="wizard-publish-hotel-btn"
                   type="button"
                   onClick={handlePublish}
-                  className="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-colors cursor-pointer flex items-center justify-center gap-2 min-h-[44px]"
+                  disabled={isSubmitting}
+                  className="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-colors cursor-pointer flex items-center justify-center gap-2 min-h-[44px]"
                 >
                   <Sparkles size={16} />
-                  <span>{isAr ? 'تدشين الفندق والتبديل إليه فوراً' : 'Publish Property & Switch Live'}</span>
+                  <span>{isSubmitting ? (isAr ? 'جاري إنشاء الفندق...' : 'Creating Property...') : (isAr ? 'تدشين الفندق والتبديل إليه فوراً' : 'Publish Property & Switch Live')}</span>
                 </button>
               </div>
             )}
@@ -1016,10 +1088,11 @@ export const HotelCreationWizard: React.FC<HotelCreationWizardProps> = ({
             <button
               type="button"
               onClick={handlePublish}
-              className="py-2.5 px-5 rounded-xl bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs cursor-pointer min-h-[44px]"
+              disabled={isSubmitting}
+              className="py-2.5 px-5 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 active:bg-emerald-800 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs cursor-pointer min-h-[44px]"
             >
               <CheckCircle2 size={14} />
-              <span>{isAr ? 'تدشين الفندق' : 'Complete & Publish'}</span>
+              <span>{isSubmitting ? (isAr ? 'جاري الإنشاء...' : 'Creating...') : (isAr ? 'تدشين الفندق' : 'Complete & Publish')}</span>
             </button>
           )}
         </div>
