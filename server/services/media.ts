@@ -1,11 +1,9 @@
 import crypto from 'node:crypto';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import sharp, { type Metadata, type OutputInfo } from 'sharp';
 import { checkImage } from '../../shared/mediaSpecs';
-import { config } from '../config';
 import { one } from '../db';
 import { HttpError } from '../errors';
+import { forgetMedia, storage } from '../storage';
 
 export type MediaKind = 'image' | 'video' | 'file' | 'svg';
 
@@ -83,8 +81,7 @@ export async function storeUpload(
     throw new HttpError(415, 'unsupported_type', `Unsupported file type. Allowed: ${allowed}`);
   }
   const id = crypto.randomUUID();
-  const dir = path.join(config.uploadDir, hotelId);
-  await fs.mkdir(dir, { recursive: true });
+  const put = (file: string, body: Buffer, type: string) => storage.put(`${hotelId}/${file}`, body, type);
   let name = `${id}.${t.ext}`;
   let mime = t.mime;
   let size = buf.length;
@@ -95,7 +92,7 @@ export async function storeUpload(
 
   if (t.kind === 'svg') {
     assertSafeSvg(buf);
-    await fs.writeFile(path.join(dir, name), buf, { flag: 'wx' });
+    await put(name, buf, t.mime);
   } else if (t.kind === 'image' && t.mime !== 'image/gif') {
     let meta: Metadata;
     try {
@@ -118,13 +115,13 @@ export async function storeUpload(
     } catch {
       throw new HttpError(422, 'invalid_image', 'This image file is damaged or could not be read');
     }
-    await fs.writeFile(path.join(dir, name), main.data, { flag: 'wx' });
+    await put(name, main.data, 'image/webp');
     mime = 'image/webp';
     size = main.data.length;
     width = main.info.width;
     height = main.info.height;
     for (const [i, w] of VARIANT_WIDTHS.entries()) {
-      await fs.writeFile(path.join(dir, `${id}-${w}.webp`), encoded[i], { flag: 'wx' });
+      await put(`${id}-${w}.webp`, encoded[i], 'image/webp');
       variants[String(w)] = `/media/${hotelId}/${id}-${w}.webp`;
     }
   } else {
@@ -134,7 +131,7 @@ export async function storeUpload(
       height = meta?.pageHeight ?? meta?.height ?? null;
       if (width && height) warnings = checkImage(opts.spec, width, height).warnings;
     }
-    await fs.writeFile(path.join(dir, name), buf, { flag: 'wx' });
+    await put(name, buf, t.mime);
   }
 
   const url = `/media/${hotelId}/${name}`;
@@ -150,9 +147,10 @@ export async function storeUpload(
 export async function removeStoredFile(url: string) {
   const m = /^\/media\/([0-9a-f-]{36})\/([0-9a-f-]{36})(-o)?\.([a-z0-9]+)$/.exec(url);
   if (!m) return;
-  const dir = path.join(config.uploadDir, m[1]);
   const files = [`${m[2]}${m[3] ?? ''}.${m[4]}`, ...(m[3] ? VARIANT_WIDTHS.map((w) => `${m[2]}-${w}.webp`) : [])];
-  await Promise.all(files.map((f) => fs.rm(path.join(dir, f), { force: true })));
+  const keys = files.map((f) => `${m[1]}/${f}`);
+  forgetMedia(keys);
+  await storage.remove(keys);
 }
 
 /** Pixels of an image for colour analysis (small, sRGB, alpha kept). */

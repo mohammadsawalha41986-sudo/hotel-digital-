@@ -120,7 +120,7 @@ describe('scheduled retention', () => {
     const holder = await pool.connect();
     try {
       await holder.query('BEGIN');
-      await holder.query('SELECT pg_advisory_xact_lock($1)', [0x5245_5431]);
+      await holder.query(`SELECT pg_advisory_xact_lock(hashtext('job:guest_retention'))`);
       assert.equal(await runRetentionOnce(), null);
     } finally {
       await holder.query('ROLLBACK');

@@ -8,7 +8,7 @@ import { config } from '../config';
 import { clientIp, type AppEnv, type Ctx } from '../context';
 import { one, q, tx } from '../db';
 import { HttpError, badRequest, notFound, validationError } from '../errors';
-import { rateLimit } from '../rateLimit';
+import { minutes, rateLimit } from '../rateLimit';
 import { getHotelRowBySlug, hydrate, type HotelRow } from '../repos/hotels';
 import { sha256 } from '../security';
 import { buildOutletMenu, buildPublicBundle } from '../services/catalog';
@@ -40,6 +40,12 @@ async function resolveHotel(c: Ctx): Promise<{ row: HotelRow; preview: boolean }
   return { row, preview: false };
 }
 
+/** Hash of this guest device's token when present (for per-device limits). */
+function deviceKey(c: Ctx): string {
+  const token = c.req.header('x-guest-token') ?? '';
+  return /^[A-Za-z0-9_-]{24,128}$/.test(token) ? sha256(token) : `ip:${clientIp(c)}`;
+}
+
 function guestTokenHash(c: Ctx): string {
   const token = c.req.header('x-guest-token') ?? '';
   if (!/^[A-Za-z0-9_-]{24,128}$/.test(token)) throw badRequest('Missing guest session. Please reload the page.');
@@ -67,7 +73,7 @@ publicRoutes.get('/hotels/:slug', async (c) => {
  */
 publicRoutes.post('/hotels/:slug/events', async (c) => {
   const { row, preview } = await resolveHotel(c);
-  rateLimit(`events:${row.id}:${clientIp(c)}`, 120, 10 * 60_000);
+  await rateLimit({ key: `events:${deviceKey(c)}`, limit: 300, windowMs: minutes(10) }, { key: `events:${row.id}:${clientIp(c)}`, limit: 5000, windowMs: minutes(10) });
   const parsed = guestEventBatchSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) throw validationError(parsed.error);
   if (preview) return c.json({ recorded: 0, preview: true });
@@ -87,7 +93,7 @@ publicRoutes.get('/hotels/:slug/outlets/:outletId/menu', async (c) => {
 
 publicRoutes.post('/hotels/:slug/session', async (c) => {
   const { row } = await resolveHotel(c);
-  rateLimit(`session:${row.id}:${clientIp(c)}`, 30, 10 * 60_000);
+  await rateLimit({ key: `session:${deviceKey(c)}`, limit: 20, windowMs: minutes(10) }, { key: `session:${row.id}:${clientIp(c)}`, limit: 1000, windowMs: minutes(10) });
   const tokenHash = guestTokenHash(c);
   const parsed = guestSessionSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) throw validationError(parsed.error);
@@ -103,9 +109,10 @@ publicRoutes.post('/hotels/:slug/session', async (c) => {
 publicRoutes.post('/hotels/:slug/requests', async (c) => {
   const { row } = await resolveHotel(c);
   const ip = clientIp(c);
-  rateLimit(`req:${row.id}:${ip}`, 20, 10 * 60_000);
   const tokenHash = guestTokenHash(c);
-  rateLimit(`req-token:${tokenHash}`, 12, 10 * 60_000);
+  // Per device: a guest ordering normally never gets near this. Per hotel+IP: a
+  // ceiling sized for a full hotel behind one Wi-Fi NAT at breakfast peak.
+  await rateLimit({ key: `req-token:${tokenHash}`, limit: 15, windowMs: minutes(10) }, { key: `req:${row.id}:${ip}`, limit: 600, windowMs: minutes(10) });
   const body = await c.req.json().catch(() => {
     throw badRequest('Invalid JSON body');
   });
@@ -173,7 +180,7 @@ publicRoutes.post('/hotels/:slug/reviews', async (c) => {
   const { row } = await resolveHotel(c);
   const hotel = hydrate(row);
   if (!hotel.settings.reviews_enabled) throw new HttpError(409, 'disabled', 'Guest reviews are not enabled for this hotel');
-  rateLimit(`review:${row.id}:${clientIp(c)}`, 3, 60 * 60_000);
+  await rateLimit({ key: `review:${deviceKey(c)}`, limit: 3, windowMs: minutes(60) }, { key: `review:${row.id}:${clientIp(c)}`, limit: 60, windowMs: minutes(60) });
   const parsed = reviewInputSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) throw validationError(parsed.error);
   const v = parsed.data;
@@ -198,7 +205,7 @@ publicRoutes.post('/hotels/:slug/reviews', async (c) => {
 
 publicRoutes.post('/hotels/:slug/uploads', async (c) => {
   const { row } = await resolveHotel(c);
-  rateLimit(`guest-upload:${row.id}:${clientIp(c)}`, 5, 60 * 60_000);
+  await rateLimit({ key: `guest-upload:${deviceKey(c)}`, limit: 5, windowMs: minutes(60) }, { key: `guest-upload:${row.id}:${clientIp(c)}`, limit: 100, windowMs: minutes(60) });
   guestTokenHash(c);
   const form = await c.req.formData().catch(() => null);
   const file = form?.get('file');

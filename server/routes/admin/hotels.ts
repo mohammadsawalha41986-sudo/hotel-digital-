@@ -11,11 +11,9 @@ import { one, q, tx } from '../../db';
 import { HttpError, badRequest, conflict, forbidden, notFound, validationError } from '../../errors';
 import { departmentUsage, ensureDepartments, getHotelRow, hydrate, parseSite, splitProfile } from '../../repos/hotels';
 import { changesSincePublish, publishHotel, republish } from '../../services/publish';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { config } from '../../config';
 import { deriveTheme, extractPalette, type PaletteResult } from '../../../shared/theme';
 import { rasterForAnalysis } from '../../services/media';
+import { readMedia } from '../../storage';
 import { FetchError, safeFetch } from '../../services/net';
 
 export const hotelRoutes = new Hono<AppEnv>();
@@ -164,9 +162,9 @@ hotelRoutes.post('/:hid/branding/analyze', async (c) => {
   let buf: Buffer;
   const local = new RegExp(`^/media/${hid}/([0-9a-f-]{36}(?:-o)?\\.[a-z0-9]+)$`).exec(url);
   if (local) {
-    buf = await fs.readFile(path.join(config.uploadDir, hid, local[1])).catch(() => {
-      throw notFound('Logo file not found');
-    });
+    const obj = await readMedia(`${hid}/${local[1]}`);
+    if (!obj) throw notFound('Logo file not found');
+    buf = obj.body;
   } else if (/^https?:\/\//i.test(url)) {
     try {
       buf = (await safeFetch(url, { maxBytes: 8 * 1024 * 1024, timeoutMs: 8000 })).body;

@@ -31,6 +31,9 @@ import {
   transitionSettlement,
 } from '../../services/finance';
 import { applyRetention } from '../../services/guests';
+import { jobStatus } from '../../services/scheduler';
+import { readiness } from '../../health';
+import { metricsSnapshot } from '../../metrics';
 import { REPORTS, allDepartments, exportFormat, platformDashboard, reportFilterSchema, runReport, searchOrders, type ReportKey } from '../../services/reports';
 import { sendReport, statementReport } from './commerce';
 
@@ -506,6 +509,32 @@ platformRoutes.get('/reports/:report', async (c) => {
   if (!f.success) throw validationError(f.error);
   const report = await runReport(key, { hotelIds: null, departments: await allDepartments() }, f.data);
   return sendReport(c, report, exportFormat(c.req.query('format')), `${key}-${new Date().toISOString().slice(0, 10)}`);
+});
+
+/**
+ * Operations view for platform administrators: this replica's health and
+ * latency, background jobs, and business-level failure signals.
+ */
+platformRoutes.get('/ops', async (c) => {
+  const u = requirePlatform(c);
+  if (u.role !== 'SUPER_ADMIN') throw forbidden();
+  const [ready, jobs, signals] = await Promise.all([
+    readiness(),
+    jobStatus(),
+    one(
+      `SELECT
+         (SELECT COUNT(*) FROM requests WHERE created_at > now() - interval '1 hour') AS orders_last_hour,
+         (SELECT COUNT(*) FROM requests WHERE status = 'NEW' AND created_at < now() - interval '30 minutes') AS orders_unaccepted_30min,
+         (SELECT COUNT(*) FROM requests WHERE is_commercial AND status = 'COMPLETED' AND financial_status = 'AWAITING_ELIGIBILITY' AND completed_at < now() - interval '1 hour') AS completed_without_ledger,
+         (SELECT COUNT(*) FROM settlements WHERE status = 'APPROVED' AND acknowledged_at IS NULL AND approved_at < now() - interval '7 days') AS settlements_unacknowledged_7d,
+         (SELECT COUNT(*) FROM job_runs WHERE status = 'FAILED' AND started_at > now() - interval '24 hours') AS job_failures_24h,
+         (SELECT COUNT(*) FROM hotels) AS hotels,
+         (SELECT setting::int FROM pg_settings WHERE name = 'max_connections') AS db_max_connections,
+         (SELECT COUNT(*) FROM pg_stat_activity WHERE datname = current_database()) AS db_connections`
+    ),
+  ]);
+  c.header('Cache-Control', 'no-store');
+  return c.json({ replica: process.env.RAILWAY_REPLICA_ID ?? String(process.pid), ready, metrics: metricsSnapshot(), jobs, signals });
 });
 
 platformRoutes.post('/privacy/retention', async (c) => {

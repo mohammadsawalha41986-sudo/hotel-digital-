@@ -6,7 +6,7 @@ import { createSession, destroySession, loadUser, requireUser } from '../auth';
 import { clientIp, type AppEnv } from '../context';
 import { one, q } from '../db';
 import { HttpError, validationError } from '../errors';
-import { rateLimit } from '../rateLimit';
+import { minutes, rateLimit } from '../rateLimit';
 import { hashPassword, validatePasswordStrength, verifyPassword } from '../security';
 
 export const authRoutes = new Hono<AppEnv>();
@@ -20,10 +20,12 @@ const dummyHash = hashPassword('timing-equaliser-not-a-real-password');
 
 authRoutes.post('/login', async (c) => {
   const ip = clientIp(c);
-  rateLimit(`login:${ip}`, 20, 15 * 60_000);
   const parsed = loginSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) throw validationError(parsed.error);
   const { email, password } = parsed.data;
+  // Per account (plus the lockout below) stops guessing; the per-IP ceiling
+  // leaves room for a whole shift signing in from the hotel office.
+  await rateLimit({ key: `login:${email.toLowerCase()}`, limit: 10, windowMs: minutes(15) }, { key: `login-ip:${ip}`, limit: 100, windowMs: minutes(15) });
   const invalid = new HttpError(401, 'invalid_credentials', 'Email or password is incorrect');
 
   const u = await one<{ id: string; password_hash: string; is_active: boolean; failed_logins: number; locked_until: Date | null }>(
