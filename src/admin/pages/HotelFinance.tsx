@@ -79,7 +79,12 @@ export function HotelFinance({ hid }: { hid: string }) {
                         <button type="button" className="font-mono font-semibold hover:underline" onClick={() => setSid(s.id)}>{s.settlement_no}</button>
                       </td>
                       <td className="py-2">{dateOnly(s.period_start)} → {dateOnly(s.period_end)}</td>
-                      <td className="py-2"><SettlementStatus status={s.status} /></td>
+                      <td className="py-2">
+                        <SettlementStatus status={s.status} />
+                        {s.acknowledged_at ? (
+                          <span className="ms-2 text-xs text-emerald-700">{tr('Acknowledged')}</span>
+                        ) : (s.status === 'APPROVED' || s.status === 'SETTLED') && <span className="ms-2 text-xs font-medium text-amber-700">{tr('Needs your acknowledgement')}</span>}
+                      </td>
                       <td className="py-2 text-end tabular-nums">{s.order_count}</td>
                       <td className="py-2 text-end tabular-nums">{money(s.gross_minor, s.currency)}</td>
                       <td className="py-2 text-end tabular-nums">{money(s.commission_minor, s.currency)}</td>

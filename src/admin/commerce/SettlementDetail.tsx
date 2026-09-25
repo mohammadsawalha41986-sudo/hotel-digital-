@@ -49,6 +49,20 @@ export function SettlementSheet({ apiPath, open, onClose, manage, onOrder }: { a
       fb.error(errorMessage(e));
     },
   });
+  /** Hotel side: confirm an approved statement once (platform staff cannot do this for the hotel). */
+  const [ackNote, setAckNote] = useState('');
+  const platformUser = me.data?.user?.role === 'SUPER_ADMIN' || me.data?.user?.role === 'PLATFORM_FINANCE';
+  const canAcknowledge = !manage && !platformUser && !!s && !s.acknowledged_at && (s.status === 'APPROVED' || s.status === 'SETTLED');
+  const acknowledge = useMutation({
+    mutationFn: () => api(`${apiPath}/acknowledge`, { method: 'POST', body: { note: ackNote } }),
+    onSuccess: () => {
+      fb.success(tr('Settlement acknowledged'));
+      setAckNote('');
+      invalidate();
+      qc.invalidateQueries({ queryKey: ['hotel-finance'] });
+    },
+    onError: (e) => fb.error(errorMessage(e)),
+  });
   const refresh = useMutation({
     mutationFn: () => api<{ entries: number }>(`/admin/platform/settlements/${s!.id}/refresh`, { method: 'POST' }),
     onSuccess: (r) => {
@@ -143,6 +157,28 @@ export function SettlementSheet({ apiPath, open, onClose, manage, onOrder }: { a
             </table>
           </div>
 
+          {s.acknowledged_at ? (
+            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-900" role="status">
+              {tr('Acknowledged by the hotel: {0} on {1}.', { 0: s.acknowledged_by_name ?? '—', 1: dateTime(s.acknowledged_at) })}
+              {s.hotel_note && <span className="mt-1 block text-emerald-800">“{s.hotel_note}”</span>}
+            </p>
+          ) : (
+            manage && (s.status === 'APPROVED' || s.status === 'SETTLED') && <p className="text-sm text-zinc-500">{tr('Awaiting the hotel’s acknowledgement.')}</p>
+          )}
+          {canAcknowledge && (
+            <div className="rounded-xl border border-black/[0.07] p-4 print:hidden">
+              <h3 className="text-sm font-semibold">{tr('Acknowledge this settlement')}</h3>
+              <p className="mt-1 text-sm text-zinc-500">{tr('Confirm that your team has reviewed the orders, commission and hotel amount above. This is recorded once and cannot be undone.')}</p>
+              <div className="mt-3">
+                <Field label={tr('Note for the platform (optional)')} htmlFor="stl-ack-note">
+                  <TextInput id="stl-ack-note" value={ackNote} maxLength={1000} onChange={(e) => setAckNote(e.target.value)} placeholder={tr('e.g. Checked against our POS totals')} />
+                </Field>
+              </div>
+              <Button size="sm" className="mt-3" loading={acknowledge.isPending} onClick={() => acknowledge.mutate()}>
+                {tr('Acknowledge settlement')}
+              </Button>
+            </div>
+          )}
           {manage && s.status === 'REVIEWED' && selfCheck && (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 print:hidden" role="status">
               {tr('You prepared or reviewed this settlement, so another finance user must approve it (maker–checker).')}

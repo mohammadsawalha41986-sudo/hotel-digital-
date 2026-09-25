@@ -15,6 +15,7 @@ import { lineAmounts, resolveVatMode, sumLines, toMinor, type LineAmounts, type 
 import { buildWhatsAppMessage, waLink, type MessageLine } from '../../shared/whatsapp';
 import { one, q, tx } from '../db';
 import { HttpError, badRequest, validationError } from '../errors';
+import { sha256 } from '../security';
 import type { EntityName } from '../../shared/entities';
 import type { EntityRecord } from '../repos/entities';
 import { liveStates, publishedContent } from './publish';
@@ -443,6 +444,28 @@ export interface CreateOptions {
   /** Staff member entering the order on the guest's behalf. */
   actor?: SessionUser | null;
   guestExtra?: { email?: string; stay_reference?: string; check_in?: string | null; check_out?: string | null };
+  /** Client-chosen key (one per checkout attempt): retries return the original request. */
+  idempotencyKey?: string | null;
+}
+
+/** The response of an already-created request, for idempotent replays. */
+async function replayCreated(hotelId: string, tokenHash: string, key: string, bodyHash: string): Promise<CreatedRequest | null> {
+  const r = await one<{ id: string; reference: string; status: string; department: DepartmentCode; whatsapp_to: string; whatsapp_text: string; subtotal: number | null; vat: number | null; total: number | null; created_at: Date; idempotency_hash: string }>(
+    `SELECT id, reference, status, department, whatsapp_to, whatsapp_text, subtotal, vat, total, created_at, idempotency_hash
+       FROM requests WHERE hotel_id = $1 AND guest_token_hash = $2 AND idempotency_key = $3`,
+    [hotelId, tokenHash, key]
+  );
+  if (!r) return null;
+  if (r.idempotency_hash !== bodyHash) throw new HttpError(422, 'idempotency_mismatch', 'This checkout was already submitted with different details. Please start a new order.');
+  return {
+    id: r.id,
+    reference: r.reference,
+    status: r.status,
+    department: r.department,
+    whatsapp_url: r.whatsapp_to ? waLink(r.whatsapp_to, r.whatsapp_text) : null,
+    totals: r.total == null ? null : { subtotal: r.subtotal ?? 0, vat: r.vat ?? 0, total: r.total },
+    created_at: r.created_at.toISOString(),
+  };
 }
 
 /**
@@ -453,6 +476,11 @@ export async function createGuestRequest(hotel: Hotel, body: unknown, guestToken
   const parsed = guestRequestSchema.safeParse(body);
   if (!parsed.success) throw validationError(parsed.error);
   const { guest, payload, lang } = parsed.data;
+  const idem = opts.idempotencyKey && guestTokenHash ? { key: opts.idempotencyKey, hash: sha256(JSON.stringify(parsed.data)) } : null;
+  if (idem) {
+    const prior = await replayCreated(hotel.id, guestTokenHash!, idem.key, idem.hash);
+    if (prior) return prior;
+  }
 
   if (guest.type === 'EXTERNAL' && !hotel.settings.external_guests_enabled) throw new HttpError(422, 'validation_failed', 'This hotel serves in-house guests only.', { fields: { 'guest.type': 'In-house guests only' } });
   if (hotel.settings.require_phone && !guest.phone) throw new HttpError(422, 'validation_failed', 'Please add a phone number so the team can reach you', { fields: { 'guest.phone': 'Phone is required' } });
@@ -482,6 +510,19 @@ export async function createGuestRequest(hotel: Hotel, body: unknown, guestToken
   const whatsappTo = await resolveWhatsApp(hotel, built.department, built.whatsappOverride);
   const isCommercial = (built.totals?.total ?? 0) > 0;
 
+  try {
+    return await insertGuestRequest();
+  } catch (e) {
+    // Two identical submits raced past the replay check: the unique index let
+    // exactly one commit; the other returns that same request.
+    if (idem && (e as { code?: string; constraint?: string }).constraint === 'requests_idempotency_uq') {
+      const prior = await replayCreated(hotel.id, guestTokenHash!, idem.key, idem.hash);
+      if (prior) return prior;
+    }
+    throw e;
+  }
+
+  function insertGuestRequest() {
   return tx(async (client) => {
     let source: OrderSource = opts.source ?? 'GUEST_PORTAL';
     if (!opts.source && guestTokenHash) {
@@ -514,8 +555,9 @@ export async function createGuestRequest(hotel: Hotel, body: unknown, guestToken
     const row = await one<{ id: string; created_at: Date }>(
       `INSERT INTO requests (hotel_id, reference, type, department, priority, title_en, title_ar, guest_type, guest_name, guest_phone, room, lang,
                              source_id, lines, details, notes, subtotal, vat, total, currency, whatsapp_to, whatsapp_text, guest_token_hash,
-                             guest_id, stay_id, hotel_name, source, order_type, is_commercial, financial_status, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)
+                             guest_id, stay_id, hotel_name, source, order_type, is_commercial, financial_status, created_by,
+                             idempotency_key, idempotency_hash)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33)
        RETURNING id, created_at`,
       [
         hotel.id,
@@ -549,6 +591,8 @@ export async function createGuestRequest(hotel: Hotel, body: unknown, guestToken
         isCommercial,
         isCommercial ? 'AWAITING_ELIGIBILITY' : 'NOT_APPLICABLE',
         opts.actor?.id ?? null,
+        idem?.key ?? null,
+        idem?.hash ?? null,
       ],
       client
     );
@@ -581,4 +625,5 @@ export async function createGuestRequest(hotel: Hotel, body: unknown, guestToken
       created_at: row!.created_at.toISOString(),
     };
   });
+  }
 }

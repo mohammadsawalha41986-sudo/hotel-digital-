@@ -20,7 +20,8 @@ import type { RequestStatus } from '../../shared/domain';
 import { audit } from '../audit';
 import type { SessionUser } from '../context';
 import { one, q, type Queryable } from '../db';
-import { HttpError, conflict, notFound } from '../errors';
+import { HttpError, conflict, forbidden, notFound } from '../errors';
+import { isPlatformFinance } from './access';
 
 /**
  * Canonical commission engine. Every financial number the platform reports is
@@ -487,6 +488,9 @@ async function recomputeTotals(db: Queryable, settlementId: string) {
 
 export async function createSettlement(client: pg.PoolClient, hotelId: string, input: SettlementInput, actor: Actor) {
   checkPeriod(input);
+  // Serialises settlement creation per hotel across every API replica, so two
+  // concurrent requests cannot both pass the overlap check below.
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext('settlement:' || $1))`, [hotelId]);
   const { currency } = await hotelTz(client, hotelId);
   const overlap = await one<{ settlement_no: string }>(
     `SELECT settlement_no FROM settlements WHERE hotel_id = $1 AND status <> 'VOID' AND period_start <= $3::date AND period_end >= $2::date`,
@@ -577,16 +581,38 @@ export async function transitionSettlement(
   return { status: to };
 }
 
+/**
+ * The hotel confirms an approved (or settled) statement. Only hotel-side
+ * finance users may do this — platform staff cannot acknowledge on the hotel's
+ * behalf — and it happens once.
+ */
+export async function acknowledgeSettlement(client: pg.PoolClient, hotelId: string, settlementId: string, note: string, actor: Actor) {
+  if (!actor.user || isPlatformFinance(actor.user)) throw forbidden('Only the hotel can acknowledge its settlement');
+  const s = await one<{ id: string; status: SettlementStatus; settlement_no: string; acknowledged_at: Date | null }>(
+    `SELECT id, status, settlement_no, acknowledged_at FROM settlements WHERE hotel_id = $1 AND id = $2 FOR UPDATE`,
+    [hotelId, settlementId],
+    client
+  );
+  if (!s || s.status === 'VOID') throw notFound('Settlement not found');
+  if (s.status !== 'APPROVED' && s.status !== 'SETTLED') throw new HttpError(409, 'invalid_transition', 'Only an approved settlement can be acknowledged');
+  if (s.acknowledged_at) throw new HttpError(409, 'already_acknowledged', 'This settlement has already been acknowledged');
+  await q(`UPDATE settlements SET acknowledged_at = now(), acknowledged_by = $2, hotel_note = $3 WHERE id = $1`, [s.id, actor.user.id, note.trim()], client);
+  await audit({ hotelId, user: actor.user, action: 'acknowledge', entity: 'settlement', entityId: s.id, summary: `${s.settlement_no}: acknowledged by the hotel`, after: { note: note.trim() }, ip: actor.ip }, client);
+  return { acknowledged: true };
+}
+
 /** Full drill-down: settlement → lines → ledger entry → order → order lines → snapshot/rule → adjustment. */
 export async function settlementDetail(hotelId: string, settlementId: string, opts: { showGuest: boolean }) {
   if (!/^[0-9a-f-]{36}$/i.test(settlementId)) throw notFound('Settlement not found');
   const s = await one(
     `SELECT s.*, to_char(s.period_start,'YYYY-MM-DD') AS period_start, to_char(s.period_end,'YYYY-MM-DD') AS period_end,
             h.name_en AS hotel_name, h.slug AS hotel_slug,
-            cu.name AS created_by_name, ru.name AS reviewed_by_name, au.name AS approved_by_name, su.name AS settled_by_name
+            cu.name AS created_by_name, ru.name AS reviewed_by_name, au.name AS approved_by_name, su.name AS settled_by_name,
+            ku.name AS acknowledged_by_name
        FROM settlements s JOIN hotels h ON h.id = s.hotel_id
        LEFT JOIN users cu ON cu.id = s.created_by LEFT JOIN users ru ON ru.id = s.reviewed_by
        LEFT JOIN users au ON au.id = s.approved_by LEFT JOIN users su ON su.id = s.settled_by
+       LEFT JOIN users ku ON ku.id = s.acknowledged_by
       WHERE s.hotel_id = $1 AND s.id = $2`,
     [hotelId, settlementId]
   );

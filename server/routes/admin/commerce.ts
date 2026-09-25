@@ -9,7 +9,7 @@ import { one, q, tx } from '../../db';
 import { badRequest, notFound, validationError } from '../../errors';
 import { getHotelRow, hydrate } from '../../repos/hotels';
 import { canSeePii, departmentScope, financeAccess, requireFinance } from '../../services/access';
-import { settlementDetail } from '../../services/finance';
+import { acknowledgeSettlement, settlementDetail } from '../../services/finance';
 import { anonymizeGuest, findDuplicates, getGuest, guestProfile, identifyGuest, mergeGuests, publicGuest, searchGuests } from '../../services/guests';
 import { REPORTS, exportFormat, orderDashboard, redact, reportFilterSchema, runReport, searchOrders, toCsv, toXlsx, type ReportKey, type Scope } from '../../services/reports';
 import { createGuestRequest } from '../../services/requests';
@@ -313,7 +313,7 @@ commerceRoutes.get('/:hid/finance/summary', async (c) => {
   const settlements = await q(
     `SELECT id, settlement_no, period_type, to_char(period_start,'YYYY-MM-DD') AS period_start, to_char(period_end,'YYYY-MM-DD') AS period_end,
             status, order_count, gross_minor, refunds_minor, adjustments_minor, base_minor, commission_minor, commission_tax_minor, hotel_amount_minor,
-            amount_due_minor, currency, settled_at, payment_reference
+            amount_due_minor, currency, settled_at, payment_reference, acknowledged_at, hotel_note
        FROM settlements WHERE hotel_id = $1 AND status <> 'VOID' ORDER BY period_start DESC LIMIT 100`,
     [hid]
   );
@@ -351,6 +351,18 @@ commerceRoutes.get('/:hid/finance/settlements/:sid', async (c) => {
   const format = exportFormat(c.req.query('format'));
   if (format === 'json') return c.json(detail);
   return sendReport(c, statementReport(detail), format, detail.settlement.settlement_no);
+});
+
+commerceRoutes.post('/:hid/finance/settlements/:sid/acknowledge', async (c) => {
+  const hid = c.req.param('hid');
+  const u = requireHotelAccess(c, hid, 'finance');
+  await requireFinance(u, hid, 'SETTLEMENTS');
+  const sid = c.req.param('sid');
+  if (!/^[0-9a-f-]{36}$/i.test(sid)) throw notFound('Settlement not found');
+  const parsed = z.object({ note: z.string().max(1000).default('') }).safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) throw validationError(parsed.error);
+  const out = await tx((client) => acknowledgeSettlement(client, hid, sid, parsed.data.note, { user: u, ip: clientIp(c) }));
+  return c.json(out);
 });
 
 // ------------------------------------------------------------------ Reports

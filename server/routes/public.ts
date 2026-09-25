@@ -109,7 +109,10 @@ publicRoutes.post('/hotels/:slug/requests', async (c) => {
   const body = await c.req.json().catch(() => {
     throw badRequest('Invalid JSON body');
   });
-  const created = await createGuestRequest(hydrate(row), body, tokenHash);
+  // One key per checkout attempt; retries and double taps return the original order.
+  const key = c.req.header('idempotency-key') ?? null;
+  if (key !== null && !/^[A-Za-z0-9_-]{8,80}$/.test(key)) throw badRequest('Invalid Idempotency-Key');
+  const created = await createGuestRequest(hydrate(row), body, tokenHash, { idempotencyKey: key });
   return c.json(created, 201);
 });
 
