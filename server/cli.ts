@@ -13,7 +13,8 @@ const usage = `Usage:
   npm run db:seed                         Swiss Flora Royal (real hotel data, no invented prices)
   npm run db:seed:demo                    + demo catalog, second hotel and one user per role (staging only)
   npm run admin:create -- --email a@b.com --name "Name" --role HOTEL_ADMIN --hotel swiss-flora-royal --password '...'
-  npm run import:firestore -- export.json [--dry-run]   migrate hotels from the previous Firebase version`;
+  npm run import:firestore -- export.json [--dry-run]   migrate hotels from the previous Firebase version
+  node dist/server/cli.js release         pre-deploy step: migrate; in staging (ALLOW_SYNTHETIC_DATA=1) optional demo / synthetic data`;
 
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
@@ -49,6 +50,35 @@ async function main() {
         await ensurePublications(c);
         console.log(`Demo catalog ${added ? 'added' : 'already present'}; users (password "${DEMO_PASSWORD}"):\n  ${users.join('\n  ')}`);
       });
+      break;
+    }
+    case 'release': {
+      // Pre-deploy step (railway.json): runs once per deploy, before new
+      // instances start. Migrations are additive and advisory-locked.
+      const ran = await migrate();
+      const published = await ensurePublications();
+      console.log(ran.length ? `Applied: ${ran.join(', ')}` : 'Database is up to date');
+      if (published) console.log(`Created an initial publication for ${published} hotel(s)`);
+      // Staging only: never runs where RAILWAY_ENVIRONMENT_NAME is "production".
+      const staging = process.env.ALLOW_SYNTHETIC_DATA === '1' && process.env.RAILWAY_ENVIRONMENT_NAME !== 'production';
+      if (staging && process.env.RELEASE_SEED_DEMO === '1') {
+        await tx(async (c) => {
+          const royal = await seedSwissFlora(c);
+          const added = await seedDemoCatalog(c, royal.id);
+          const harbour = await seedIsolationHotel(c);
+          await seedDemoUsers(c, royal.id, harbour);
+          await seedDemoCommerce(c, royal.id);
+          if (royal.created || added) await publishHotel(c, royal.id, null, 'Demo content');
+          await ensurePublications(c);
+        });
+        console.log('Staging demo data ensured');
+      }
+      const synth = Number(process.env.RELEASE_SYNTH_HOTELS ?? 0);
+      if (staging && synth > 0) {
+        const { synthHotels } = await import('./tools/synthHotels');
+        const n = await synthHotels({ hotels: synth, days: Number(process.env.RELEASE_SYNTH_DAYS ?? 90), perDay: Number(process.env.RELEASE_SYNTH_ORDERS ?? 120), prefix: 'load-hotel' });
+        console.log(`Synthetic hotels ensured (+${n} historical orders)`);
+      }
       break;
     }
     case 'create-admin': {

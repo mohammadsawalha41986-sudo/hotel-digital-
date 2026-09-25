@@ -17,7 +17,8 @@
     "db:seed": "tsx --env-file-if-exists=.env server/cli.ts seed",
     "db:seed:demo": "tsx --env-file-if-exists=.env server/cli.ts seed-demo",
     "admin:create": "tsx --env-file-if-exists=.env server/cli.ts create-admin",
-    "import:firestore": "tsx --env-file-if-exists=.env server/cli.ts import-firestore"
+    "import:firestore": "tsx --env-file-if-exists=.env server/cli.ts import-firestore",
+    "release": "node dist/server/cli.js release"
   },
   "dependencies": {
     "@fontsource/cormorant-garamond": "^5.3.0",
@@ -57,7 +58,7 @@
     "vite": "^5.4.2"
   },
   "engines": {
-    "node": ">=22.9"
+    "node": ">=22"
   },
   "overrides": {
     "uuid": "^11.1.1"
