@@ -4,7 +4,7 @@ import { api, errorMessage } from '../../lib/api';
 import { ErrorState, Skeleton } from '../../components/ui';
 import { Card } from '../layout/AdminLayout';
 import { Breakdown, FinancialStatus, Kpi, KpiGrid, OrderStatus, dateTime, deptLabel, major, money, sourceLabel, typeLabel } from './kit';
-import { tr } from '../i18n';
+import { tr, pickLang } from '../i18n';
 
 interface Overview {
   summary: Record<string, number>;
@@ -45,7 +45,7 @@ export function OrdersOverview({ hid, from, currency }: { hid: string; from: str
           <Breakdown rows={d.by_department} label={(r) => deptLabel(r.department)} value={(r) => r.n} />
         </Card>
         <Card title={tr('By service')}>
-          <Breakdown rows={d.by_service} label={(r) => r.name_en} value={(r) => r.orders} />
+          <Breakdown rows={d.by_service} label={(r) => pickLang(r, 'name')} value={(r) => r.orders} />
         </Card>
         <Card title={tr('By source')}>
           <Breakdown rows={d.by_source} label={(r) => sourceLabel(r.source)} value={(r) => r.n} />

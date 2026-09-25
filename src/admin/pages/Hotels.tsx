@@ -7,7 +7,7 @@ import { Badge, Button, EmptyState, ErrorState, Field, Sheet, Skeleton, TextInpu
 import { useMe } from '../data';
 import { useFeedback } from '../feedback';
 import { PageHeader } from '../layout/AdminLayout';
-import { tr } from '../i18n';
+import { tr, pickLang } from '../i18n';
 
 interface HotelRow {
   id: string;
@@ -48,7 +48,7 @@ export function Hotels() {
               <Link to={`/admin/h/${h.id}/dashboard`} className="block rounded-2xl border border-black/[0.07] bg-white p-5 transition hover:shadow-md">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold">{h.name_en}</p>
+                    <p className="font-semibold">{pickLang(h, 'name')}</p>
                     <p className="text-sm text-zinc-500" dir="rtl">{h.name_ar}</p>
                   </div>
                   <Badge tone={h.is_published ? 'success' : 'warning'}>{h.is_published ? tr('Live') : tr('Offline')}</Badge>

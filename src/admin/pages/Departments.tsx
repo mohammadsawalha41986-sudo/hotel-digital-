@@ -6,7 +6,7 @@ import { ApiError, api, errorMessage } from '../../lib/api';
 import { Badge, Button, ErrorState, Field, Sheet, Skeleton, TextInput, Toggle } from '../../components/ui';
 import { useFeedback } from '../feedback';
 import { PageHeader } from '../layout/AdminLayout';
-import { tr } from '../i18n';
+import { pickLang, tr } from '../i18n';
 
 interface Dept {
   code: DepartmentCode | string;
@@ -129,7 +129,7 @@ export function Departments({ hid }: { hid: string }) {
                     <TextInput aria-label={tr('{0} response target', { 0: d.name_en })} type="number" min={1} value={d.sla_minutes ?? ''} onChange={(e) => set(i, { ...d, sla_minutes: e.target.value ? Number(e.target.value) : null })} className="h-9 w-24 rounded-lg text-sm" />
                   </td>
                   <td className="px-4 py-3">
-                    <Toggle label={<span className="sr-only">{d.name_en}{' '}{tr('active')}</span>} checked={d.is_active} onChange={(v) => set(i, { ...d, is_active: v })} />
+                    <Toggle label={<span className="sr-only">{tr('{0} active', { 0: pickLang(d, 'name') })}</span>} checked={d.is_active} onChange={(v) => set(i, { ...d, is_active: v })} />
                     {d.is_custom && (
                       <Button size="sm" variant="ghost" className="mt-2" onClick={() => remove(d)} aria-label={tr('Delete {0}', { 0: d.name_en })}>
                         <Trash2 className="h-4 w-4" aria-hidden="true" />

@@ -143,7 +143,13 @@ async function crawl(page: Page, role: string, route: string, scope: string) {
       document.querySelectorAll(sel).forEach((el, i) => {
         const h = el as HTMLElement;
         if (h.closest('[role="dialog"]') || !(h.offsetWidth || h.offsetHeight || h.getClientRects().length)) return;
-        const name = (h.getAttribute('aria-label') || h.innerText || h.getAttribute('title') || h.getAttribute('href') || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+        // Accessible name, in the order assistive technology resolves it.
+        const byIds = (h.getAttribute('aria-labelledby') ?? '')
+          .split(/\s+/)
+          .map((id) => (id ? document.getElementById(id)?.textContent ?? '' : ''))
+          .join(' ');
+        const forLabel = h.id ? document.querySelector(`label[for="${CSS.escape(h.id)}"]`)?.textContent ?? '' : '';
+        const name = (h.getAttribute('aria-label') || byIds.trim() || forLabel.trim() || h.innerText || h.getAttribute('title') || h.getAttribute('href') || '').replace(/\s+/g, ' ').trim().slice(0, 80);
         out.push({ i, name, tag: h.getAttribute('role') || h.tagName.toLowerCase() });
       });
       return out;
@@ -214,7 +220,9 @@ async function crawl(page: Page, role: string, route: string, scope: string) {
     let chooser = false;
     const onChooser = () => (chooser = true);
     page.on('filechooser', onChooser);
-    const popup = page.context().waitForEvent('page', { timeout: 800 }).catch(() => null);
+    let newPage: Page | null = null;
+    const onPage = (p: Page) => (newPage = p);
+    page.context().on('page', onPage);
     try {
       await target.click({ timeout: 2500 });
     } catch (e) {
@@ -223,16 +231,17 @@ async function crawl(page: Page, role: string, route: string, scope: string) {
       w.stop();
       page.off('download', onDl);
       page.off('filechooser', onChooser);
+      page.context().off('page', onPage);
       continue;
     }
     await settle(page);
-    const newPage = await popup;
+    page.context().off('page', onPage);
     const mut = await page.evaluate(() => (window as unknown as { __mut: number }).__mut);
     const dialog = await page.locator('[role="dialog"]:visible, [role="menu"]:visible').count();
     w.stop();
     page.off('download', onDl);
     page.off('filechooser', onChooser);
-    if (newPage) await newPage.close();
+    if (newPage) await (newPage as Page).close();
     const effects = [page.url() !== before && 'navigation', w.api > 0 && `api×${w.api}`, dialog > 0 && 'dialog', download && 'download', chooser && 'file chooser', newPage && 'new tab', mut > 0 && `dom×${mut}`, !mut && selected && 'already selected'].filter(Boolean);
     rec.effect = effects.join(', ');
     const forbidden = w.bad.filter((b) => / → 403$/.test(b));
@@ -266,7 +275,7 @@ for (const r of ROLES) {
     track(page);
     await login(page, r.email);
     const landing = page.url();
-    const hid = /\/admin\/h\/([0-9a-f-]{36})/.exec(landing)?.[1] ?? /\/admin\/h\/([0-9a-f-]{36})/.exec((await page.locator('a[href*="/admin/h/"]').first().getAttribute('href').catch(() => '')) ?? '')?.[1];
+    const hid = /\/admin\/h\/([0-9a-f-]{36})/.exec(landing)?.[1] ?? /\/admin\/h\/([0-9a-f-]{36})/.exec((await page.locator('a[href*="/admin/h/"]').first().getAttribute('href', { timeout: 1500 }).catch(() => '')) ?? '')?.[1];
     let paths: string[] = [];
     if (r.role === 'PLATFORM_FINANCE' || landing.includes('/admin/platform')) {
       paths = await page.locator('nav[aria-label="Admin"] a[href^="/admin/platform"]').evaluateAll((as) => as.map((a) => a.getAttribute('href')!));

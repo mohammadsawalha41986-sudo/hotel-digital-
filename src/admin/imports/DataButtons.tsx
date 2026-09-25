@@ -58,7 +58,8 @@ function ExportMenu({ items, onPick }: { items: { key: string; label: string }[]
 export function DataButtons({ hid, entity }: { hid: string; entity: string }) {
   const me = useMe();
   const canImport = !!me.data?.permissions?.modules.includes('import');
-  const cat = useTemplates(hid);
+  // Roles without the import module never ask for templates (the server would refuse).
+  const cat = useTemplates(hid, canImport);
   const fb = useFeedback();
   const [open, setOpen] = useState(false);
   if (!canImport) return null;

@@ -87,10 +87,11 @@ export function tr(source: string | null | undefined, vars?: Record<string | num
 }
 
 /** Picks the Arabic or English variant of bilingual content (e.g. name_en / name_ar). */
-export function pickLang<T extends Record<string, unknown>>(r: T | null | undefined, key: string): string {
+export function pickLang(r: object | null | undefined, key: string): string {
   if (!r) return '';
-  const en = String(r[`${key}_en`] ?? '');
-  const ar = String(r[`${key}_ar`] ?? '');
+  const rec = r as Record<string, unknown>;
+  const en = String(rec[`${key}_en`] ?? '');
+  const ar = String(rec[`${key}_ar`] ?? '');
   return current === 'ar' ? ar || en : en || ar;
 }
 

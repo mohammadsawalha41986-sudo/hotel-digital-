@@ -7,7 +7,7 @@ import { Button, Field, Select, TextArea, TextInput, Toggle, cx } from '../../co
 import { useDepartmentOptions, useEntities } from '../data';
 import { MediaInput } from './MediaInput';
 import { CustomFieldsEditor, HoursEditor, ModifiersEditor } from './StructuredEditors';
-import { tr, L } from '../i18n';
+import { tr, L, pickLang } from '../i18n';
 
 type Values = Record<string, unknown>;
 
@@ -227,7 +227,7 @@ function DepartmentSelect({ hid, id, f, value, onChange, err, control }: { hid: 
         {!q.isLoading && value && !known && <option value={value}>{value}{' '}{tr('(not configured)')}</option>}
         {options.map((d) => (
           <option key={d.code} value={d.code}>
-            {d.name_en}
+            {pickLang(d, 'name')}
             {d.is_active ? '' : ' (inactive)'}
           </option>
         ))}

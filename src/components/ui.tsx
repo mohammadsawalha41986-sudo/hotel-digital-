@@ -341,7 +341,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
 
 export function Select({ className, invalid, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }) {
   return (
-    <select aria-invalid={invalid || undefined} className={cx(inputBase, 'h-12 appearance-none bg-[length:1rem] pe-10', invalid && 'border-red-500', className)} {...rest}>
+    <select aria-invalid={invalid || undefined} className={cx(inputBase, 'select-chevron h-12 appearance-none pe-10', invalid && 'border-red-500', className)} {...rest}>
       {children}
     </select>
   );

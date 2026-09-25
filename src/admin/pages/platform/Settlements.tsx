@@ -11,7 +11,7 @@ import { useMe } from '../../data';
 import { useFeedback } from '../../feedback';
 import { PageHeader } from '../../layout/AdminLayout';
 import { HotelPicker } from '../Orders';
-import { tr } from '../../i18n';
+import { tr, pickLang } from '../../i18n';
 
 interface Row {
   id: string;
@@ -167,7 +167,7 @@ function NewSettlement({ open, onClose, onCreated }: { open: boolean; onClose: (
             <Select id="ns-hotel" value={v.hotel_id} onChange={(e) => setV({ ...v, hotel_id: e.target.value })}>
               <option value="">{tr('Choose a hotel…')}</option>
               {(me.data?.hotels ?? []).map((h) => (
-                <option key={h.id} value={h.id}>{h.name_en}</option>
+                <option key={h.id} value={h.id}>{pickLang(h, 'name')}</option>
               ))}
             </Select>
           </Field>

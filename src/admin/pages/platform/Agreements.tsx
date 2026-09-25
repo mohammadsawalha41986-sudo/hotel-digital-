@@ -21,11 +21,12 @@ import { Badge, Button, EmptyState, ErrorState, Field, Select, Sheet, Skeleton, 
 import { dateTime, deptLabel, money, pct } from '../../commerce/kit';
 import { useFeedback } from '../../feedback';
 import { Card, PageHeader } from '../../layout/AdminLayout';
-import { tr, L } from '../../i18n';
+import { tr, L, pickLang } from '../../i18n';
 
 interface HotelRow {
   id: string;
   name_en: string;
+  name_ar: string;
   currency: string;
   hotel_finance_access: string;
   settlement_frequency: string;
@@ -87,17 +88,18 @@ export function Agreements() {
           {hotels.error && <p className="text-sm text-red-700">{errorMessage(hotels.error)}</p>}
           <ul className="space-y-1 text-sm">
             <li>
-              <button type="button" onClick={() => setHotelId('platform')} className={cx('w-full rounded-lg px-3 py-2 text-start', hotelId === 'platform' ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-100')}>{tr('Platform default')}</button>
+              <button type="button" aria-pressed={hotelId === 'platform'} onClick={() => setHotelId('platform')} className={cx('w-full rounded-lg px-3 py-2 text-start', hotelId === 'platform' ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-100')}>{tr('Platform default')}</button>
             </li>
             {hotels.data?.map((h) => (
               <li key={h.id}>
                 <button
                   type="button"
+                  aria-pressed={hotelId === h.id}
                   onClick={() => setHotelId(h.id)}
                   className={cx('flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-start', hotelId === h.id ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-100')}
                 >
-                  <span className="truncate">{h.name_en}</span>
-                  <span className={cx('shrink-0 text-xs', hotelId === h.id ? 'text-white/70' : h.active_rules ? 'text-zinc-500' : 'text-red-600')}>{h.active_rules ? `${h.active_rules} rules` : tr('no rules')}</span>
+                  <span className="truncate">{pickLang(h, 'name')}</span>
+                  <span className={cx('shrink-0 text-xs', hotelId === h.id ? 'text-white/70' : h.active_rules ? 'text-zinc-500' : 'text-red-600')}>{h.active_rules ? tr('{0} rules', { 0: h.active_rules }) : tr('no rules')}</span>
                 </button>
               </li>
             ))}
@@ -136,7 +138,7 @@ function CommercialSettings({ hotel }: { hotel: HotelRow }) {
     },
   });
   return (
-    <Card title={tr('{0} — commercial settings', { 0: hotel.name_en })} actions={<Button size="sm" loading={m.isPending} onClick={() => m.mutate()}>{tr('Save')}</Button>}>
+    <Card title={tr('{0} — commercial settings', { 0: pickLang(hotel, 'name') })} actions={<Button size="sm" loading={m.isPending} onClick={() => m.mutate()}>{tr('Save')}</Button>}>
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label={tr('Hotel access to financial data')} htmlFor="cs-access" hint={tr('What the hotel\'s admin and finance roles may see.')}>
           <Select id="cs-access" value={v.hotel_finance_access} onChange={(e) => setV({ ...v, hotel_finance_access: e.target.value })}>

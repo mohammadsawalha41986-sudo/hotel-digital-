@@ -9,7 +9,7 @@ import { OrderDetailSheet } from '../commerce/OrderDetail';
 import { useMe } from '../data';
 import { useFeedback } from '../feedback';
 import { Card, PageHeader } from '../layout/AdminLayout';
-import { tr } from '../i18n';
+import { tr, pickLang } from '../i18n';
 
 interface Profile {
   guest: {
@@ -185,7 +185,7 @@ export function GuestProfilePage({ hid }: { hid: string }) {
             {p.most_used.length > 0 && (
               <p className="mt-4 text-sm">
                 <span className="text-zinc-500">{tr('Most used:')}{' '}</span>
-                {p.most_used.map((m) => `${m.name_en} (${m.orders})`).join(' · ')}
+                {p.most_used.map((m) => `${pickLang(m, 'name')} (${m.orders})`).join(' · ')}
               </p>
             )}
           </Card>

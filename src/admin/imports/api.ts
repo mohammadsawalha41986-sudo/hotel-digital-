@@ -74,8 +74,8 @@ export interface RollbackReport {
 
 const base = (hid: string) => `/admin/hotels/${hid}/data`;
 
-export function useTemplates(hid: string) {
-  return useQuery({ queryKey: ['import-templates', hid], queryFn: () => api<TemplateCatalogue>(`${base(hid)}/templates`), staleTime: 5 * 60_000 });
+export function useTemplates(hid: string, enabled = true) {
+  return useQuery({ queryKey: ['import-templates', hid], queryFn: () => api<TemplateCatalogue>(`${base(hid)}/templates`), staleTime: 5 * 60_000, enabled });
 }
 
 export function useImports(hid: string, enabled = true) {

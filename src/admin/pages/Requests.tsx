@@ -12,7 +12,7 @@ import { Badge, Button, EmptyState, ErrorState, Field, Select, Sheet, Skeleton, 
 import { useMe } from '../data';
 import { useFeedback } from '../feedback';
 import { PageHeader } from '../layout/AdminLayout';
-import { tr, L, locale, adminLang } from '../i18n';
+import { tr, L, locale, adminLang, pickLang } from '../i18n';
 
 interface Row {
   id: string;
@@ -329,7 +329,7 @@ function RequestDrawer({ hid, id, onClose }: { hid: string; id: string | null; o
                     <span>
                       <span className="font-medium">
                         {l.quantity ? `${l.quantity} × ` : ''}
-                        {l.name_en}
+                        {pickLang(l, 'name')}
                       </span>
                       {l.detail_en && <span className="block text-zinc-500">{l.detail_en}</span>}
                     </span>

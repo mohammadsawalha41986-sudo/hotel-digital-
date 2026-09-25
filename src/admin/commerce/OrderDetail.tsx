@@ -6,7 +6,7 @@ import { ApiError, api, errorMessage } from '../../lib/api';
 import { Button, ErrorState, Field, Select, Sheet, Skeleton, TextArea, TextInput, cx } from '../../components/ui';
 import { useFeedback } from '../feedback';
 import { FinancialStatus, LedgerStatus, OrderStatus, dateTime, deptLabel, major, money, pct, sourceLabel, typeLabel } from './kit';
-import { tr, L } from '../i18n';
+import { tr, L, pickLang } from '../i18n';
 
 interface Detail {
   order: Record<string, any>;
@@ -71,7 +71,7 @@ export function OrderDetailSheet({ apiPath, open, onClose, canAdjust }: { apiPat
                     {d.lines.map((l) => (
                       <tr key={l.id}>
                         <td className="px-3 py-2">
-                          <p className="font-medium">{l.name_en}</p>
+                          <p className="font-medium">{pickLang(l, 'name')}</p>
                           <p className="text-xs text-zinc-500" dir="rtl" lang="ar">{l.name_ar}</p>
                           {(l.modifiers ?? []).map((m: any, i: number) => (
                             <p key={i} className="text-xs text-zinc-500">{m.group_en}: {m.options?.map((o: any) => o.en).join(', ')}</p>

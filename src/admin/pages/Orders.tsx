@@ -7,7 +7,7 @@ import { ExportLinks, FinancialStatus, OrderFilterBar, OrderStatus, dateTime, de
 import { OrderDetailSheet } from '../commerce/OrderDetail';
 import { useMe } from '../data';
 import { PageHeader } from '../layout/AdminLayout';
-import { tr } from '../i18n';
+import { tr, pickLang } from '../i18n';
 
 interface OrderRow {
   id: string;
@@ -150,7 +150,7 @@ export function HotelPicker({ value, onChange }: { value: string; onChange: (v: 
       <Select id="hotel-pick" value={value} onChange={(e) => onChange(e.target.value)} className="h-10 rounded-lg text-sm">
         <option value="">{tr('All hotels')}</option>
         {(me.data?.hotels ?? []).map((h) => (
-          <option key={h.id} value={h.id}>{h.name_en}</option>
+          <option key={h.id} value={h.id}>{pickLang(h, 'name')}</option>
         ))}
       </Select>
     </div>
