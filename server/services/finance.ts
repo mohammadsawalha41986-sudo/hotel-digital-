@@ -83,19 +83,40 @@ const PROGRESS: RequestStatus[] = ['NEW', 'ACCEPTED', 'IN_PROGRESS', 'READY', 'C
 const reached = (status: RequestStatus, target: 'COMPLETED' | 'ACCEPTED') => PROGRESS.indexOf(status) >= PROGRESS.indexOf(target);
 const fmt = (m: number, cur: string) => `${cur} ${(m / 100).toFixed(2)}`;
 
+/** Where each numbered document lives (numbers are unique platform-wide). */
+const NUMBERED: Record<string, { table: string; column: string }> = {
+  LEDGER: { table: 'commission_ledger', column: 'entry_no' },
+  ADJUSTMENT: { table: 'financial_adjustments', column: 'adjustment_no' },
+  SETTLEMENT: { table: 'settlements', column: 'settlement_no' },
+};
+
+/**
+ * Next document number for a hotel. A number that already exists (issued
+ * before hotels had unique finance codes, see migration 006) is skipped rather
+ * than retried forever, so a legacy overlap can never block completing orders.
+ */
 async function nextNo(db: Queryable, hotelId: string, key: string, prefix: string, pad = 6) {
-  const r = await one<{ value: number }>(
-    `INSERT INTO counters (hotel_id, key, value) VALUES ($1, $2, 1)
-     ON CONFLICT (hotel_id, key) DO UPDATE SET value = counters.value + 1 RETURNING value`,
-    [hotelId, key],
-    db
-  );
-  return `${prefix}-${String(r!.value).padStart(pad, '0')}`;
+  const target = NUMBERED[key];
+  for (let attempt = 0; attempt < 10_000; attempt++) {
+    const r = await one<{ value: number }>(
+      `INSERT INTO counters (hotel_id, key, value) VALUES ($1, $2, 1)
+       ON CONFLICT (hotel_id, key) DO UPDATE SET value = counters.value + 1 RETURNING value`,
+      [hotelId, key],
+      db
+    );
+    const no = `${prefix}-${String(r!.value).padStart(pad, '0')}`;
+    if (!target) return no;
+    const taken = await one(`SELECT 1 FROM ${target.table} WHERE ${target.column} = $1`, [no], db);
+    if (!taken) return no;
+  }
+  throw new HttpError(500, 'numbering_exhausted', 'Could not allocate a document number');
 }
 
+/** The hotel's unique code in financial document numbers (see migration 006). */
 async function hotelCode(db: Queryable, hotelId: string) {
-  const h = await one<{ slug: string }>('SELECT slug FROM hotels WHERE id = $1', [hotelId], db);
-  return (h?.slug ?? 'HOTEL').replace(/[^a-z0-9]/gi, '').slice(0, 8).toUpperCase();
+  const h = await one<{ finance_code: string }>('SELECT finance_code FROM hotels WHERE id = $1', [hotelId], db);
+  if (!h) throw notFound('Hotel not found');
+  return h.finance_code;
 }
 
 async function systemEvent(db: Queryable, order: Pick<OrderRow, 'id' | 'hotel_id' | 'status'>, type: string, note: string, actor: Actor, reason = '') {

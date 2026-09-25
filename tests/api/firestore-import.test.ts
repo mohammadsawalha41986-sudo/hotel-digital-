@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { importFirestoreHotel } from '../../server/tools/firestoreImport';
 import { Client, one, q, setup, teardown, tx } from './helpers';
+import { clearPublicCaches } from '../../server/services/bundleCache';
 
 before(setup);
 after(teardown);
@@ -48,6 +49,7 @@ test('previous Firebase data is migrated with validation and reporting', async (
 
   // The migrated catalog works end to end once published.
   await q('UPDATE hotels SET is_published = true WHERE id = $1', [report.hotelId]);
+  clearPublicCaches();
   const b = (await new Client().get('/public/hotels/legacy-palace')).body;
   const outlet = b.catalog.outlets[0];
   const menu = (await new Client().get(`/public/hotels/legacy-palace/outlets/${outlet.id}/menu`)).body;

@@ -33,6 +33,7 @@ export const SERVER_MESSAGES: string[] = [
   "Choose {0} for {1}",
   "Code {0} is already used",
   "Codes use capital letters, digits and hyphens (e.g. ITEM-LATTE)",
+  "Could not allocate a document number",
   "Cross-origin request blocked",
   "Current password is incorrect",
   "Department not found",

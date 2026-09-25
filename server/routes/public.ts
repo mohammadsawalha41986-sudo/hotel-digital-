@@ -9,6 +9,7 @@ import { clientIp, type AppEnv, type Ctx } from '../context';
 import { one, q, tx } from '../db';
 import { HttpError, badRequest, notFound, validationError } from '../errors';
 import { minutes, rateLimit } from '../rateLimit';
+import { cachedBundle, cachedHotelRow } from '../services/bundleCache';
 import { getHotelRowBySlug, hydrate, type HotelRow } from '../repos/hotels';
 import { sha256 } from '../security';
 import { buildOutletMenu, buildPublicBundle } from '../services/catalog';
@@ -27,7 +28,7 @@ export const publicRoutes = new Hono<AppEnv>();
 async function resolveHotel(c: Ctx): Promise<{ row: HotelRow; preview: boolean }> {
   const slug = c.req.param('slug') ?? '';
   if (!/^[a-z0-9-]{2,60}$/.test(slug)) throw notFound('Hotel not found');
-  const row = await getHotelRowBySlug(slug);
+  const row = await cachedHotelRow(slug, () => getHotelRowBySlug(slug));
   if (!row) throw notFound('Hotel not found');
   const user = c.get('user');
   const wantsPreview = c.req.query('preview') === '1';
@@ -62,9 +63,21 @@ publicRoutes.get('/default-hotel', async (c) => {
 
 publicRoutes.get('/hotels/:slug', async (c) => {
   const { row, preview } = await resolveHotel(c);
-  const bundle = await buildPublicBundle(row, preview);
-  c.header('Cache-Control', preview ? 'no-store' : 'public, max-age=30, stale-while-revalidate=120');
-  return c.json(bundle);
+  if (preview) {
+    c.header('Cache-Control', 'no-store');
+    return c.json(await buildPublicBundle(row, true));
+  }
+  const b = await cachedBundle(row.id, () => buildPublicBundle(row, false));
+  c.header('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+  c.header('ETag', b.etag);
+  c.header('Vary', 'Accept-Encoding');
+  if (c.req.header('if-none-match') === b.etag) return c.body(null, 304);
+  c.header('Content-Type', 'application/json; charset=UTF-8');
+  if (/\bgzip\b/.test(c.req.header('accept-encoding') ?? '')) {
+    c.header('Content-Encoding', 'gzip');
+    return c.body(new Uint8Array(b.gzip));
+  }
+  return c.body(b.json);
 });
 
 /**

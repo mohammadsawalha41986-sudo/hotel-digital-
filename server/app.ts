@@ -15,6 +15,7 @@ import { randomToken } from './security';
 import { isSafeKey, readMedia } from './storage';
 import { readiness } from './health';
 import { recordRequest } from './metrics';
+import { invalidateBundle } from './services/bundleCache';
 import { authRoutes } from './routes/auth';
 import { publicRoutes } from './routes/public';
 import { hotelRoutes } from './routes/admin/hotels';
@@ -76,6 +77,13 @@ export function createApp() {
   app.use('/api/*', bodyLimit({ maxSize: 20 * 1024 * 1024, onError: (c) => c.json({ error: { code: 'too_large', message: 'Request is too large' } }, 413) }));
   app.use('/api/*', sessionMiddleware);
   app.use('/api/*', csrfGuard);
+  // Any successful change to a hotel (content, availability, publish, import,
+  // settings) drops that hotel's cached public bundle once the change — and its
+  // transaction — has completed.
+  app.use('/api/admin/hotels/:hid/*', async (c, next) => {
+    await next();
+    if (c.req.method !== 'GET' && c.res.status < 400) invalidateBundle(c.req.param('hid'));
+  });
 
   // Liveness: the process is up and serving (no dependencies, never flaps on a DB blip).
   app.get('/api/health', (c) => c.json({ ok: true }));

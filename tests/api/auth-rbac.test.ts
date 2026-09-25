@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import { Client, bundle, guest, ids, login, menuItems, one, outletByName, q, setup, teardown, users } from './helpers';
+import { clearPublicCaches } from '../../server/services/bundleCache';
 
 before(setup);
 after(teardown);
@@ -172,6 +173,7 @@ describe('multi-hotel isolation', () => {
 
   test('unpublished hotels are invisible to guests but previewable by their staff', async () => {
     await q('UPDATE hotels SET is_published = false WHERE id = $1', [ids.harbour]);
+    clearPublicCaches(); // direct SQL bypasses the app's cache invalidation
     assert.equal((await new Client().get('/public/hotels/demo-harbour-hotel')).status, 404);
     const staff = await login(users.harbourAdmin);
     const r = await staff.get('/public/hotels/demo-harbour-hotel');
@@ -180,6 +182,7 @@ describe('multi-hotel isolation', () => {
     const otherStaff = await login(users.admin);
     assert.equal((await otherStaff.get('/public/hotels/demo-harbour-hotel')).status, 404);
     await q('UPDATE hotels SET is_published = true WHERE id = $1', [ids.harbour]);
+    clearPublicCaches();
   });
 
   test('public bundle does not leak private routing numbers', async () => {

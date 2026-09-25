@@ -41,7 +41,16 @@ export interface Hotel {
 }
 
 /** Parses stored JSON through the current schemas so old rows gain new defaults. */
+const hydrated = new WeakMap<HotelRow, Hotel>();
+
+/** Parsed view of a hotel row (memoised per row object; rows from caches are shared). */
 export function hydrate(row: HotelRow): Hotel {
+  let h = hydrated.get(row);
+  if (!h) hydrated.set(row, (h = parseHotel(row)));
+  return h;
+}
+
+function parseHotel(row: HotelRow): Hotel {
   const profile = hotelProfileSchema.parse({ ...row.profile, slug: row.slug, name_en: row.name_en, name_ar: row.name_ar });
   return {
     id: row.id,

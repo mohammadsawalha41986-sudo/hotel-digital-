@@ -305,6 +305,7 @@ export const AR: Record<string, string> = {
   "Controls the guest menu drawer and the mobile bottom bar (up to 5 items; currently {0}). Leave labels empty to use the defaults.": "يتحكم في قائمة النزيل والشريط السفلي في الجوال (حتى 5 عناصر؛ حالياً {0}). اترك التسميات فارغة لاستخدام الافتراضية.",
   "Copy Monday to all days": "نسخ الاثنين إلى كل الأيام",
   "Copy URL": "نسخ الرابط",
+  "Could not allocate a document number": "تعذّر تخصيص رقم للمستند",
   "Could not check for duplicates": "تعذر التحقق من التكرارات",
   "Could not load": "تعذر التحميل",
   "Could not load agreements": "تعذر تحميل الاتفاقيات",

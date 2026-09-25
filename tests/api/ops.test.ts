@@ -96,3 +96,27 @@ describe('shared rate limiting (hotel Wi-Fi aware)', () => {
     }
   });
 });
+
+describe('public bundle cache', () => {
+  test('ETag revalidation, gzip, per-hotel keys, and immediate visibility of changes', async () => {
+    const g = new Client();
+    const a1 = await g.get('/public/hotels/swiss-flora-royal');
+    const etag = a1.headers.get('etag');
+    assert.ok(etag);
+    assert.equal((await g.get('/public/hotels/swiss-flora-royal', { 'if-none-match': etag! })).status, 304);
+    const gz = await g.get('/public/hotels/swiss-flora-royal', { 'accept-encoding': 'gzip' });
+    assert.equal(gz.headers.get('content-encoding'), 'gzip');
+    // Another hotel never receives this hotel's cached bundle.
+    const b = await g.get('/public/hotels/demo-harbour-hotel');
+    assert.notEqual(b.headers.get('etag'), etag);
+    assert.equal(b.body.hotel.slug, 'demo-harbour-hotel');
+    // An availability change made by staff is visible right away (cache dropped after the change).
+    const admin = await login(users.admin);
+    const outlet = a1.body.catalog.outlets[0];
+    const r = await admin.patch(`/admin/hotels/${a1.body.hotel.id}/entities/outlets/${outlet.id}`, { status_override: 'closed' });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const a2 = await g.get('/public/hotels/swiss-flora-royal');
+    assert.notEqual(a2.headers.get('etag'), etag);
+    await admin.patch(`/admin/hotels/${a1.body.hotel.id}/entities/outlets/${outlet.id}`, { status_override: outlet.status_override ?? 'auto' });
+  });
+});

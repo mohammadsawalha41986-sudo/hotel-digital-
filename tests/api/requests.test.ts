@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import { Client, bundle, guest, ids, login, menuItems, one, outletByName, q, setup, teardown, users } from './helpers';
+import { clearPublicCaches } from '../../server/services/bundleCache';
 
 before(setup);
 after(teardown);
@@ -154,11 +155,13 @@ describe('services, laundry, spa, feedback routing', () => {
     const r = await submit(new Client(), { kind: 'HOTEL_SERVICE', service_id: transfer.id });
     assert.match(r.body.whatsapp_url, /966500000104/); // FRONT_OFFICE fallback
     await q(`UPDATE hotels SET settings = settings || '{"fallback_department": null}' WHERE id = $1`, [ids.royal]);
+    clearPublicCaches(); // direct SQL bypasses the app's cache invalidation
     const r2 = await submit(new Client(), { kind: 'HOTEL_SERVICE', service_id: transfer.id });
     assert.equal(r2.status, 201);
     assert.equal(r2.body.whatsapp_url, null); // still stored in the admin queue
     assert.ok(await one('SELECT 1 FROM requests WHERE id = $1', [r2.body.id]));
     await q(`UPDATE hotels SET settings = settings || '{"fallback_department": "FRONT_OFFICE"}' WHERE id = $1`, [ids.royal]);
+    clearPublicCaches();
     await q(`UPDATE departments SET whatsapp = '+966500000105' WHERE hotel_id = $1 AND code = 'CONCIERGE'`, [ids.royal]);
   });
 
