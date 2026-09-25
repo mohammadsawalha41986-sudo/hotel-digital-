@@ -39,7 +39,7 @@ export function createApp() {
     c.header('X-Request-Id', c.get('requestId'));
     if (c.req.path.startsWith('/api/')) {
       const ms = Date.now() - start;
-      recordRequest(c.res.status, ms);
+      recordRequest(c.res.status, ms, c.req.path);
       // Path only (no query string): queries can carry search terms such as guest names.
       const level = c.res.status >= 500 ? 'error' : ms > 2_000 ? 'warn' : 'info';
       log[level]('http', { id: c.get('requestId'), method: c.req.method, path: c.req.path, status: c.res.status, ms });

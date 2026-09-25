@@ -95,3 +95,4 @@ Only after every production-readiness gate passes on staging (PRODUCTION-INFRAST
 | Date | Change | By |
 |---|---|---|
 | 2026-09-25 | Inspection only (projects, services, deployments, config). **No changes were made** to any Railway project. Creating the staging project was refused (trial expired). | Engineering session |
+| 2026-09-25 (later) | Re-inspected: production unchanged (one service on `main`, no DB, no bucket). Creating the staging project was refused again: "Your trial has expired. Please select a plan to continue using Railway." **No changes were made.** | Engineering session |

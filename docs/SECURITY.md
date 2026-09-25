@@ -84,7 +84,30 @@ This file describes how security is implemented, how it was verified, and what r
 
 ## 7. Dependencies
 
-`npm audit --omit=dev` reported **0 vulnerabilities** at the time of this audit.
+- **Production:** `npm audit --omit=dev` reports **0 vulnerabilities** (re-checked 2026-09-25).
+- **Development only:** `npm audit` reports 6 findings (2 moderate, 4 high), all in tooling that never ships. They come from `s3rver`, the local S3 server used only by `tests/api/storage.test.ts` (via `busboy`, `dicer` and `fast-xml-parser`), and from Vite's dev-server `esbuild`. To track: upgrade Vite, and replace `s3rver` with a maintained local S3 emulator.
+
+## 7a. Production-mode verification (2026-09-25)
+
+Checked on a production build (`NODE_ENV=production`) against the 20-hotel database:
+
+| Check | Result |
+|---|---|
+| Session cookie | `HttpOnly; Secure; SameSite=Lax` |
+| CSRF: missing header, or foreign `Origin` | 403, 403 |
+| Security headers | CSP, HSTS (180 days), `nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer` |
+| SVG with `<script>` or with `onload` | Rejected (`unsafe_svg`) |
+| A clean SVG as served | `Content-Security-Policy: default-src 'none'; … sandbox`, `nosniff` |
+| A text file named `.png` | Rejected (`unsupported_type`, content sniffing) |
+| A real PNG | Re-encoded to WebP |
+| SSRF: `169.254.169.254`, `127.0.0.1:5432`, `10.0.0.1`, `file://` | All refused |
+| Hotel admin reading another hotel | 404 |
+| Hotel admin reading platform ops | 403 |
+| Secrets in the client bundle | 0 matches |
+| Secrets in Git (all 30 commits, including history) | None found (cloud keys, private keys, tokens, credentialed DB URLs). Only `.env.example` is tracked. |
+| Logs of the run | 0 matches for passwords, cookies, tokens, phone numbers or guest names |
+
+Not yet verifiable, because the Railway plan blocks provisioning: TLS and private networking to the production database, bucket credentials and permissions, and platform log retention.
 
 ## 8. Residual risks and recommendations
 

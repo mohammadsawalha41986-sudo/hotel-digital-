@@ -7,6 +7,7 @@ import { migrate, pool } from './db';
 import { log } from './log';
 import { ensurePublications } from './services/publish';
 import { startJobs } from './services/scheduler';
+import { startProcessAlerts } from './services/alerts';
 import { startDraining } from './health';
 
 /**
@@ -53,6 +54,7 @@ async function main() {
   if (!cluster.isWorker) await prepare();
   // Maintenance jobs (replica-safe; retention stays opt-in via RETENTION_JOB=1).
   const stopJobs = process.env.JOBS_DISABLED === '1' ? () => {} : startJobs();
+  const stopAlerts = startProcessAlerts();
   const app = createApp();
   const server = serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => {
     log.info('server.listening', { port: info.port, env: config.isProd ? 'production' : 'development' });
@@ -67,6 +69,7 @@ async function main() {
     log.info('server.shutdown', { signal });
     startDraining();
     stopJobs();
+    stopAlerts();
     const grace = Number(process.env.SHUTDOWN_GRACE_MS ?? 5_000);
     setTimeout(() => {
       server.close(() => {

@@ -33,7 +33,8 @@ import {
 import { applyRetention } from '../../services/guests';
 import { jobStatus } from '../../services/scheduler';
 import { readiness } from '../../health';
-import { metricsSnapshot } from '../../metrics';
+import { hotelMetrics, metricsSnapshot } from '../../metrics';
+import { THRESHOLDS, platformAlerts, processAlerts } from '../../services/alerts';
 import { REPORTS, allDepartments, exportFormat, platformDashboard, reportFilterSchema, runReport, searchOrders, type ReportKey } from '../../services/reports';
 import { sendReport, statementReport } from './commerce';
 
@@ -533,8 +534,41 @@ platformRoutes.get('/ops', async (c) => {
          (SELECT COUNT(*) FROM pg_stat_activity WHERE datname = current_database()) AS db_connections`
     ),
   ]);
+  const [proc, platform, hotels] = await Promise.all([
+    processAlerts(),
+    platformAlerts(),
+    // Per-hotel operational view (platform administrators only; no guest data).
+    q<{ id: string; slug: string; orders_last_hour: number; unaccepted_30min: number; open_orders: number }>(
+      `SELECT h.id, h.slug,
+              COUNT(r.id) FILTER (WHERE r.created_at > now() - interval '1 hour')::int AS orders_last_hour,
+              COUNT(r.id) FILTER (WHERE r.status = 'NEW' AND r.created_at < now() - interval '30 minutes')::int AS unaccepted_30min,
+              COUNT(r.id) FILTER (WHERE r.status IN ('NEW','ACCEPTED','IN_PROGRESS','READY'))::int AS open_orders
+         FROM hotels h LEFT JOIN requests r ON r.hotel_id = h.id AND r.created_at > now() - interval '2 days'
+        GROUP BY h.id, h.slug ORDER BY h.slug`
+    ),
+  ]);
+  const hm = hotelMetrics();
+  const perHotel = hotels.map((h) => {
+    const byId = hm.get(h.id);
+    const bySlug = hm.get(`slug:${h.slug}`);
+    return {
+      ...h,
+      requests_this_process: (byId?.requests ?? 0) + (bySlug?.requests ?? 0),
+      errors_5xx_this_process: (byId?.errors_5xx ?? 0) + (bySlug?.errors_5xx ?? 0),
+    };
+  });
   c.header('Cache-Control', 'no-store');
-  return c.json({ replica: process.env.RAILWAY_REPLICA_ID ?? String(process.pid), ready, metrics: metricsSnapshot(), jobs, signals });
+  return c.json({
+    replica: process.env.RAILWAY_REPLICA_ID ?? String(process.pid),
+    ready,
+    metrics: metricsSnapshot(),
+    alerts: [...proc, ...platform.alerts],
+    thresholds: THRESHOLDS,
+    integrity: platform.checks,
+    jobs,
+    signals,
+    hotels: perHotel,
+  });
 });
 
 platformRoutes.post('/privacy/retention', async (c) => {

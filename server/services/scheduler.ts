@@ -3,6 +3,7 @@ import { q, tx } from '../db';
 import { log } from '../log';
 import { pruneRateLimits } from '../rateLimit';
 import { applyRetention } from './guests';
+import { platformAlerts, reportTransitions } from './alerts';
 
 /**
  * Background jobs that run inside the API process, safely with any number of
@@ -38,6 +39,17 @@ export const JOBS: Job[] = [
     run: async (client) => {
       const r = await client.query(`DELETE FROM sessions WHERE expires_at < now()`);
       return { removed: r.rowCount ?? 0 };
+    },
+  },
+  {
+    // Platform-wide health and financial integrity (see services/alerts.ts).
+    name: 'integrity_watch',
+    everyMs: 15 * MINUTE,
+    enabled: () => true,
+    run: async (client) => {
+      const { alerts, checks } = await platformAlerts(client);
+      reportTransitions('platform', alerts);
+      return { ...checks, alerts: alerts.map((a) => a.key) };
     },
   },
   {

@@ -22,6 +22,28 @@ Business signals on `/ops`, with the action for each:
 
 Every response carries `X-Request-Id`, and every error body includes `request_id`. Search the logs for that id to see the request, its status and duration. Logs are JSON, one line per event: `{"t","level","event",…}`.
 
+## 1a. Alerts
+
+The application evaluates the signals below and writes **one structured log line per state change**: `alert.firing` (level `error`) when an alert starts, and `alert.resolved` (level `info`) when it clears. Point the hosting platform's log alerting or a log drain at `event = "alert.firing"`.
+
+| Alert key | Scope | Fires when | Evaluated by |
+|---|---|---|---|
+| `readiness.database` / `readiness.storage` | Replica | The DB (2 s) or media storage is unreachable | Every process, each minute |
+| `latency.p95` | Replica | p95 > 150 ms (at least 200 samples) | Every process, each minute |
+| `errors.5xx_rate` | Replica | ≥ 5 server errors **and** > 1 % of requests in 5 min | Every process, each minute |
+| `load.rps` | Replica | > 400 req/s averaged over 5 min | Every process, each minute |
+| `load.cpu` | Replica | > 60 % CPU averaged over 5 min | Every process, each minute |
+| `db.connections` | Platform | > 70 % of `max_connections` | `integrity_watch` job, every 15 min, once platform-wide |
+| `jobs.failed` | Platform | Any failed background job in 24 h | `integrity_watch` |
+| `finance.completed_without_ledger` | Platform | A commercial order completed over 1 h ago with no commission decision | `integrity_watch` |
+| `finance.ledger_snapshot_mismatch` | Platform | A ledger entry differs from its locked snapshot | `integrity_watch` |
+| `finance.duplicate_commission` | Platform | More than one commission entry for an order | `integrity_watch` |
+| `finance.settlement_header_mismatch` / `finance.settlement_line_mismatch` | Platform | A settlement no longer equals its lines or ledger entries | `integrity_watch` |
+
+- Thresholds can be tuned with `ALERT_P95_MS`, `ALERT_CPU_PCT`, `ALERT_RPS` and `ALERT_5XX_PCT`.
+- **Per hotel:** `/api/admin/platform/ops` (Super Admin only) lists every hotel's orders in the last hour, orders unaccepted after 30 min, open orders, and this process's requests and 5xx for that hotel. Hotel staff never see other hotels. Alert logs contain keys and counts only, never hotel names, guest data or amounts.
+- **Platform-level alerts** that the application cannot observe need Railway: deployment failed/crashed/OOM (webhook), and backup failure. See RAILWAY.md §4.
+
 ## 2. Deploying
 
 The same steps apply to every environment:
