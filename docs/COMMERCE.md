@@ -251,9 +251,34 @@ The most specific rule wins, in this order: `SERVICE → CATEGORY → OUTLET →
 4. **Payments and PMS:** there is no payment gateway (the hotel collects from the guest) and no PMS integration. Check-in and check-out dates are entered manually.
 5. **PDF output:** settlement PDFs come from the browser's print dialog. There is no server-rendered PDF.
 6. **Retention scheduling:** an opt-in daily job (`RETENTION_JOB=1`, `server/services/scheduler.ts`) runs retention.
-   - It is guarded by a Postgres advisory lock, so only one instance runs it.
+   - It runs at most once a day platform-wide (advisory lock plus `job_runs`).
    - It is audited, and it only touches hotels that have a retention period.
    - It is off by default until the operator enables it. Staff notes in request history are immutable, so anonymisation cannot erase them. Staff are told not to record personal data there.
-7. **Settlement approval:** four-eyes approval is enforced (see §5). The hotel still cannot acknowledge a settlement in the app.
+7. **Settlement approval:** four-eyes approval is enforced, and the hotel acknowledges approved statements in the app (see §11).
 8. **Rule entry time zone:** effective dates are entered in the browser's local time.
-9. **Deployment:** nothing is deployed. §70 needs you to approve a target.
+9. **Deployment:** blocked by the Railway account plan. The production project has no database yet; see RAILWAY.md.
+
+## 11. Production-scale financial safety (2026-09 pass)
+
+**Idempotent checkout**
+- The guest app sends an `Idempotency-Key` per checkout attempt.
+- A partial unique index on (hotel, guest device, key) makes a duplicate impossible, even with 10 simultaneous submits.
+- A retry returns the original order. Reusing the same key with a different basket is refused (`idempotency_mismatch`).
+- The app retries once, with the same key, after a dropped connection.
+
+**Serialised settlement creation**
+- A per-hotel transaction advisory lock is taken before the overlap check.
+- A deterministic test shows the race without it (a duplicate overlapping settlement is created) and the fix (409).
+
+**Hotel acknowledgement**
+- `POST /admin/hotels/:hid/finance/settlements/:sid/acknowledge` with an optional note, for APPROVED or SETTLED statements.
+- Once only, audited; platform staff are refused.
+- The UI shows an acknowledge panel on the hotel's statement, "Needs your acknowledgement" in the list, and "Awaiting the hotel's acknowledgement" on the platform view.
+
+**Unique finance codes** (migration 006)
+- Document numbers (`LE-`, `ADJ-`, `STL-`) embed a per-hotel code. That code used to be the first 8 letters of the slug, so hotels such as `swiss-flora-royal` and `swiss-flora-jeddah` collided, and the second hotel could never complete an order.
+- Codes are now stored and unique (the collider gets a suffix, e.g. `SWISSFLO2`), and numbering skips any number already issued. Found by the 20-hotel load test; regression tests are in `finance-codes.test.ts`.
+
+**Verified under load**
+- 91,080 orders across 20 hotels, 7,028 completed.
+- 0 missing or duplicate commission entries, 0 amount mismatches and 0 duplicate idempotency keys (SCALING.md).

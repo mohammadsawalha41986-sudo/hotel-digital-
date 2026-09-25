@@ -1,0 +1,15 @@
+53.24 ms mean | 126.7 ms max | 359 calls | SELECT l->>$4 AS name_en, l->>$5 AS name_ar, SUM((l->>$6)::int) AS qty, COUNT(DISTINCT r.id) AS orders FROM requests r, jsonb_array
+0.43 ms mean | 123.3 ms max | 43216 calls | INSERT INTO counters (hotel_id, key, value) VALUES ($1, $2, $3) ON CONFLICT (hotel_id, key) DO UPDATE SET value = counters.value + $4 R
+0.45 ms mean | 11.4 ms max | 32887 calls | SELECT status, COUNT(*) AS n FROM requests WHERE hotel_id = $1 AND department = ANY($2::text[]) AND status IN ($3,$4,$5,$6) GROUP BY status
+0.10 ms mean | 8.4 ms max | 107167 calls | SELECT id, is_active, archived_at IS NOT NULL AS archived, (data->>$3)::boolean AS available, data->>$4 AS status_override FROM menu_
+27.40 ms mean | 65.7 ms max | 359 calls | SELECT COUNT(*) FILTER (WHERE (created_at AT TIME ZONE $4)::date = (now() AT TIME ZONE $4)::date) AS today, COUNT(*) AS to
+0.37 ms mean | 65.8 ms max | 23793 calls | SELECT id, status, department, reference FROM requests WHERE hotel_id = $1 AND id = $2 FOR UPDATE
+21.21 ms mean | 59.6 ms max | 359 calls | SELECT status, COUNT(*) AS n FROM requests WHERE hotel_id = $1 AND department = ANY($2::text[]) AND created_at >= now() - make_interval(days
+20.96 ms mean | 59.4 ms max | 359 calls | SELECT type, COUNT(*) AS n FROM requests WHERE hotel_id = $1 AND department = ANY($2::text[]) AND created_at >= now() - make_interval(days =
+20.29 ms mean | 62.7 ms max | 359 calls | SELECT title_en, title_ar, type, COUNT(*) AS n FROM requests WHERE hotel_id = $1 AND department = ANY($2::text[]) AND created_at >= 
+0.26 ms mean | 6.8 ms max | 28044 calls | INSERT INTO requests (hotel_id, reference, type, department, priority, title_en, title_ar, guest_type, guest_name, guest_phone, room, lang, 
+0.13 ms mean | 9.8 ms max | 55947 calls | INSERT INTO order_lines (hotel_id, request_id, line_no, item_entity, item_id, item_code, category_code, name_en, name_ar, quantity, 
+0.07 ms mean | 9.0 ms max | 93040 calls | INSERT INTO rate_limits AS r (key, window_start, window_ms, hits) SELECT k, now(), w, $3 FROM unnest($1::text[], $2::int[]) AS t(k, w
+1.00 ms mean | 17.4 ms max | 6762 calls | SELECT id, reference, type, department, status, priority, title_en, title_ar, guest_type, guest_name, guest_phone, room, lang, t
+0.05 ms mean | 27.3 ms max | 138845 calls | INSERT INTO guest_event_counts (hotel_id, day, event, target_type, target_code, n) VALUES ($1, (now() AT TIME ZONE $2)::date, $3, $4,
+16.49 ms mean | 47.9 ms max | 359 calls | SELECT details->>$4 AS feedback_type, COUNT(*) AS n FROM requests WHERE hotel_id = $1 AND department = ANY($2::text[]) AND created_at >= now

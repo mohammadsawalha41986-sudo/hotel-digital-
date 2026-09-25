@@ -4,7 +4,7 @@ import { Button, Field, Segmented, Select, Skeleton, TextInput } from '../../com
 import { useAdminHotel, useEntities } from '../data';
 import { useFeedback } from '../feedback';
 import { Card, PageHeader } from '../layout/AdminLayout';
-import { tr } from '../i18n';
+import { tr, pickLang } from '../i18n';
 
 type Kind = 'main' | 'room' | 'dining' | 'outlet' | 'spa' | 'services';
 
@@ -129,7 +129,7 @@ export function QrCodes({ hid }: { hid: string }) {
                     <option value="">{tr('Choose…')}</option>
                     {(outlets.data ?? []).map((o) => (
                       <option key={o.id} value={o.id}>
-                        {String(o.name_en)}
+                        {pickLang(o, 'name')}
                       </option>
                     ))}
                   </Select>

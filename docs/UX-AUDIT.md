@@ -10,19 +10,19 @@ The audit is produced by `e2e/90-action-audit.spec.ts`. For each role, it:
 
 It covers the admin roles plus a guest on a 390 px phone. It runs against the disposable E2E database.
 
-Run: 2026-09-25T00:31:27.490Z
+Run: 2026-09-25T05:56:31.905Z
 
 ## Summary
 
 | Status | Before | After | Meaning |
 |---|---|---|---|
-| WORKING | 583 | 882 | Produced an observable effect |
+| WORKING | 583 | 884 | Produced an observable effect |
 | DISABLED | 24 | 26 | Correctly disabled in the current state (e.g. Save with no changes, Move up on the first row) |
 | UNREACHABLE | 0 | 0 | Present but covered or off-screen at that moment (not clickable by a user either) |
 | NO_EFFECT | 21 | 0 | Clickable but nothing happened: a dead control |
 | BROKEN | 0 | 0 | Triggered a 5xx or a network failure |
 | WRONG_PERMISSION | 0 | 0 | A visible control led to a 403 |
-| **Total controls** | 628 | 908 | |
+| **Total controls** | 628 | 910 | |
 
 - Screens visited: **112**, with **0** load errors.
 - Before, the run covered 57 screens with 0 load errors.
@@ -40,7 +40,7 @@ Coverage depth by role:
 |---|---|---|---|---|---|---|
 | SUPER_ADMIN | 33 | 0 | 0 | 0 | 0 | 0 |
 | HOTEL_ADMIN | 26 | 816 | 791 | 25 | 0 | 0 |
-| PLATFORM_FINANCE | 6 | 17 | 17 | 0 | 0 | 0 |
+| PLATFORM_FINANCE | 6 | 19 | 19 | 0 | 0 | 0 |
 | HOTEL_FINANCE | 4 | 17 | 17 | 0 | 0 | 0 |
 | MANAGEMENT | 7 | 0 | 0 | 0 | 0 | 0 |
 | FNB | 5 | 0 | 0 | 0 | 0 | 0 |
@@ -154,9 +154,9 @@ None. Every visible control produced a real effect, and no control led to a serv
 | HOTEL_ADMIN | `/admin/h/:hid/users` | Users & roles | 18 |
 | HOTEL_ADMIN | `/admin/h/:hid/audit` | Audit log | 90 |
 | PLATFORM_FINANCE | `/admin/platform/dashboard` | Commercial dashboard | 0 |
-| PLATFORM_FINANCE | `/admin/platform/agreements` | Commercial agreements | 5 |
+| PLATFORM_FINANCE | `/admin/platform/agreements` | Commercial agreements | 6 |
 | PLATFORM_FINANCE | `/admin/platform/orders` | Orders — all hotels | 7 |
-| PLATFORM_FINANCE | `/admin/platform/settlements` | Settlements | 2 |
+| PLATFORM_FINANCE | `/admin/platform/settlements` | Settlements | 3 |
 | PLATFORM_FINANCE | `/admin/platform/ledger` | Commission ledger | 1 |
 | PLATFORM_FINANCE | `/admin/platform/reports` | Reports — all hotels | 2 |
 | HOTEL_FINANCE | `/admin/h/:hid/dashboard` | Dashboard | 6 |
@@ -197,7 +197,7 @@ None. Every visible control produced a real effect, and no control led to a serv
 | SPA | `/admin/h/:hid/spa` | Wellness & spa | 0 |
 | SPA | `/admin/h/:hid/import` | Data Import & Export | 0 |
 | GUEST | `/h/:slug/dining` | Dining | 14 |
-| GUEST | `/h/:slug/dining/20ee805c-c6a2-40cf-b601-d232062199a1` | Main Restaurant | 0 |
+| GUEST | `/h/:slug/dining/4406e236-c7db-4ac7-b0c5-5a3f33b50612` | Main Restaurant | 0 |
 | GUEST | `/h/:slug/room-services` | Room Services | 14 |
 | GUEST | `/h/:slug/spa` | Wellness & Spa | 8 |
 | GUEST | `/h/:slug/laundry` | Laundry | 3 |
