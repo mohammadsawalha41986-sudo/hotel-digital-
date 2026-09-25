@@ -16,6 +16,7 @@ const TONE: Record<RequestStatus, 'info' | 'warning' | 'success' | 'danger' | 'n
   NEW: 'info',
   ACCEPTED: 'warning',
   IN_PROGRESS: 'warning',
+  READY: 'success',
   COMPLETED: 'success',
   REJECTED: 'danger',
   CANCELLED: 'neutral',

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { importFirestoreHotel } from '../../server/tools/firestoreImport';
 import { Client, one, q, setup, teardown, tx } from './helpers';
+import { clearPublicCaches } from '../../server/services/bundleCache';
 
 before(setup);
 after(teardown);
@@ -33,21 +34,22 @@ const exported = {
 
 test('previous Firebase data is migrated with validation and reporting', async () => {
   const report = await tx((c) => importFirestoreHotel(c, 'legacy-palace', exported));
-  assert.deepEqual(report.created, { whatsapp_routes: 1, outlets: 1, menus: 1, menu_categories: 1, menu_items: 1, offers: 1, spa_categories: 1, spa_services: 1, laundry_items: 1, room_services: 1, hotel_services: 1, info_items: 3 });
+  assert.deepEqual(report.created, { whatsapp_routes: 1, outlets: 1, menus: 1, menu_categories: 1, menu_items: 1, offers: 1, spa_categories: 1, spa_services: 1, laundry_categories: 1, laundry_items: 1, room_services: 1, hotel_services: 1, info_items: 3 });
   assert.deepEqual(report.skipped.map((s) => s.what).sort(), ['item No price dish', 'routing housekeeping']);
 
   const hotel = await one('SELECT is_published, branding, profile FROM hotels WHERE id = $1', [report.hotelId]);
   assert.equal(hotel.is_published, false, 'imported hotels start unpublished for review');
   assert.equal(hotel.branding.colors.primary, '#123456');
-  assert.equal(hotel.branding.colors.background, '#F8F5F0', 'invalid colors fall back to defaults');
+  assert.equal(hotel.branding.theme?.overrides?.page_background, undefined, 'an invalid colour is dropped (the theme derives it)');
   assert.equal(hotel.profile.social.x, 'https://x.com/legacy');
   assert.equal((await one(`SELECT whatsapp FROM departments WHERE hotel_id = $1 AND code = 'FNB'`, [report.hotelId])).whatsapp, '+966500001111');
-  const ldy = await one(`SELECT data FROM laundry_items WHERE hotel_id = $1`, [report.hotelId]);
+  const ldy = await one(`SELECT i.data, c.code FROM laundry_items i JOIN laundry_categories c ON c.id = i.parent_id WHERE i.hotel_id = $1`, [report.hotelId]);
   assert.equal(ldy.data.express_pct, 50);
-  assert.equal(ldy.data.category, 'traditional');
+  assert.equal(ldy.code, 'LCAT-TRADITIONAL');
 
   // The migrated catalog works end to end once published.
   await q('UPDATE hotels SET is_published = true WHERE id = $1', [report.hotelId]);
+  clearPublicCaches();
   const b = (await new Client().get('/public/hotels/legacy-palace')).body;
   const outlet = b.catalog.outlets[0];
   const menu = (await new Client().get(`/public/hotels/legacy-palace/outlets/${outlet.id}/menu`)).body;

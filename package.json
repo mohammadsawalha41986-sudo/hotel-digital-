@@ -17,7 +17,8 @@
     "db:seed": "tsx --env-file-if-exists=.env server/cli.ts seed",
     "db:seed:demo": "tsx --env-file-if-exists=.env server/cli.ts seed-demo",
     "admin:create": "tsx --env-file-if-exists=.env server/cli.ts create-admin",
-    "import:firestore": "tsx --env-file-if-exists=.env server/cli.ts import-firestore"
+    "import:firestore": "tsx --env-file-if-exists=.env server/cli.ts import-firestore",
+    "release": "node dist/server/cli.js release"
   },
   "dependencies": {
     "@fontsource/cormorant-garamond": "^5.3.0",
@@ -26,6 +27,8 @@
     "@fontsource/tajawal": "^5.3.0",
     "@hono/node-server": "^2.1.1",
     "@tanstack/react-query": "^5.103.2",
+    "aws4fetch": "^1.0.20",
+    "exceljs": "^4.4.0",
     "hono": "^4.13.9",
     "lucide-react": "^1.16.0",
     "motion": "^13.4.0",
@@ -34,7 +37,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.18.4",
-    "xlsx": "^0.18.5",
+    "sharp": "^0.35.4",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -48,12 +51,16 @@
     "@vitejs/plugin-react": "^4.3.1",
     "concurrently": "^10.0.5",
     "esbuild": "^0.28.2",
+    "s3rver": "^3.7.1",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.23.13",
     "typescript": "^5.5.3",
     "vite": "^5.4.2"
   },
   "engines": {
-    "node": ">=22.9"
+    "node": ">=22"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }

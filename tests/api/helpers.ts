@@ -14,6 +14,7 @@ const db = await import('../../server/db');
 const { createApp } = await import('../../server/app');
 const { seedSwissFlora } = await import('../../server/seed/swissflora');
 const { seedDemoCatalog, seedDemoUsers, seedIsolationHotel, DEMO_PASSWORD } = await import('../../server/seed/demo');
+const { ensurePublications } = await import('../../server/services/publish');
 
 export const { pool, q, one, tx } = db;
 export { DEMO_PASSWORD };
@@ -29,6 +30,7 @@ export async function setup() {
     await seedDemoCatalog(c, ids.royal);
     ids.harbour = await seedIsolationHotel(c);
     await seedDemoUsers(c, ids.royal, ids.harbour);
+    await ensurePublications(c);
   });
   app = createApp() as unknown as Hono;
 }
@@ -84,6 +86,13 @@ export class Client {
   del<T = any>(p: string) {
     return this.req<T>('DELETE', p);
   }
+  /** Binary GET (spreadsheets, files). */
+  async download(path: string): Promise<{ status: number; body: Buffer; headers: Headers }> {
+    const headers: Record<string, string> = { 'x-requested-with': 'hub', host: 'localhost' };
+    if (this.cookie) headers.cookie = this.cookie;
+    const res = await app.request(`/api${path}`, { method: 'GET', headers });
+    return { status: res.status, body: Buffer.from(await res.arrayBuffer()), headers: res.headers };
+  }
 }
 
 export async function login(email: string, password = DEMO_PASSWORD) {
@@ -122,4 +131,11 @@ export async function outletByName(name: string, slug = 'swiss-flora-royal') {
 export async function menuItems(outletId: string, slug = 'swiss-flora-royal') {
   const r = await new Client().get(`/public/hotels/${slug}/outlets/${outletId}/menu`);
   return r.body.menus.flatMap((m: any) => m.categories.flatMap((c: any) => c.items));
+}
+
+/** Publishes the hotel's current draft (staff edits reach guests only after this). */
+export async function publish(client: Client, hotelId = ids.royal) {
+  const r = await client.post(`/admin/hotels/${hotelId}/publish`, { note: 'test' });
+  if (r.status !== 200) throw new Error(`publish failed: ${r.status} ${JSON.stringify(r.body)}`);
+  return r.body;
 }

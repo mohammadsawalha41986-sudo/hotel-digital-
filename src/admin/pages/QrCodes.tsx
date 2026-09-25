@@ -4,6 +4,7 @@ import { Button, Field, Segmented, Select, Skeleton, TextInput } from '../../com
 import { useAdminHotel, useEntities } from '../data';
 import { useFeedback } from '../feedback';
 import { Card, PageHeader } from '../layout/AdminLayout';
+import { tr, pickLang } from '../i18n';
 
 type Kind = 'main' | 'room' | 'dining' | 'outlet' | 'spa' | 'services';
 
@@ -36,6 +37,7 @@ export function QrCodes({ hid }: { hid: string }) {
     const base = `${origin}/h/${slug}`;
     const params = new URLSearchParams();
     if (k === 'room' && r) params.set('room', r);
+    else params.set('qr', '1'); // marks the visit as a QR entry (order source)
     if (lang) params.set('lang', lang);
     const path = k === 'dining' ? '/dining' : k === 'outlet' && outletId ? `/dining/${outletId}` : k === 'spa' ? '/spa' : k === 'services' ? '/services' : '';
     const qs = params.toString();
@@ -76,7 +78,7 @@ export function QrCodes({ hid }: { hid: string }) {
     const QR = await qrLib();
     const svgs = await Promise.all(codes.map((c) => QR.toString(c.url, { type: 'svg', margin: 1 })));
     const w = window.open('', '_blank');
-    if (!w) return fb.error('Allow pop-ups to print QR codes.');
+    if (!w) return fb.error(tr('Allow pop-ups to print QR codes.'));
     const name = hotel.data?.profile.name_en ?? '';
     const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
     w.document.write(`<!doctype html><html><head><title>${esc(name)} QR codes</title><style>
@@ -98,46 +100,46 @@ export function QrCodes({ hid }: { hid: string }) {
 
   return (
     <>
-      <PageHeader title="QR codes" description="Room QR codes carry the room number, so guests only confirm their name and phone. Codes point to your live guest site." />
+      <PageHeader title={tr('QR codes')} description={tr('Room QR codes carry the room number, so guests only confirm their name and phone. Codes point to your live guest site.')} />
       <div className="grid gap-4 xl:grid-cols-[1fr_24rem]">
-        <Card title="Single QR code">
+        <Card title={tr('Single QR code')}>
           <div className="space-y-4">
             <Segmented
-              label="QR type"
+              label={tr('QR type')}
               value={kind}
               onChange={setKind}
               options={[
-                { value: 'main', label: 'Hotel' },
-                { value: 'room', label: 'Room' },
-                { value: 'dining', label: 'Dining' },
-                { value: 'outlet', label: 'Outlet' },
-                { value: 'spa', label: 'Spa' },
-                { value: 'services', label: 'Services' },
+                { value: 'main', label: tr('Hotel') },
+                { value: 'room', label: tr('Room') },
+                { value: 'dining', label: tr('Dining') },
+                { value: 'outlet', label: tr('Outlet') },
+                { value: 'spa', label: tr('Spa') },
+                { value: 'services', label: tr('Services') },
               ]}
             />
             <div className="grid gap-4 sm:grid-cols-2">
               {kind === 'room' && (
-                <Field label="Room number" htmlFor="qr-room">
+                <Field label={tr('Room number')} htmlFor="qr-room">
                   <TextInput id="qr-room" value={room} onChange={(e) => setRoom(e.target.value.replace(/[^A-Za-z0-9-]/g, '').slice(0, 12))} className="h-10 rounded-lg text-sm" />
                 </Field>
               )}
               {kind === 'outlet' && (
-                <Field label="Outlet" htmlFor="qr-outlet">
+                <Field label={tr('Outlet')} htmlFor="qr-outlet">
                   <Select id="qr-outlet" value={outletId} onChange={(e) => setOutletId(e.target.value)} className="h-10 rounded-lg text-sm">
-                    <option value="">Choose…</option>
+                    <option value="">{tr('Choose…')}</option>
                     {(outlets.data ?? []).map((o) => (
                       <option key={o.id} value={o.id}>
-                        {String(o.name_en)}
+                        {pickLang(o, 'name')}
                       </option>
                     ))}
                   </Select>
                 </Field>
               )}
-              <Field label="Language" htmlFor="qr-lang" hint="Empty = guest chooses on the welcome screen.">
+              <Field label={tr('Language')} htmlFor="qr-lang" hint={tr('Empty = guest chooses on the welcome screen.')}>
                 <Select id="qr-lang" value={lang} onChange={(e) => setLang(e.target.value as '' | 'ar' | 'en')} className="h-10 rounded-lg text-sm">
-                  <option value="">Guest chooses</option>
-                  <option value="ar">Arabic</option>
-                  <option value="en">English</option>
+                  <option value="">{tr('Guest chooses')}</option>
+                  <option value="ar">{tr('Arabic')}</option>
+                  <option value="en">{tr('English')}</option>
                 </Select>
               </Field>
             </div>
@@ -146,34 +148,30 @@ export function QrCodes({ hid }: { hid: string }) {
             </p>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" className="rounded-lg" onClick={png} disabled={kind === 'outlet' && !outletId}>
-                <Download className="h-4 w-4" aria-hidden="true" /> PNG
-              </Button>
+                <Download className="h-4 w-4" aria-hidden="true" />{' '}{tr('PNG')}</Button>
               <Button size="sm" variant="secondary" className="rounded-lg" onClick={svg} disabled={kind === 'outlet' && !outletId}>
-                <FileDown className="h-4 w-4" aria-hidden="true" /> SVG
-              </Button>
+                <FileDown className="h-4 w-4" aria-hidden="true" />{' '}{tr('SVG')}</Button>
               <Button
                 size="sm"
                 variant="secondary"
                 className="rounded-lg"
                 disabled={kind === 'outlet' && !outletId}
-                onClick={() => printSheet([{ title: kind === 'room' ? `Room ${room}` : kind === 'outlet' ? outletName ?? 'Dining' : kind === 'main' ? 'Welcome' : kind[0].toUpperCase() + kind.slice(1), subtitle: '', url }])}
+                onClick={() => printSheet([{ title: kind === 'room' ? tr('Room {0}', { 0: room }) : kind === 'outlet' ? outletName ?? tr('Dining') : kind === 'main' ? tr('Welcome') : kind[0].toUpperCase() + kind.slice(1), subtitle: '', url }])}
               >
-                <Printer className="h-4 w-4" aria-hidden="true" /> Print / PDF
-              </Button>
+                <Printer className="h-4 w-4" aria-hidden="true" />{' '}{tr('Print / PDF')}</Button>
             </div>
           </div>
         </Card>
-        <Card title="Preview">
-          {preview ? <img src={preview} alt={`QR code for ${url}`} className="mx-auto w-64" /> : <Skeleton className="mx-auto h-64 w-64" />}
+        <Card title={tr('Preview')}>
+          {preview ? <img src={preview} alt={tr('QR code for {0}', { 0: url })} className="mx-auto w-64" /> : <Skeleton className="mx-auto h-64 w-64" />}
         </Card>
-        <Card title="Room QR codes in bulk" description="Range (e.g. 101-140) or a list (101, 102, 201). Up to 500 rooms." className="xl:col-span-2">
+        <Card title={tr('Room QR codes in bulk')} description={tr('Range (e.g. 101-140) or a list (101, 102, 201). Up to 500 rooms.')} className="xl:col-span-2">
           <div className="flex flex-wrap items-end gap-3">
-            <Field label="Rooms" htmlFor="qr-range">
+            <Field label={tr('Rooms')} htmlFor="qr-range">
               <TextInput id="qr-range" value={range} onChange={(e) => setRange(e.target.value)} className="h-10 w-72 rounded-lg text-sm" />
             </Field>
-            <Button size="sm" className="h-10 rounded-lg" disabled={!rooms.length} onClick={() => printSheet(rooms.map((r) => ({ title: `Room ${r}`, subtitle: '', url: buildUrl('room', r) })))}>
-              <Printer className="h-4 w-4" aria-hidden="true" /> Print {rooms.length} room codes (PDF)
-            </Button>
+            <Button size="sm" className="h-10 rounded-lg" disabled={!rooms.length} onClick={() => printSheet(rooms.map((r) => ({ title: tr('Room {0}', { 0: r }), subtitle: '', url: buildUrl('room', r) })))}>
+              <Printer className="h-4 w-4" aria-hidden="true" />{tr('Print {0} room codes (PDF)', { 0: rooms.length })}</Button>
           </div>
         </Card>
       </div>

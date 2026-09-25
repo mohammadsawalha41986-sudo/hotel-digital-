@@ -65,9 +65,9 @@ export async function seedDemoCatalog(client: pg.PoolClient, hid: string) {
   const breakfast = await add('menu_categories', { name_en: 'Breakfast', name_ar: 'الإفطار' }, irdMenu.id);
   const mains = await add('menu_categories', { name_en: 'Mains', name_ar: 'الأطباق الرئيسية' }, irdMenu.id);
   const drinks = await add('menu_categories', { name_en: 'Drinks', name_ar: 'المشروبات' }, irdMenu.id);
-  await add('menu_items', { name_en: '[Demo] Arabic breakfast', name_ar: '[تجريبي] فطور عربي', description_en: 'Foul, falafel, labneh, olives and fresh bread.', description_ar: 'فول وفلافل ولبنة وزيتون وخبز طازج.', price: 65, calories: 780, dietary: ['vegetarian'], allergens: ['gluten', 'dairy', 'sesame'], featured: true, prep_minutes: 20 }, breakfast.id);
+  await add('menu_items', { name_en: '[Demo] Arabic breakfast', name_ar: '[تجريبي] فطور عربي', description_en: 'Foul, falafel, labneh, olives and fresh bread.', description_ar: 'فول وفلافل ولبنة وزيتون وخبز طازج.', price: 65, calories: 780, dietary: ['vegetarian'], allergens: ['gluten', 'dairy', 'sesame'], featured: true, badges: ['popular'], prep_minutes: 20 }, breakfast.id);
   await add('menu_items', { name_en: '[Demo] Club sandwich', name_ar: '[تجريبي] كلوب ساندويتش', description_en: 'Grilled chicken, turkey, egg and fries.', description_ar: 'دجاج مشوي وتركي وبيض مع بطاطس.', price: 58, calories: 920, allergens: ['gluten', 'eggs'], recommended: true, prep_minutes: 25, modifiers: [mods.addons, mods.remove] }, mains.id);
-  await add('menu_items', { name_en: '[Demo] Beef burger', name_ar: '[تجريبي] برجر لحم', description_en: 'Angus beef, cheddar and house sauce.', description_ar: 'لحم أنجوس وجبنة شيدر وصلصة خاصة.', price: 72, calories: 1050, spicy: '1', allergens: ['gluten', 'dairy'], prep_minutes: 25, modifiers: [mods.doneness, mods.addons, mods.remove] }, mains.id);
+  await add('menu_items', { name_en: '[Demo] Beef burger', name_ar: '[تجريبي] برجر لحم', description_en: 'Angus beef, cheddar and house sauce.', description_ar: 'لحم أنجوس وجبنة شيدر وصلصة خاصة.', price: 72, calories: 1050, spicy: '1', allergens: ['gluten', 'dairy'], prep_minutes: 25, badges: ['best_seller'], modifiers: [mods.doneness, mods.addons, mods.remove] }, mains.id);
   await add('menu_items', { name_en: '[Demo] Chicken biryani', name_ar: '[تجريبي] برياني دجاج', price: 68, spicy: '2', prep_minutes: 30, available: false }, mains.id);
   await add('menu_items', { name_en: '[Demo] Fresh orange juice', name_ar: '[تجريبي] عصير برتقال طازج', price: 24, dietary: ['vegan'], modifiers: [mods.size] }, drinks.id);
   await add('menu_items', { name_en: '[Demo] Cappuccino', name_ar: '[تجريبي] كابتشينو', price: 22, allergens: ['dairy'], modifiers: [mods.size, mods.milk] }, drinks.id);
@@ -96,12 +96,30 @@ export async function seedDemoCatalog(client: pg.PoolClient, hid: string) {
     ['[Demo] Dress', '[تجريبي] فستان', 'ladies', 20, 30, 12],
     ['[Demo] Abaya', '[تجريبي] عباية', 'ladies', 18, 25, 10],
   ];
+  const laundryCats = new Map(
+    (await q<{ id: string; code: string }>(`SELECT id, code FROM laundry_categories WHERE hotel_id = $1`, [hid], client)).map((r) => [r.code, r.id])
+  );
   for (const [en, ar, category, wash, dry, press] of laundry) {
-    await add('laundry_items', { name_en: en, name_ar: ar, category, wash_price: wash, dry_clean_price: dry, press_price: press, express_pct: 50 });
+    const parent = laundryCats.get(`LCAT-${category.toUpperCase()}`);
+    if (!parent) throw new Error(`Laundry category ${category} missing — run the base seed first`);
+    await add('laundry_items', { name_en: en, name_ar: ar, wash_price: wash, dry_clean_price: dry, press_price: press, express_pct: 50 }, parent);
   }
 
   // Offer
-  await add('offers', { title_en: '[Demo] Breakfast in bed', title_ar: '[تجريبي] الإفطار في السرير', subtitle_en: 'Arabic breakfast delivered to your room', subtitle_ar: 'فطور عربي يصلك إلى غرفتك', image: '', badge_en: 'This week', badge_ar: 'هذا الأسبوع', price_label_en: 'SAR 65', price_label_ar: '65 ر.س', cta_label_en: 'Order now', cta_label_ar: 'اطلب الآن', cta_page: 'dining', cta_outlet_id: ird, placement: ['home', 'dining'] });
+  await add('offers', { title_en: '[Demo] Breakfast in bed', title_ar: '[تجريبي] الإفطار في السرير', subtitle_en: 'Arabic breakfast delivered to your room', subtitle_ar: 'فطور عربي يصلك إلى غرفتك', image: '', badge_en: 'This week', badge_ar: 'هذا الأسبوع', price_label_en: 'SAR 65', price_label_ar: '65 ر.س', cta_label_en: 'Order now', cta_label_ar: 'اطلب الآن', cta_page: 'dining', cta_outlet_id: ird, placement: ['home', 'dining'], badges: ['limited'], original_price: 85, offer_price: 65 });
+
+  // Experience categories (homepage discovery tiles)
+  const pool = await one<{ id: string }>(`SELECT id FROM spa_categories WHERE hotel_id = $1 AND name_en ILIKE '%pool%' LIMIT 1`, [hid], client);
+  const experiences: Record<string, unknown>[] = [
+    { title_en: 'Dining', title_ar: 'المطاعم', subtitle_en: 'Restaurants, café & lounges', subtitle_ar: 'مطاعم ومقهى وصالات', icon: 'utensils', target: 'page', page: 'dining' },
+    { title_en: 'In-room dining', title_ar: 'الطعام في الغرفة', subtitle_en: 'Delivered to your door', subtitle_ar: 'يصلك إلى باب غرفتك', icon: 'concierge-bell', target: 'outlet', outlet_id: ird, badges: ['popular'] },
+    { title_en: 'Wellness & spa', title_ar: 'السبا والعافية', subtitle_en: 'Massages & treatments', subtitle_ar: 'مساج وعلاجات', icon: 'flower', target: 'page', page: 'spa' },
+    ...(pool ? [{ title_en: 'Pool', title_ar: 'المسبح', subtitle_en: 'Indoor pool, open daily', subtitle_ar: 'مسبح داخلي يومياً', icon: 'waves', target: 'spa_category', spa_category_id: pool.id }] : []),
+    { title_en: 'Housekeeping', title_ar: 'التدبير المنزلي', subtitle_en: 'Towels, cleaning, amenities', subtitle_ar: 'مناشف وتنظيف ومستلزمات', icon: 'bed-double', target: 'page', page: 'room_services' },
+    { title_en: 'Laundry', title_ar: 'المغسلة', subtitle_en: 'Collected from your room', subtitle_ar: 'نستلمها من غرفتك', icon: 'shirt', target: 'page', page: 'laundry' },
+    { title_en: 'Concierge', title_ar: 'الكونسيرج', subtitle_en: 'Transport & assistance', subtitle_ar: 'التنقل والمساعدة', icon: 'car', target: 'page', page: 'services' },
+  ];
+  for (const e of experiences) await add('experiences', e);
 
   for (const [code, number] of Object.entries(DEMO_WHATSAPP)) {
     await q('UPDATE departments SET whatsapp = $3 WHERE hotel_id = $1 AND code = $2', [hid, code, number], client);
@@ -149,6 +167,8 @@ export async function upsertUser(client: pg.PoolClient, email: string, name: str
 export async function seedDemoUsers(client: pg.PoolClient, royalId: string, harbourId: string) {
   const users: [string, string, Role, string[]][] = [
     ['super@demo.hotelhub.local', 'Platform Owner', 'SUPER_ADMIN', []],
+    ['finance@demo.hotelhub.local', 'Platform Finance', 'PLATFORM_FINANCE', []],
+    ['hotelfinance@demo.hotelhub.local', 'Hotel Finance', 'HOTEL_FINANCE', [royalId]],
     ['admin@demo.hotelhub.local', 'Hotel Admin', 'HOTEL_ADMIN', [royalId]],
     ['management@demo.hotelhub.local', 'General Manager', 'MANAGEMENT', [royalId]],
     ['fnb@demo.hotelhub.local', 'F&B Supervisor', 'FNB', [royalId]],
@@ -163,3 +183,31 @@ export async function seedDemoUsers(client: pg.PoolClient, royalId: string, harb
   return users.map((u) => u[0]);
 }
 
+
+/**
+ * [Demo] commercial configuration so the finance screens have something to
+ * show in staging. Clearly labelled; never loaded by the production seed.
+ */
+export async function seedDemoCommerce(client: pg.PoolClient, royalId: string) {
+  if (await one(`SELECT 1 FROM commission_agreements WHERE hotel_id = $1`, [royalId], client)) return false;
+  const n = await one<{ n: number }>(`SELECT nextval('commission_agreement_seq') AS n`, [], client);
+  const a = await one<{ id: string }>(
+    `INSERT INTO commission_agreements (hotel_id, agreement_no, name, contract_reference, notes)
+     VALUES ($1, $2, '[Demo] Standard commission agreement', 'DEMO-ONLY', 'Demo configuration — replace with the signed commercial agreement.') RETURNING id`,
+    [royalId, `AGR-${String(n!.n).padStart(5, '0')}`],
+    client
+  );
+  await q(
+    `INSERT INTO commission_rules (agreement_id, hotel_id, rule_key, version, scope_level, scope_value, commission_type, rate_bps, basis, tax_treatment, effective_from, notes)
+     VALUES ($1, $2, gen_random_uuid(), 1, 'HOTEL', '', 'PERCENTAGE', 500, 'GROSS_INCL_VAT', 'NOT_APPLICABLE', now() - interval '30 days', '[Demo] 5% of gross order value')`,
+    [a!.id, royalId],
+    client
+  );
+  await q(
+    `INSERT INTO hotel_commercial_settings (hotel_id, hotel_finance_access, settlement_frequency) VALUES ($1, 'FULL', 'MONTHLY')
+     ON CONFLICT (hotel_id) DO NOTHING`,
+    [royalId],
+    client
+  );
+  return true;
+}

@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { api } from '../lib/api';
 import type { Lang } from '@shared/domain';
 import type { GuestIdentity } from '@shared/hotel';
 
@@ -90,12 +91,18 @@ export function GuestSessionProvider({ slug, defaultLang, allowed, preview, chil
     return { lang: allowed.includes(defaultLang) ? defaultLang : allowed[0], chosen: allowed.length === 1 };
   });
 
+  // How the guest arrived: a printed QR code carries ?room= (room codes) or ?qr=1 (hotel/outlet codes).
+  const [entry] = useState<'QR' | 'GUEST_PORTAL'>(() => (qrRoom || params.get('qr') === '1' ? 'QR' : 'GUEST_PORTAL'));
   const setIdentity = useCallback(
     (g: GuestIdentity) => {
       setIdentityState(g);
       writeJSON(idKey, { identity: g, savedAt: Date.now() } satisfies Stored);
+      if (preview) return;
+      // Links this device to the guest profile (CRM timeline). Orders re-identify the guest too,
+      // so a failure here loses nothing and must not interrupt the guest.
+      void api(`/public/hotels/${slug}/session`, { method: 'POST', body: { guest: g, lang: langRef.current, entry }, headers: { 'x-guest-token': guestToken() } }).catch(() => undefined);
     },
-    [idKey]
+    [idKey, preview, slug, entry]
   );
   const clearIdentity = useCallback(() => {
     setIdentityState(null);
@@ -112,6 +119,9 @@ export function GuestSessionProvider({ slug, defaultLang, allowed, preview, chil
     },
     [langKey]
   );
+
+  const langRef = useRef(langState.lang);
+  langRef.current = langState.lang;
 
   useEffect(() => {
     document.documentElement.lang = langState.lang;

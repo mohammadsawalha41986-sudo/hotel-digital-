@@ -16,7 +16,9 @@ export interface RequestMessageInput {
   hotel_ar: string;
   reference: string;
   type: RequestType;
-  department: DepartmentCode;
+  department: DepartmentCode | string;
+  /** Display names of the department (hotel-defined departments are not in the built-in labels). */
+  department_name?: { en: string; ar: string };
   title_en: string;
   title_ar: string;
   guest_name: string;
@@ -41,7 +43,8 @@ export function buildWhatsAppMessage(i: RequestMessageInput): string {
   out.push(`*${ar ? REQUEST_TYPE_LABELS[i.type].ar : REQUEST_TYPE_LABELS[i.type].en}* — ${ar ? i.title_ar || i.title_en : i.title_en}`);
   out.push(`${t('Hotel', 'الفندق')}: ${ar ? i.hotel_ar : i.hotel_en}`);
   out.push(`${t('Reference', 'المرجع')}: *${i.reference}*`);
-  out.push(`${t('Department', 'القسم')}: ${ar ? DEPARTMENT_LABELS[i.department].ar : DEPARTMENT_LABELS[i.department].en}`);
+  const dept = i.department_name ?? DEPARTMENT_LABELS[i.department as DepartmentCode] ?? { en: i.department, ar: i.department };
+  out.push(`${t('Department', 'القسم')}: ${ar ? dept.ar : dept.en}`);
   out.push('');
   out.push(`${t('Guest', 'النزيل')}: ${i.guest_name}`);
   if (i.guest_type === 'IN_HOUSE' && i.room) out.push(`${t('Room', 'الغرفة')}: *${i.room}*`);

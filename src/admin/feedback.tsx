@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { Button, Sheet } from '../components/ui';
+import { tr } from './i18n';
 
 interface Toast {
   id: number;
@@ -66,7 +67,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
             >
               {t.tone === 'success' ? <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden="true" /> : <AlertTriangle className="h-5 w-5 shrink-0 text-red-400" aria-hidden="true" />}
               <span className="flex-1">{t.message}</span>
-              <button type="button" aria-label="Dismiss" onClick={() => setToasts((x) => x.filter((y) => y.id !== t.id))}>
+              <button type="button" aria-label={tr('Dismiss')} onClick={() => setToasts((x) => x.filter((y) => y.id !== t.id))}>
                 <X className="h-4 w-4 opacity-60" aria-hidden="true" />
               </button>
             </motion.div>
@@ -81,11 +82,9 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
         size="sm"
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => settle(false)}>
-              Cancel
-            </Button>
+            <Button variant="secondary" onClick={() => settle(false)}>{tr('Cancel')}</Button>
             <Button variant={confirmState?.danger ? 'danger' : 'primary'} onClick={() => settle(true)} data-autofocus>
-              {confirmState?.confirmLabel ?? 'Confirm'}
+              {confirmState?.confirmLabel ?? tr('Confirm')}
             </Button>
           </div>
         }

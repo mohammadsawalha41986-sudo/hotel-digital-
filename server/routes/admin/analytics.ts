@@ -1,11 +1,13 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { ROLE_DEPARTMENTS, roleCan } from '../../../shared/domain';
+import { roleCan } from '../../../shared/domain';
+import { departmentScope } from '../../services/access';
 import { requireHotelAccess } from '../../auth';
 import type { AppEnv } from '../../context';
 import { one, q } from '../../db';
 import { getHotelRow, hydrate } from '../../repos/hotels';
 import { notFound } from '../../errors';
+import { engagementSummary } from '../../services/engagement';
 
 export const analyticsRoutes = new Hono<AppEnv>();
 
@@ -20,17 +22,17 @@ analyticsRoutes.get('/:hid/analytics', async (c) => {
   const row = await getHotelRow(hid);
   if (!row) throw notFound('Hotel not found');
   const tz = hydrate(row).profile.timezone;
-  const depts = ROLE_DEPARTMENTS[u.role];
+  const depts = await departmentScope(u, hid);
   const base = [hid, depts, days];
   const withTz = [...base, tz];
   const scope = `hotel_id = $1 AND department = ANY($2::text[]) AND created_at >= now() - make_interval(days => $3)`;
 
-  const [summary, byDept, byStatus, byType, topServices, popularItems, trend, feedback, reviews] = await Promise.all([
+  const [summary, byDept, byStatus, byType, topServices, popularItems, trend, feedback, reviews, engagement] = await Promise.all([
     one(
       `SELECT
          COUNT(*) FILTER (WHERE (created_at AT TIME ZONE $4)::date = (now() AT TIME ZONE $4)::date) AS today,
          COUNT(*) AS total,
-         COUNT(*) FILTER (WHERE status IN ('NEW','ACCEPTED','IN_PROGRESS')) AS open,
+         COUNT(*) FILTER (WHERE status IN ('NEW','ACCEPTED','IN_PROGRESS','READY')) AS open,
          COUNT(*) FILTER (WHERE status = 'NEW') AS awaiting,
          ROUND(AVG(EXTRACT(EPOCH FROM (accepted_at - created_at)) / 60)::numeric, 1)::float AS avg_response_min,
          ROUND(AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) / 60)::numeric, 1)::float AS avg_completion_min,
@@ -73,8 +75,10 @@ analyticsRoutes.get('/:hid/analytics', async (c) => {
           [hid]
         )
       : Promise.resolve(null),
+    // Guest engagement is hotel-wide marketing data: only for roles managing guest-facing content.
+    roleCan(u.role, 'hotel') || roleCan(u.role, 'offers') ? engagementSummary(hid, tz, days) : Promise.resolve(null),
   ]);
 
   c.header('Cache-Control', 'no-store');
-  return c.json({ days, scope: depts, summary, by_department: byDept, by_status: byStatus, by_type: byType, top_services: topServices, popular_items: popularItems, trend, feedback, reviews });
+  return c.json({ days, scope: depts, summary, by_department: byDept, by_status: byStatus, by_type: byType, top_services: topServices, popular_items: popularItems, trend, feedback, reviews, engagement });
 });

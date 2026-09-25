@@ -14,6 +14,19 @@
   --c-text: #1b211e;
   --c-muted: #66706a;
   --c-line: color-mix(in oklab, var(--c-text) 10%, transparent);
+  --c-secondary-ink: #ffffff;
+  --c-accent-ink: #141414;
+  --c-light: #efeae1;
+  --c-dark: #1a211e;
+  --c-dark-ink: #ffffff;
+  --c-cta: var(--c-primary);
+  --c-cta-hover: color-mix(in oklab, var(--c-primary) 88%, black);
+  --c-cta-ink: var(--c-primary-ink);
+  --c-success: #1f7a4d;
+  --c-warning: #a15c07;
+  --c-error: #b42318;
+  --font-size-base: 16px;
+  --heading-weight: 600;
   --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-display: 'Cormorant Garamond', Georgia, serif;
   --font-ar: 'Tajawal', 'Segoe UI', system-ui, sans-serif;
@@ -30,6 +43,15 @@
   --color-fg: var(--c-text);
   --color-muted: var(--c-muted);
   --color-line: var(--c-line);
+  --color-light: var(--c-light);
+  --color-dark: var(--c-dark);
+  --color-dark-ink: var(--c-dark-ink);
+  --color-cta: var(--c-cta);
+  --color-cta-hover: var(--c-cta-hover);
+  --color-cta-ink: var(--c-cta-ink);
+  --color-success: var(--c-success);
+  --color-warning: var(--c-warning);
+  --color-error: var(--c-error);
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
   --font-ar: var(--font-ar);
@@ -39,6 +61,12 @@
   html {
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
+    font-size: var(--font-size-base);
+  }
+  h1,
+  h2,
+  h3 {
+    font-weight: var(--heading-weight);
   }
   body {
     margin: 0;
@@ -49,7 +77,8 @@
     -webkit-tap-highlight-color: transparent;
   }
   [dir='rtl'] body,
-  [dir='rtl'] {
+  [dir='rtl'],
+  [dir='rtl'] .font-sans {
     font-family: var(--font-ar);
   }
   :focus-visible {
@@ -78,6 +107,16 @@
 }
 
 @layer components {
+  /* Custom-styled selects keep a visible dropdown chevron at the inline end (mirrors in RTL). */
+  .select-chevron {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2371717a' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: 1rem;
+    background-position: right 0.75rem center;
+  }
+  [dir='rtl'] .select-chevron {
+    background-position: left 0.75rem center;
+  }
   /* Display headings: serif for Latin, the brand Arabic font (heavier) for RTL. */
   .display {
     font-family: var(--font-display);

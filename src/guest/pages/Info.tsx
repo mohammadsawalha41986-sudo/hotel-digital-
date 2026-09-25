@@ -1,6 +1,6 @@
 import { ExternalLink, Info as InfoIcon } from 'lucide-react';
 import { useMemo } from 'react';
-import { ENTITIES } from '@shared/entities';
+import { INFO_CATEGORIES } from '@shared/categories';
 import { Icon } from '../../lib/icons';
 import { useI18n } from '../../lib/i18n';
 import { EmptyState, cx } from '../../components/ui';
@@ -12,13 +12,12 @@ export function Info() {
   const { bundle } = useHotel();
   const { t, pick, lang } = useI18n();
   const title = usePageTitle('info');
-  const catField = ENTITIES.info_items.fields.find((f) => f.key === 'category')!;
   const groups = useMemo(() => {
-    const order = (catField.options ?? []).map((o) => o.value);
+    const order = INFO_CATEGORIES.map((o) => o.value);
     const map = new Map<string, typeof bundle.catalog.info_items>();
     for (const i of bundle.catalog.info_items) map.set(String(i.category), [...(map.get(String(i.category)) ?? []), i]);
     return [...map.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
-  }, [bundle, catField]);
+  }, [bundle]);
 
   if (!groups.length) return <EmptyState icon={<InfoIcon className="h-6 w-6" />} title={t('noResults')} description={t('comingSoon')} />;
 
@@ -28,7 +27,7 @@ export function Info() {
       <nav aria-label={title} className="no-scrollbar mb-6 flex gap-2 overflow-x-auto px-5 sm:px-8">
         {groups.map(([cat]) => (
           <a key={cat} href={`#info-${cat}`} className="h-10 shrink-0 rounded-full bg-black/[0.05] px-4 text-sm leading-10 font-medium">
-            {catField.options?.find((o) => o.value === cat)?.[lang] ?? cat}
+            {INFO_CATEGORIES.find((o) => o.value === cat)?.[lang] ?? cat}
           </a>
         ))}
       </nav>
@@ -36,7 +35,7 @@ export function Info() {
         {groups.map(([cat, items]) => (
           <section key={cat} id={`info-${cat}`} aria-labelledby={`info-h-${cat}`} className="scroll-mt-24">
             <h2 id={`info-h-${cat}`} className="display mb-4 text-[1.75rem]">
-              {catField.options?.find((o) => o.value === cat)?.[lang] ?? cat}
+              {INFO_CATEGORIES.find((o) => o.value === cat)?.[lang] ?? cat}
             </h2>
             <ul className={cx('grid gap-3', cat === 'nearby' ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2')}>
               {items.map((i) => {

@@ -1,7 +1,8 @@
+import { track } from './track';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GuestRequestInput } from '@shared/hotel';
-import { api } from '../lib/api';
+import { ApiError, api } from '../lib/api';
 import { useI18n } from '../lib/i18n';
 import { useHotel } from './hotel';
 import { guestToken, useGuestSession } from './session';
@@ -28,6 +29,11 @@ interface Flow {
 
 const Ctx = createContext<Flow | null>(null);
 
+/** Request kinds → engagement target types (aggregate counters only). */
+const KIND_TARGET: Record<string, string> = { ORDER: 'outlet', ROOM_SERVICE: 'room_service', HOTEL_SERVICE: 'hotel_service', SPA: 'spa_service', LAUNDRY: 'laundry', FEEDBACK: 'feedback' };
+
+const newKey = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`);
+
 export function FlowProvider({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<OpenSheet>(null);
   const { slug, bundle } = useHotel();
@@ -35,14 +41,26 @@ export function FlowProvider({ children }: { children: ReactNode }) {
   const { lang } = useI18n();
   const qc = useQueryClient();
 
+  // One idempotency key per checkout attempt: resubmitting the same basket (a
+  // double tap, or a retry after a dropped connection) reuses it, so the server
+  // returns the original order instead of creating a second one.
+  const attempt = useRef<{ body: string; key: string } | null>(null);
   const mutation = useMutation({
-    mutationFn: (payload: Payload) =>
-      api<CreatedRequest>(`/public/hotels/${slug}/requests`, {
-        method: 'POST',
-        headers: { 'x-guest-token': guestToken() },
-        body: { guest: identity!, lang, payload } as unknown as Record<string, unknown>,
-      }),
+    mutationFn: async (payload: Payload) => {
+      const body = { guest: identity!, lang, payload } as unknown as Record<string, unknown>;
+      const fingerprint = JSON.stringify(body);
+      if (attempt.current?.body !== fingerprint) attempt.current = { body: fingerprint, key: newKey() };
+      const send = () => api<CreatedRequest>(`/public/hotels/${slug}/requests`, { method: 'POST', headers: { 'x-guest-token': guestToken(), 'idempotency-key': attempt.current!.key }, body });
+      try {
+        return await send();
+      } catch (e) {
+        // A dropped connection may have delivered the order: retry once with the same key.
+        if (e instanceof ApiError && e.status === 0) return send();
+        throw e;
+      }
+    },
     onSuccess: (created) => {
+      attempt.current = null;
       qc.invalidateQueries({ queryKey: ['my-requests', slug] });
       setSheet({ kind: 'success', created, department: created.department });
     },
@@ -55,7 +73,10 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         setSheet({ kind: 'identity' });
         throw new Error('identity required');
       }
-      return mutation.mutateAsync(payload);
+      track('request_started', { target_type: KIND_TARGET[(payload as { kind?: string }).kind ?? ''] ?? '' });
+      const created = await mutation.mutateAsync(payload);
+      track('request_completed', { target_type: KIND_TARGET[(payload as { kind?: string }).kind ?? ''] ?? '' });
+      return created;
     },
     [identity, mutation, bundle.preview, lang]
   );

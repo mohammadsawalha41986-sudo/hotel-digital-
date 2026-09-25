@@ -8,8 +8,12 @@ import { useAdminHotel, useHotelMutation, type AdminHotel } from '../data';
 import { useFeedback } from '../feedback';
 import { MediaInput } from '../components/MediaInput';
 import { PageHeader } from '../layout/AdminLayout';
+import { PublishDialog } from '../components/Publish';
+import { tr, L, locale } from '../i18n';
 
 const SECTION_LABEL: Record<SectionType, string> = {
+  experiences: 'Experience categories',
+  popular_items: 'Popular menu items',
   offers: 'Offers slider',
   quick_actions: 'Quick actions',
   dining: 'Dining outlets',
@@ -24,6 +28,8 @@ const SECTION_LABEL: Record<SectionType, string> = {
   custom: 'Custom content block',
 };
 const SOURCE: Partial<Record<SectionType, string>> = {
+  experiences: 'Experience categories (or automatic from your services)',
+  popular_items: 'Menu items marked featured, chef’s pick or with a badge',
   offers: 'Offers',
   quick_actions: 'Quick actions',
   dining: 'Dining & menus',
@@ -61,7 +67,7 @@ function WebsiteEditor({ hid, hotel }: { hid: string; hotel: AdminHotel }) {
   const [previewKey, setPreviewKey] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const saveDraft = useHotelMutation<SiteConfig>(hid, '/site/draft');
-  const publish = useHotelMutation<Record<string, never>>(hid, '/site/publish', 'POST');
+  const [publishing, setPublishing] = useState(false);
   const discard = useHotelMutation<Record<string, never>>(hid, '/site/discard', 'POST');
   const serverDraft = useRef(JSON.stringify(hotel.site_draft));
 
@@ -84,7 +90,7 @@ function WebsiteEditor({ hid, hotel }: { hid: string; hotel: AdminHotel }) {
     const parsed = siteConfigSchema.safeParse(draft);
     if (!parsed.success) {
       setErrors(Object.fromEntries(parsed.error.issues.map((i) => [i.path.join('.'), i.message])));
-      fb.error('Some fields are invalid — check the highlighted entries.');
+      fb.error(tr('Some fields are invalid — check the highlighted entries.'));
       return false;
     }
     try {
@@ -93,7 +99,7 @@ function WebsiteEditor({ hid, hotel }: { hid: string; hotel: AdminHotel }) {
       serverDraft.current = JSON.stringify(res.site_draft);
       setErrors({});
       setPreviewKey((k) => k + 1);
-      fb.success('Draft saved — preview updated');
+      fb.success(tr('Draft saved — preview updated'));
       return true;
     } catch (e) {
       if (e instanceof ApiError) setErrors(e.fields);
@@ -104,25 +110,17 @@ function WebsiteEditor({ hid, hotel }: { hid: string; hotel: AdminHotel }) {
 
   const doPublish = async () => {
     if (dirty && !(await doSave())) return;
-    const ok = await fb.confirm({ title: 'Publish website changes?', message: 'Guests will see the new homepage, hero and navigation immediately.', confirmLabel: 'Publish' });
-    if (!ok) return;
-    try {
-      await publish.mutateAsync({});
-      fb.success('Published — the guest site is updated');
-      setPreviewKey((k) => k + 1);
-    } catch (e) {
-      fb.error(errorMessage(e));
-    }
+    setPublishing(true);
   };
 
   const doDiscard = async () => {
-    const ok = await fb.confirm({ title: 'Discard unpublished changes?', message: 'The draft will be reset to what guests currently see.', confirmLabel: 'Discard', danger: true });
+    const ok = await fb.confirm({ title: tr('Discard unpublished changes?'), message: tr('The draft will be reset to what guests currently see.'), confirmLabel: tr('Discard'), danger: true });
     if (!ok) return;
     const res = await discard.mutateAsync({});
     setDraft(res.site_draft);
     serverDraft.current = JSON.stringify(res.site_draft);
     setPreviewKey((k) => k + 1);
-    fb.success('Draft discarded');
+    fb.success(tr('Draft discarded'));
   };
 
   const previewUrl = `/h/${hotel.profile.slug}?preview=1&lang=${hotel.profile.default_language}&_=${previewKey}`;
@@ -130,25 +128,28 @@ function WebsiteEditor({ hid, hotel }: { hid: string; hotel: AdminHotel }) {
   return (
     <>
       <PageHeader
-        title="Website manager"
+        title={tr('Website manager')}
         description={
-          <>
-            Edit the guest homepage, hero, navigation and welcome screen. Changes are saved as a <strong>draft</strong>, previewed on the right, then published.{' '}
-            {hotel.site_published_at && <span>Last published {new Date(hotel.site_published_at).toLocaleString()}.</span>}
+          <>{tr('Edit the guest homepage, hero, navigation and welcome screen. Changes are saved as a')}{' '}<strong>{tr('draft')}</strong>{tr(', previewed on the right, then published.')}{' '}
+            {hotel.site_published_at && <span>{tr('Last published')}{' '}{new Date(hotel.site_published_at).toLocaleString(locale())}.</span>}
           </>
         }
         actions={
           <>
-            {unpublished ? <Badge tone="warning">{dirty ? 'Unsaved changes' : 'Draft not published'}</Badge> : <Badge tone="success">Live = draft</Badge>}
+            {dirty ? <Badge tone="warning">{tr('Unsaved changes')}</Badge> : unpublished ? <Badge tone="warning">{tr('Not published yet')}</Badge> : <Badge tone="success">{tr('Everything published')}</Badge>}
             <Button variant="ghost" size="sm" className="rounded-lg" onClick={doDiscard} disabled={!hotel.has_unpublished_changes || discard.isPending}>
-              <RotateCcw className="h-4 w-4" aria-hidden="true" /> Discard
-            </Button>
-            <Button variant="secondary" size="sm" className="rounded-lg" onClick={doSave} loading={saveDraft.isPending} disabled={!dirty}>
-              Save draft
-            </Button>
-            <Button size="sm" className="rounded-lg" onClick={doPublish} loading={publish.isPending} disabled={!unpublished}>
-              <UploadCloud className="h-4 w-4" aria-hidden="true" /> Publish
-            </Button>
+              <RotateCcw className="h-4 w-4" aria-hidden="true" />{' '}{tr('Discard')}</Button>
+            <Button variant="secondary" size="sm" className="rounded-lg" onClick={doSave} loading={saveDraft.isPending} disabled={!dirty}>{tr('Save draft')}</Button>
+            <Button size="sm" className="rounded-lg" onClick={doPublish} disabled={!unpublished}>
+              <UploadCloud className="h-4 w-4" aria-hidden="true" />{' '}{tr('Publish')}</Button>
+            <PublishDialog
+              hid={hid}
+              open={publishing}
+              onClose={() => {
+                setPublishing(false);
+                setPreviewKey((k) => k + 1);
+              }}
+            />
           </>
         }
       />
@@ -156,14 +157,14 @@ function WebsiteEditor({ hid, hotel }: { hid: string; hotel: AdminHotel }) {
         <div className="min-w-0">
           <div className="mb-4 max-w-xl">
             <Segmented
-              label="Editor section"
+              label={tr('Editor section')}
               value={tab}
               onChange={setTab}
               options={[
-                { value: 'sections', label: 'Homepage sections' },
-                { value: 'hero', label: 'Hero' },
-                { value: 'navigation', label: 'Navigation' },
-                { value: 'welcome', label: 'Welcome' },
+                { value: 'sections', label: tr('Homepage sections') },
+                { value: 'hero', label: tr('Hero') },
+                { value: 'navigation', label: tr('Navigation') },
+                { value: 'welcome', label: tr('Welcome') },
               ]}
             />
           </div>
@@ -177,27 +178,24 @@ function WebsiteEditor({ hid, hotel }: { hid: string; hotel: AdminHotel }) {
           {tab === 'navigation' && <NavEditor nav={draft.navigation} onChange={(navigation) => setDraft({ ...draft, navigation })} />}
           {tab === 'welcome' && <WelcomeEditor hid={hid} welcome={draft.welcome} onChange={(welcome) => setDraft({ ...draft, welcome })} />}
         </div>
-        <aside aria-label="Live preview" className="2xl:sticky 2xl:top-6 2xl:self-start">
+        <aside aria-label={tr('Live preview')} className="2xl:sticky 2xl:top-6 2xl:self-start">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold">
-              Preview {dirty && <span className="font-normal text-amber-600">(save draft to refresh)</span>}
+            <p className="text-sm font-semibold">{tr('Preview')}{' '}{dirty && <span className="font-normal text-amber-600">{tr('(save draft to refresh)')}</span>}
             </p>
             <div className="flex gap-1">
-              <IconButton label="Mobile preview" onClick={() => setDevice('mobile')} className={cx('h-8 w-8', device === 'mobile' && 'bg-zinc-200')}>
+              <IconButton label={tr('Mobile preview')} aria-pressed={device === 'mobile'} onClick={() => setDevice('mobile')} className={cx('h-8 w-8', device === 'mobile' && 'bg-zinc-200')}>
                 <Smartphone className="h-4 w-4" aria-hidden="true" />
               </IconButton>
-              <IconButton label="Desktop preview" onClick={() => setDevice('desktop')} className={cx('h-8 w-8', device === 'desktop' && 'bg-zinc-200')}>
+              <IconButton label={tr('Desktop preview')} aria-pressed={device === 'desktop'} onClick={() => setDevice('desktop')} className={cx('h-8 w-8', device === 'desktop' && 'bg-zinc-200')}>
                 <Monitor className="h-4 w-4" aria-hidden="true" />
               </IconButton>
-              <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center rounded-lg px-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100">
-                Open ↗
-              </a>
+              <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center rounded-lg px-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100">{tr('Open ↗')}</a>
             </div>
           </div>
           <div className={cx('mx-auto overflow-hidden rounded-[2rem] border-8 border-zinc-900 bg-white shadow-xl', device === 'mobile' ? 'h-[760px] w-[390px] max-w-full' : 'h-[640px] w-full')}>
-            <iframe key={previewKey} src={previewUrl} title="Guest site preview (draft)" className="h-full w-full border-0" />
+            <iframe key={previewKey} src={previewUrl} title={tr('Guest site preview (draft)')} className="h-full w-full border-0" />
           </div>
-          <p className="mt-2 text-center text-xs text-zinc-500">Shows the saved draft homepage with the live catalog. Guests keep seeing the published version until you publish.</p>
+          <p className="mt-2 text-center text-xs text-zinc-500">{tr('Shows the saved draft homepage with the live catalog. Guests keep seeing the published version until you publish.')}</p>
         </aside>
       </div>
     </>
@@ -210,10 +208,10 @@ function Row({ title, subtitle, visible, onToggle, onUp, onDown, onDelete, child
     <li className={cx('rounded-xl border border-black/[0.08] bg-white', visible === false && 'bg-zinc-50')}>
       <div className="flex items-center gap-2 px-3 py-2.5">
         <div className="flex flex-col">
-          <IconButton label={`Move ${title} up`} size="xs" onClick={onUp}>
+          <IconButton label={tr('Move {0} up', { 0: title })} size="xs" onClick={onUp}>
             <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
           </IconButton>
-          <IconButton label={`Move ${title} down`} size="xs" onClick={onDown}>
+          <IconButton label={tr('Move {0} down', { 0: title })} size="xs" onClick={onDown}>
             <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
           </IconButton>
         </div>
@@ -221,21 +219,21 @@ function Row({ title, subtitle, visible, onToggle, onUp, onDown, onDelete, child
           <span className="flex items-center gap-2">
             <span className={cx('truncate font-medium', visible === false && 'text-zinc-400')}>{title}</span>
             {badge}
-            {visible === false && <Badge>Hidden</Badge>}
+            {visible === false && <Badge>{tr('Hidden')}</Badge>}
           </span>
           {subtitle && <span className="block truncate text-xs text-zinc-500">{subtitle}</span>}
         </button>
         {onToggle && (
-          <IconButton label={visible ? `Hide ${title}` : `Show ${title}`} onClick={onToggle} size="sm">
+          <IconButton label={visible ? tr('Hide {0}', { 0: title }) : tr('Show {0}', { 0: title })} onClick={onToggle} size="sm">
             {visible ? <Eye className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4 text-zinc-400" aria-hidden="true" />}
           </IconButton>
         )}
         {onDelete && (
-          <IconButton label={`Delete ${title}`} onClick={onDelete} size="sm" className="text-red-600">
+          <IconButton label={tr('Delete {0}', { 0: title })} onClick={onDelete} size="sm" className="text-red-600">
             <Trash2 className="h-4 w-4" aria-hidden="true" />
           </IconButton>
         )}
-        <IconButton label={open ? `Collapse ${title}` : `Customize ${title}`} onClick={() => setOpen(!open)} className="h-9 w-9">
+        <IconButton label={open ? tr('Collapse {0}', { 0: title }) : tr('Customize {0}', { 0: title })} onClick={() => setOpen(!open)} className="h-9 w-9">
           <ChevronDown className={cx('h-4 w-4 transition', open && 'rotate-180')} aria-hidden="true" />
         </IconButton>
       </div>
@@ -250,8 +248,8 @@ function Bilingual({ label, en, ar, onEn, onAr, textarea, id }: { label: string;
     <fieldset>
       <legend className="mb-1 text-sm font-medium">{label}</legend>
       <div className="grid gap-2 sm:grid-cols-2">
-        <I id={`${id}-en`} aria-label={`${label} (English)`} placeholder="English" value={en} onChange={(e) => onEn(e.target.value)} className={textarea ? 'rounded-lg text-sm' : small} />
-        <I id={`${id}-ar`} aria-label={`${label} (Arabic)`} placeholder="العربية" dir="rtl" value={ar} onChange={(e) => onAr(e.target.value)} className={textarea ? 'rounded-lg text-sm' : small} />
+        <I id={`${id}-en`} aria-label={tr('{0} (English)', { 0: label })} placeholder={tr('English')} value={en} onChange={(e) => onEn(e.target.value)} className={textarea ? 'rounded-lg text-sm' : small} />
+        <I id={`${id}-ar`} aria-label={tr('{0} (Arabic)', { 0: label })} placeholder="العربية" dir="rtl" value={ar} onChange={(e) => onAr(e.target.value)} className={textarea ? 'rounded-lg text-sm' : small} />
       </div>
     </fieldset>
   );
@@ -261,10 +259,10 @@ function PageSelect({ id, value, onChange, label }: { id: string; value: string;
   return (
     <Field label={label} htmlFor={id}>
       <Select id={id} value={value} onChange={(e) => onChange(e.target.value as GuestPage | 'none')} className={small}>
-        <option value="none">No button</option>
+        <option value="none">{tr('No button')}</option>
         {GUEST_PAGES.map((p) => (
           <option key={p} value={p}>
-            {GUEST_PAGE_LABELS[p].en}
+            {L(GUEST_PAGE_LABELS[p])}
           </option>
         ))}
       </Select>
@@ -283,13 +281,13 @@ function SectionsEditor({ hid, sections, onChange }: { hid: string; sections: Se
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-zinc-500">The hero is always first. Sections below appear in this order; content comes from the module shown under each name.</p>
+      <p className="text-sm text-zinc-500">{tr('The hero is always first. Sections below appear in this order; content comes from the module shown under each name.')}</p>
       <ul className="space-y-2">
         {sections.map((s, i) => (
           <Row
             key={s.id}
-            title={s.title_en || SECTION_LABEL[s.type]}
-            subtitle={`${SECTION_LABEL[s.type]}${SOURCE[s.type] ? ` · content from ${SOURCE[s.type]}` : ''} · ${s.layout} · ${s.background}`}
+            title={s.title_en || L(SECTION_LABEL[s.type])}
+            subtitle={[L(SECTION_LABEL[s.type]), SOURCE[s.type] && tr('content from {0}', { 0: tr(SOURCE[s.type]) }), tr(s.layout), tr(s.background)].filter(Boolean).join(' · ')}
             visible={s.visible}
             onToggle={() => set(i, { ...s, visible: !s.visible })}
             onUp={() => onChange(move(sections, i, -1))}
@@ -297,10 +295,10 @@ function SectionsEditor({ hid, sections, onChange }: { hid: string; sections: Se
             onDelete={s.type === 'custom' ? () => onChange(sections.filter((_, j) => j !== i)) : undefined}
           >
             <div className="grid gap-4">
-              <Bilingual id={`sec-${s.id}-title`} label="Title" en={s.title_en} ar={s.title_ar} onEn={(v) => set(i, { ...s, title_en: v })} onAr={(v) => set(i, { ...s, title_ar: v })} />
-              <Bilingual id={`sec-${s.id}-sub`} label="Subtitle" en={s.subtitle_en} ar={s.subtitle_ar} onEn={(v) => set(i, { ...s, subtitle_en: v })} onAr={(v) => set(i, { ...s, subtitle_ar: v })} />
+              <Bilingual id={`sec-${s.id}-title`} label={tr('Title')} en={s.title_en} ar={s.title_ar} onEn={(v) => set(i, { ...s, title_en: v })} onAr={(v) => set(i, { ...s, title_ar: v })} />
+              <Bilingual id={`sec-${s.id}-sub`} label={tr('Subtitle')} en={s.subtitle_en} ar={s.subtitle_ar} onEn={(v) => set(i, { ...s, subtitle_en: v })} onAr={(v) => set(i, { ...s, subtitle_ar: v })} />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Layout" htmlFor={`sec-${s.id}-layout`}>
+                <Field label={tr('Layout')} htmlFor={`sec-${s.id}-layout`}>
                   <Select id={`sec-${s.id}-layout`} value={s.layout} onChange={(e) => set(i, { ...s, layout: e.target.value as Section['layout'] })} className={small}>
                     {SECTION_LAYOUTS.map((l) => (
                       <option key={l} value={l}>
@@ -309,7 +307,7 @@ function SectionsEditor({ hid, sections, onChange }: { hid: string; sections: Se
                     ))}
                   </Select>
                 </Field>
-                <Field label="Background" htmlFor={`sec-${s.id}-bg`}>
+                <Field label={tr('Background')} htmlFor={`sec-${s.id}-bg`}>
                   <Select id={`sec-${s.id}-bg`} value={s.background} onChange={(e) => set(i, { ...s, background: e.target.value as Section['background'] })} className={small}>
                     {SECTION_BACKGROUNDS.map((b) => (
                       <option key={b} value={b}>
@@ -321,13 +319,13 @@ function SectionsEditor({ hid, sections, onChange }: { hid: string; sections: Se
               </div>
               {(s.type === 'custom' || s.type === 'laundry') && (
                 <>
-                  <Field label="Image" htmlFor={`sec-${s.id}-img`}>
+                  <Field label={tr('Image')} htmlFor={`sec-${s.id}-img`}>
                     <MediaInput hid={hid} id={`sec-${s.id}-img`} value={s.image} onChange={(v) => set(i, { ...s, image: v })} />
                   </Field>
-                  <Bilingual id={`sec-${s.id}-body`} label="Body text" textarea en={s.body_en} ar={s.body_ar} onEn={(v) => set(i, { ...s, body_en: v })} onAr={(v) => set(i, { ...s, body_ar: v })} />
+                  <Bilingual id={`sec-${s.id}-body`} label={tr('Body text')} textarea en={s.body_en} ar={s.body_ar} onEn={(v) => set(i, { ...s, body_en: v })} onAr={(v) => set(i, { ...s, body_ar: v })} />
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Bilingual id={`sec-${s.id}-cta`} label="Button label" en={s.cta_label_en} ar={s.cta_label_ar} onEn={(v) => set(i, { ...s, cta_label_en: v })} onAr={(v) => set(i, { ...s, cta_label_ar: v })} />
-                    <PageSelect id={`sec-${s.id}-page`} label="Button opens" value={s.cta_page} onChange={(v) => set(i, { ...s, cta_page: v })} />
+                    <Bilingual id={`sec-${s.id}-cta`} label={tr('Button label')} en={s.cta_label_en} ar={s.cta_label_ar} onEn={(v) => set(i, { ...s, cta_label_en: v })} onAr={(v) => set(i, { ...s, cta_label_ar: v })} />
+                    <PageSelect id={`sec-${s.id}-page`} label={tr('Button opens')} value={s.cta_page} onChange={(v) => set(i, { ...s, cta_page: v })} />
                   </div>
                 </>
               )}
@@ -336,11 +334,11 @@ function SectionsEditor({ hid, sections, onChange }: { hid: string; sections: Se
         ))}
       </ul>
       <div className="flex flex-wrap items-end gap-2 rounded-xl border border-dashed border-black/15 p-3">
-        <Field label="Add a section" htmlFor="add-sec">
+        <Field label={tr('Add a section')} htmlFor="add-sec">
           <Select id="add-sec" value={addType} onChange={(e) => setAddType(e.target.value as SectionType)} className={cx(small, 'w-60')}>
             {missing.map((t) => (
               <option key={t} value={t}>
-                {SECTION_LABEL[t]}
+                {L(SECTION_LABEL[t])}
               </option>
             ))}
           </Select>
@@ -356,8 +354,7 @@ function SectionsEditor({ hid, sections, onChange }: { hid: string; sections: Se
             ])
           }
         >
-          <Plus className="h-4 w-4" aria-hidden="true" /> Add
-        </Button>
+          <Plus className="h-4 w-4" aria-hidden="true" />{' '}{tr('Add')}</Button>
       </div>
     </div>
   );
@@ -370,15 +367,15 @@ function HeroEditor({ hid, hero, onChange }: { hid: string; hero: SiteConfig['he
   const localDt = (v: string | null) => (v ? new Date(new Date(v).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
   return (
     <div className="space-y-3">
-      <Field label="Autoplay (seconds per slide, 0 = off)" htmlFor="hero-autoplay">
+      <Field label={tr('Autoplay (seconds per slide, 0 = off)')} htmlFor="hero-autoplay">
         <TextInput id="hero-autoplay" type="number" min={0} max={30} value={hero.autoplay_seconds} onChange={(e) => onChange({ ...hero, autoplay_seconds: Math.max(0, Math.min(30, Number(e.target.value))) })} className={cx(small, 'w-32')} />
       </Field>
       <ul className="space-y-2">
         {slides.map((s, i) => (
           <Row
             key={s.id}
-            title={s.headline_en || `Slide ${i + 1}`}
-            subtitle={`${s.media_type}${s.starts_at || s.ends_at ? ' · scheduled' : ''}${s.cta_page !== 'none' ? ` · button → ${s.cta_page}` : ''}`}
+            title={s.headline_en || tr('Slide {0}', { 0: i + 1 })}
+            subtitle={[tr(s.media_type), (s.starts_at || s.ends_at) && tr('scheduled'), s.cta_page !== 'none' && tr('button → {0}', { 0: L(GUEST_PAGE_LABELS[s.cta_page as GuestPage]) })].filter(Boolean).join(' · ')}
             visible={s.visible}
             onToggle={() => set(i, { ...s, visible: !s.visible })}
             onUp={() => onChange({ ...hero, slides: move(slides, i, -1) })}
@@ -386,29 +383,29 @@ function HeroEditor({ hid, hero, onChange }: { hid: string; hero: SiteConfig['he
             onDelete={() => onChange({ ...hero, slides: slides.filter((_, j) => j !== i) })}
           >
             <div className="grid gap-4">
-              <Segmented label="Media type" value={s.media_type} onChange={(v) => set(i, { ...s, media_type: v })} options={[{ value: 'image', label: 'Image' }, { value: 'video', label: 'Video' }]} />
-              <Field label={s.media_type === 'video' ? 'Poster image (shown while the video loads)' : 'Image'} htmlFor={`hero-${s.id}-img`}>
+              <Segmented label={tr('Media type')} value={s.media_type} onChange={(v) => set(i, { ...s, media_type: v })} options={[{ value: 'image', label: tr('Image') }, { value: 'video', label: tr('Video') }]} />
+              <Field label={s.media_type === 'video' ? tr('Poster image (shown while the video loads)') : tr('Image')} htmlFor={`hero-${s.id}-img`}>
                 <MediaInput hid={hid} id={`hero-${s.id}-img`} value={s.image} onChange={(v) => set(i, { ...s, image: v })} />
               </Field>
               {s.media_type === 'video' && (
-                <Field label="Video" htmlFor={`hero-${s.id}-vid`}>
+                <Field label={tr('Video')} htmlFor={`hero-${s.id}-vid`}>
                   <MediaInput hid={hid} id={`hero-${s.id}-vid`} kind="video" value={s.video} onChange={(v) => set(i, { ...s, video: v })} />
                 </Field>
               )}
-              <Field label={`Overlay darkness: ${s.overlay}%`} htmlFor={`hero-${s.id}-ov`}>
+              <Field label={tr('Overlay darkness: {0}%', { 0: s.overlay })} htmlFor={`hero-${s.id}-ov`}>
                 <input id={`hero-${s.id}-ov`} type="range" min={0} max={90} value={s.overlay} onChange={(e) => set(i, { ...s, overlay: Number(e.target.value) })} className="w-full" />
               </Field>
-              <Bilingual id={`hero-${s.id}-h`} label="Headline" en={s.headline_en} ar={s.headline_ar} onEn={(v) => set(i, { ...s, headline_en: v })} onAr={(v) => set(i, { ...s, headline_ar: v })} />
-              <Bilingual id={`hero-${s.id}-s`} label="Subtitle" en={s.subtitle_en} ar={s.subtitle_ar} onEn={(v) => set(i, { ...s, subtitle_en: v })} onAr={(v) => set(i, { ...s, subtitle_ar: v })} />
+              <Bilingual id={`hero-${s.id}-h`} label={tr('Headline')} en={s.headline_en} ar={s.headline_ar} onEn={(v) => set(i, { ...s, headline_en: v })} onAr={(v) => set(i, { ...s, headline_ar: v })} />
+              <Bilingual id={`hero-${s.id}-s`} label={tr('Subtitle')} en={s.subtitle_en} ar={s.subtitle_ar} onEn={(v) => set(i, { ...s, subtitle_en: v })} onAr={(v) => set(i, { ...s, subtitle_ar: v })} />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Bilingual id={`hero-${s.id}-c`} label="Button label" en={s.cta_label_en} ar={s.cta_label_ar} onEn={(v) => set(i, { ...s, cta_label_en: v })} onAr={(v) => set(i, { ...s, cta_label_ar: v })} />
-                <PageSelect id={`hero-${s.id}-p`} label="Button opens" value={s.cta_page} onChange={(v) => set(i, { ...s, cta_page: v })} />
+                <Bilingual id={`hero-${s.id}-c`} label={tr('Button label')} en={s.cta_label_en} ar={s.cta_label_ar} onEn={(v) => set(i, { ...s, cta_label_en: v })} onAr={(v) => set(i, { ...s, cta_label_ar: v })} />
+                <PageSelect id={`hero-${s.id}-p`} label={tr('Button opens')} value={s.cta_page} onChange={(v) => set(i, { ...s, cta_page: v })} />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Show from (optional)" htmlFor={`hero-${s.id}-start`}>
+                <Field label={tr('Show from (optional)')} htmlFor={`hero-${s.id}-start`}>
                   <TextInput id={`hero-${s.id}-start`} type="datetime-local" value={localDt(s.starts_at)} onChange={(e) => set(i, { ...s, starts_at: e.target.value ? new Date(e.target.value).toISOString() : null })} className={small} />
                 </Field>
-                <Field label="Show until (optional)" htmlFor={`hero-${s.id}-end`}>
+                <Field label={tr('Show until (optional)')} htmlFor={`hero-${s.id}-end`}>
                   <TextInput id={`hero-${s.id}-end`} type="datetime-local" value={localDt(s.ends_at)} onChange={(e) => set(i, { ...s, ends_at: e.target.value ? new Date(e.target.value).toISOString() : null })} className={small} />
                 </Field>
               </div>
@@ -423,8 +420,7 @@ function HeroEditor({ hid, hero, onChange }: { hid: string; hero: SiteConfig['he
           className="rounded-lg"
           onClick={() => onChange({ ...hero, slides: [...slides, { id: uid('slide'), media_type: 'image', image: '', video: '', overlay: 45, headline_en: '', headline_ar: '', subtitle_en: '', subtitle_ar: '', cta_label_en: '', cta_label_ar: '', cta_page: 'none', starts_at: null, ends_at: null, visible: true }] })}
         >
-          <Plus className="h-4 w-4" aria-hidden="true" /> Add slide
-        </Button>
+          <Plus className="h-4 w-4" aria-hidden="true" />{' '}{tr('Add slide')}</Button>
       )}
     </div>
   );
@@ -437,25 +433,23 @@ function NavEditor({ nav, onChange }: { nav: NavItem[]; onChange: (n: NavItem[])
   const missing = GUEST_PAGES.filter((p) => !nav.some((n) => n.page === p));
   return (
     <div className="space-y-3">
-      <p className="text-sm text-zinc-500">
-        Controls the guest menu drawer and the mobile bottom bar (up to 5 items; currently {bottomCount}). Leave labels empty to use the defaults.
-      </p>
+      <p className="text-sm text-zinc-500">{tr('Controls the guest menu drawer and the mobile bottom bar (up to 5 items; currently {0}). Leave labels empty to use the defaults.', { 0: bottomCount })}</p>
       <ul className="space-y-2">
         {nav.map((n, i) => (
           <Row
             key={n.id}
-            title={n.label_en || GUEST_PAGE_LABELS[n.page].en}
-            subtitle={`/${n.page}${n.in_bottom_bar ? ' · bottom bar' : ''}`}
+            title={n.label_en || L(GUEST_PAGE_LABELS[n.page])}
+            subtitle={[`/${n.page}`, n.in_bottom_bar && tr('bottom bar')].filter(Boolean).join(' · ')}
             visible={n.visible}
             onToggle={() => set(i, { ...n, visible: !n.visible })}
             onUp={() => onChange(move(nav, i, -1))}
             onDown={() => onChange(move(nav, i, 1))}
             onDelete={() => onChange(nav.filter((_, j) => j !== i))}
-            badge={n.in_bottom_bar ? <Badge tone="info">Bottom bar</Badge> : undefined}
+            badge={n.in_bottom_bar ? <Badge tone="info">{tr('Bottom bar')}</Badge> : undefined}
           >
             <div className="grid gap-4">
-              <Bilingual id={`nav-${n.id}`} label="Label" en={n.label_en} ar={n.label_ar} onEn={(v) => set(i, { ...n, label_en: v })} onAr={(v) => set(i, { ...n, label_ar: v })} />
-              <Toggle label="Show in mobile bottom bar" description={bottomCount >= 5 && !n.in_bottom_bar ? 'The bottom bar already has 5 items.' : undefined} checked={n.in_bottom_bar} onChange={(v) => (v && bottomCount >= 5 ? undefined : set(i, { ...n, in_bottom_bar: v }))} />
+              <Bilingual id={`nav-${n.id}`} label={tr('Label')} en={n.label_en} ar={n.label_ar} onEn={(v) => set(i, { ...n, label_en: v })} onAr={(v) => set(i, { ...n, label_ar: v })} />
+              <Toggle label={tr('Show in mobile bottom bar')} description={bottomCount >= 5 && !n.in_bottom_bar ? tr('The bottom bar already has 5 items.') : undefined} checked={n.in_bottom_bar} onChange={(v) => (v && bottomCount >= 5 ? undefined : set(i, { ...n, in_bottom_bar: v }))} />
             </div>
           </Row>
         ))}
@@ -464,7 +458,7 @@ function NavEditor({ nav, onChange }: { nav: NavItem[]; onChange: (n: NavItem[])
         <div className="flex flex-wrap gap-2">
           {missing.map((p) => (
             <Button key={p} variant="secondary" size="sm" className="rounded-lg" onClick={() => onChange([...nav, { id: p, page: p, label_en: '', label_ar: '', visible: true, in_bottom_bar: false }])}>
-              <Plus className="h-4 w-4" aria-hidden="true" /> {GUEST_PAGE_LABELS[p].en}
+              <Plus className="h-4 w-4" aria-hidden="true" /> {L(GUEST_PAGE_LABELS[p])}
             </Button>
           ))}
         </div>
@@ -476,13 +470,13 @@ function NavEditor({ nav, onChange }: { nav: NavItem[]; onChange: (n: NavItem[])
 function WelcomeEditor({ hid, welcome, onChange }: { hid: string; welcome: SiteConfig['welcome']; onChange: (w: SiteConfig['welcome']) => void }) {
   return (
     <div className="space-y-4 rounded-xl border border-black/[0.08] bg-white p-4">
-      <p className="text-sm text-zinc-500">The first screen after scanning a QR code: language choice, then guest identification.</p>
-      <Bilingual id="wel-title" label="Title" en={welcome.title_en} ar={welcome.title_ar} onEn={(v) => onChange({ ...welcome, title_en: v })} onAr={(v) => onChange({ ...welcome, title_ar: v })} />
-      <Bilingual id="wel-msg" label="Welcome message" textarea en={welcome.message_en} ar={welcome.message_ar} onEn={(v) => onChange({ ...welcome, message_en: v })} onAr={(v) => onChange({ ...welcome, message_ar: v })} />
-      <Field label="Background image" htmlFor="wel-img">
+      <p className="text-sm text-zinc-500">{tr('The first screen after scanning a QR code: language choice, then guest identification.')}</p>
+      <Bilingual id="wel-title" label={tr('Title')} en={welcome.title_en} ar={welcome.title_ar} onEn={(v) => onChange({ ...welcome, title_en: v })} onAr={(v) => onChange({ ...welcome, title_ar: v })} />
+      <Bilingual id="wel-msg" label={tr('Welcome message')} textarea en={welcome.message_en} ar={welcome.message_ar} onEn={(v) => onChange({ ...welcome, message_en: v })} onAr={(v) => onChange({ ...welcome, message_ar: v })} />
+      <Field label={tr('Background image')} htmlFor="wel-img">
         <MediaInput hid={hid} id="wel-img" value={welcome.image} onChange={(v) => onChange({ ...welcome, image: v })} />
       </Field>
-      <Field label="Background video (optional)" htmlFor="wel-vid">
+      <Field label={tr('Background video (optional)')} htmlFor="wel-vid">
         <MediaInput hid={hid} id="wel-vid" kind="video" value={welcome.video} onChange={(v) => onChange({ ...welcome, video: v })} />
       </Field>
     </div>

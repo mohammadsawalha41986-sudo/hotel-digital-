@@ -213,6 +213,16 @@ export async function seedSwissFlora(client: pg.PoolClient): Promise<{ id: strin
     await info({ title_en: d.titleEN, title_ar: d.titleAR, category: 'nearby', icon: 'compass', highlight_en: `${d.distance} km`, highlight_ar: `${d.distance} كم` });
   }
 
+  // ---------------------------------------------------------------- Laundry structure (prices are entered by the hotel)
+  const laundryCats: [string, string, string][] = [
+    ['LCAT-GENTLEMEN', 'Gentlemen', 'الرجال'],
+    ['LCAT-LADIES', 'Ladies', 'السيدات'],
+    ['LCAT-CHILDREN', 'Children', 'الأطفال'],
+    ['LCAT-TRADITIONAL', 'Traditional wear', 'الملابس التقليدية'],
+    ['LCAT-HOUSEHOLD', 'Household', 'المنزلية'],
+  ];
+  for (const [code, en, ar] of laundryCats) await add(client, hid, 'laundry_categories', { code, name_en: en, name_ar: ar });
+
   // ---------------------------------------------------------------- Quick actions
   const qa = async (d: Seed) => add(client, hid, 'quick_actions', d);
   await qa({ label_en: 'Order food', label_ar: 'اطلب الطعام', icon: 'utensils', action: 'page', page: 'dining' });

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, Mail, MapPin, Phone, Star } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { GUEST_PAGE_LABELS, type GuestPage } from '@shared/domain';
 import type { Section } from '@shared/hotel';
@@ -10,7 +10,9 @@ import { useI18n } from '../../lib/i18n';
 import { Button, Img, cx } from '../../components/ui';
 import { useQuickAction } from '../actions';
 import { Hero } from '../components/Hero';
-import { OfferCard, OutletCard, SectionHeader, ServiceTile, ViewAll } from '../components/cards';
+import { OutletCard, SectionHeader, ServiceTile, ViewAll } from '../components/cards';
+import { Reveal } from '../components/motion';
+import { ExperienceGrid, OfferCarousel, PopularItems, useExperienceTiles } from '../components/sell';
 import { OfferSheet } from '../sheets/OfferSheet';
 import { ReviewSheet } from '../sheets/ReviewSheet';
 import { useHotel } from '../hotel';
@@ -23,9 +25,24 @@ const BG: Record<string, string> = {
   brand: 'bg-brand text-brand-ink',
 };
 
+/** Sections placed automatically when a hotel's layout predates them (admins can place them explicitly). */
+const IMPLICIT: Section[] = [
+  { id: 'experiences', type: 'experiences', visible: true, title_en: '', title_ar: '', subtitle_en: '', subtitle_ar: '', layout: 'grid', background: 'default', image: '', body_en: '', body_ar: '', cta_label_en: '', cta_label_ar: '', cta_page: 'none' },
+  { id: 'popular_items', type: 'popular_items', visible: true, title_en: '', title_ar: '', subtitle_en: '', subtitle_ar: '', layout: 'carousel', background: 'default', image: '', body_en: '', body_ar: '', cta_label_en: '', cta_label_ar: '', cta_page: 'none' },
+];
+
 export function Home() {
   const { bundle } = useHotel();
-  const sections = bundle.site.sections.filter((s) => s.visible);
+  const sections = useMemo(() => {
+    const configured = bundle.site.sections;
+    const list = configured.filter((s) => s.visible);
+    if (!configured.some((s) => s.type === 'experiences')) list.unshift(IMPLICIT[0]);
+    if (!configured.some((s) => s.type === 'popular_items')) {
+      const at = list.findIndex((s) => s.type === 'offers');
+      list.splice(at >= 0 ? at + 1 : Math.min(1, list.length), 0, IMPLICIT[1]);
+    }
+    return list;
+  }, [bundle.site.sections]);
   return (
     <>
       <Hero />
@@ -38,6 +55,10 @@ export function Home() {
 
 function SectionSwitch({ section }: { section: Section }) {
   switch (section.type) {
+    case 'experiences':
+      return <ExperiencesSection s={section} />;
+    case 'popular_items':
+      return <PopularSection s={section} />;
     case 'offers':
       return <OffersSection s={section} />;
     case 'quick_actions':
@@ -80,7 +101,9 @@ function useSectionText(s: Section) {
 function Shell({ s, children, labelledBy }: { s: Section; children: ReactNode; labelledBy: string }) {
   return (
     <section aria-labelledby={labelledBy} className={cx('py-12 sm:py-16', BG[s.background] ?? BG.default)}>
-      <div className="mx-auto max-w-6xl">{children}</div>
+      <Reveal className="mx-auto max-w-6xl" y={12}>
+        {children}
+      </Reveal>
     </section>
   );
 }
@@ -89,29 +112,58 @@ const Row = ({ children }: { children: ReactNode }) => <div className="snap-row 
 
 // --------------------------------------------------------------------------------------
 function OffersSection({ s }: { s: Section }) {
-  const { bundle } = useHotel();
+  const { bundle, path } = useHotel();
   const text = useSectionText(s);
   const [open, setOpen] = useState<Rec | null>(null);
   const offers = bundle.catalog.offers.filter((o) => (o.placement as string[] | undefined)?.includes('home') ?? true);
   if (!offers.length) return null;
   const id = `sec-${s.id}`;
+  const dark = s.background === 'dark';
   return (
     <Shell s={s} labelledBy={id}>
-      <SectionHeader id={id} title={text.title} subtitle={text.subtitle} dark={s.background === 'dark'} />
-      {offers.length === 1 || s.layout === 'feature' ? (
-        <div className="px-5 sm:px-8">
-          <OfferCard offer={offers[0]} onOpen={() => setOpen(offers[0])} />
-        </div>
-      ) : (
-        <Row>
-          {offers.map((o) => (
-            <div key={o.id} className="w-[86%] shrink-0 sm:w-[70%] lg:w-[48%]">
-              <OfferCard offer={o} onOpen={() => setOpen(o)} />
-            </div>
-          ))}
-        </Row>
-      )}
+      <Reveal>
+        <SectionHeader id={id} title={text.title} subtitle={text.subtitle} dark={dark} action={offers.length > 2 ? <ViewAll to={path('offers')} dark={dark} /> : undefined} />
+      </Reveal>
+      <OfferCarousel offers={offers} onOpen={setOpen} autoplay={bundle.site.hero.autoplay_seconds || 6} />
       <OfferSheet offer={open} onClose={() => setOpen(null)} />
+    </Shell>
+  );
+}
+
+function ExperiencesSection({ s }: { s: Section }) {
+  const { t } = useI18n();
+  const text = useSectionText(s);
+  const [offer, setOffer] = useState<Rec | null>(null);
+  const tiles = useExperienceTiles(setOffer);
+  if (!tiles.length) return null;
+  const id = `sec-${s.id}`;
+  return (
+    <section id="explore" aria-labelledby={id} className={cx('scroll-mt-20 pt-10 pb-12 sm:pt-14 sm:pb-16', BG[s.background] ?? BG.default)}>
+      <div className="mx-auto max-w-6xl">
+        <Reveal>
+          <SectionHeader id={id} eyebrow={text.subtitle ? undefined : t('whatToday')} title={text.title || t('exploreHotel')} subtitle={text.subtitle} dark={s.background === 'dark'} />
+        </Reveal>
+        <ExperienceGrid tiles={tiles} />
+      </div>
+      <OfferSheet offer={offer} onClose={() => setOffer(null)} />
+    </section>
+  );
+}
+
+function PopularSection({ s }: { s: Section }) {
+  const { bundle, path } = useHotel();
+  const { t } = useI18n();
+  const text = useSectionText(s);
+  const items = bundle.catalog.featured_items ?? [];
+  if (!items.length) return null;
+  const id = `sec-${s.id}`;
+  const dark = s.background === 'dark';
+  return (
+    <Shell s={s} labelledBy={id}>
+      <Reveal>
+        <SectionHeader id={id} title={text.title || t('popularNow')} subtitle={text.subtitle || t('popularNowSub')} dark={dark} action={<ViewAll to={path('dining')} dark={dark} />} />
+      </Reveal>
+      <PopularItems items={items} />
     </Shell>
   );
 }

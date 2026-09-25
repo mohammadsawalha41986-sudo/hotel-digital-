@@ -1,6 +1,6 @@
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import type { MiddlewareHandler } from 'hono';
-import { ROLES, roleCan, type Module, type Role } from '../shared/domain';
+import { ROLES, roleCan, type Module, type Role, GLOBAL_ROLES } from '../shared/domain';
 import { config } from './config';
 import type { AppEnv, Ctx, SessionUser } from './context';
 import { one, q } from './db';
@@ -46,7 +46,7 @@ export async function loadUser(userId: string): Promise<SessionUser | null> {
     name: u.name,
     role,
     hotelIds: hotels.map((h) => h.hotel_id),
-    global: role === 'SUPER_ADMIN',
+    global: GLOBAL_ROLES.includes(role),
   };
 }
 

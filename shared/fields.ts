@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { DEPARTMENTS } from './domain';
 
 /**
  * Field specifications are the single source of truth for every editable
@@ -20,6 +19,7 @@ export type FieldType =
   | 'select'
   | 'tags'
   | 'media' // image URL (uploaded or external)
+  | 'gallery' // list of image URLs
   | 'video'
   | 'phone'
   | 'url'
@@ -55,6 +55,10 @@ export interface FieldSpec {
   noImport?: boolean;
   /** Admin form layout hint. */
   wide?: boolean;
+  /** Staff-only: never included in the guest bundle. */
+  private?: boolean;
+  /** Recommended image specification (media fields). */
+  imageSpec?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -196,6 +200,10 @@ export function buildEntitySchema(fields: readonly FieldSpec[]) {
         shape[f.key] = z.array(z.enum(values)).max(values.length).default(((f.default as string[] | undefined) ?? []) as never);
         break;
       }
+      case 'gallery':
+        // Empty slots (an "Add image" row left blank) are dropped, not treated as errors.
+        shape[f.key] = z.preprocess((v) => (Array.isArray(v) ? v.filter((x) => typeof x !== 'string' || x.trim() !== '') : v), z.array(mediaUrlSchema).max(24)).default([]);
+        break;
       case 'media':
       case 'video':
         shape[f.key] = req ? mediaUrlSchema.refine((v) => v !== '', 'Required') : mediaUrlSchema.default('');
@@ -219,8 +227,9 @@ export function buildEntitySchema(fields: readonly FieldSpec[]) {
           .transform((v) => (v ? v : null));
         break;
       case 'department': {
-        const e = z.enum(DEPARTMENTS);
-        shape[f.key] = f.default ? e.default(f.default as never) : e;
+        // Existence in the hotel's department list is checked by the API.
+        const e = z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Choose a department');
+        shape[f.key] = f.default ? e.default(f.default as string) : e;
         break;
       }
       case 'hours':
@@ -272,6 +281,16 @@ export const DIETARY = [
   opt('healthy', 'Healthy choice', 'خيار صحي'),
   opt('keto', 'Keto', 'كيتو'),
   opt('signature', 'Signature', 'طبق مميز'),
+] as const;
+
+/** Merchandising badges that help sell products and services. */
+export const MERCH_BADGES = [
+  opt('popular', 'Popular', 'الأكثر طلباً'),
+  opt('recommended', 'Recommended', 'موصى به'),
+  opt('new', 'New', 'جديد'),
+  opt('limited', 'Limited time', 'لفترة محدودة'),
+  opt('exclusive', 'Hotel exclusive', 'حصري للفندق'),
+  opt('best_seller', 'Best seller', 'الأكثر مبيعاً'),
 ] as const;
 
 export const SPICY_LEVELS = [

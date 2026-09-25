@@ -3,10 +3,11 @@ import type { EntityName } from '@shared/entities';
 import { ENTITIES } from '@shared/entities';
 import type { CustomField, FieldSpec, Hours, ModifierGroup } from '@shared/fields';
 import { ICON_MAP } from '../../lib/icons';
-import { Field, Select, TextArea, TextInput, Toggle, cx } from '../../components/ui';
-import { useEntities } from '../data';
+import { Button, Field, Select, TextArea, TextInput, Toggle, cx } from '../../components/ui';
+import { useDepartmentOptions, useEntities } from '../data';
 import { MediaInput } from './MediaInput';
 import { CustomFieldsEditor, HoursEditor, ModifiersEditor } from './StructuredEditors';
+import { tr, L, pickLang } from '../i18n';
 
 type Values = Record<string, unknown>;
 
@@ -41,13 +42,11 @@ function FieldInput({ hid, f, values, set, errors }: { hid: string; f: FieldSpec
       return (
         <fieldset>
           <legend className="mb-1.5 flex gap-1 text-sm font-medium">
-            {f.label} {f.required && <span className="text-red-600" aria-hidden="true">*</span>}
+            {tr(f.label)} {f.required && <span className="text-red-600" aria-hidden="true">*</span>}
           </legend>
           <div className="grid gap-2 sm:grid-cols-2">
             <div>
-              <label htmlFor={`${id}-en`} className="mb-1 block text-xs text-zinc-500">
-                English
-              </label>
+              <label htmlFor={`${id}-en`} className="mb-1 block text-xs text-zinc-500">{tr('English')}</label>
               <Input id={`${id}-en`} value={String(values[`${f.key}_en`] ?? '')} onChange={(e) => set(`${f.key}_en`, e.target.value)} invalid={!!errors[`${f.key}_en`]} className={f.type === 'i18n' ? control : 'rounded-lg text-sm'} />
               {errors[`${f.key}_en`] && <p className="mt-1 text-sm text-red-600">{errors[`${f.key}_en`]}</p>}
             </div>
@@ -58,22 +57,22 @@ function FieldInput({ hid, f, values, set, errors }: { hid: string; f: FieldSpec
               <Input id={`${id}-ar`} dir="rtl" lang="ar" value={String(values[`${f.key}_ar`] ?? '')} onChange={(e) => set(`${f.key}_ar`, e.target.value)} invalid={!!errors[`${f.key}_ar`]} className={f.type === 'i18n' ? control : 'rounded-lg text-sm'} />
             </div>
           </div>
-          {f.help && <p className="mt-1 text-xs text-zinc-500">{f.help}</p>}
+          {f.help && <p className="mt-1 text-xs text-zinc-500">{tr(f.help)}</p>}
         </fieldset>
       );
     }
     case 'boolean':
-      return <Toggle id={id} label={f.label} description={f.help} checked={Boolean(values[f.key])} onChange={(v) => set(f.key, v)} />;
+      return <Toggle id={id} label={tr(f.label)} description={tr(f.help)} checked={Boolean(values[f.key])} onChange={(v) => set(f.key, v)} />;
     case 'hours':
       return (
-        <Field label={f.label} htmlFor={id} error={err} hint={f.help}>
+        <Field label={tr(f.label)} htmlFor={id} error={err} hint={tr(f.help)}>
           <HoursEditor id={id} value={values[f.key] as Hours} onChange={(v) => set(f.key, v)} />
         </Field>
       );
     case 'modifiers':
       return (
         <fieldset>
-          <legend className="mb-1.5 text-sm font-medium">{f.label}</legend>
+          <legend className="mb-1.5 text-sm font-medium">{tr(f.label)}</legend>
           <ModifiersEditor value={(values[f.key] as ModifierGroup[]) ?? []} onChange={(v) => set(f.key, v)} />
           {Object.entries(errors).filter(([k]) => k.startsWith(`${f.key}.`)).slice(0, 3).map(([k, m]) => (
             <p key={k} className="mt-1 text-sm text-red-600">
@@ -85,7 +84,7 @@ function FieldInput({ hid, f, values, set, errors }: { hid: string; f: FieldSpec
     case 'customFields':
       return (
         <fieldset>
-          <legend className="mb-1.5 text-sm font-medium">{f.label}</legend>
+          <legend className="mb-1.5 text-sm font-medium">{tr(f.label)}</legend>
           <CustomFieldsEditor value={(values[f.key] as CustomField[]) ?? []} onChange={(v) => set(f.key, v)} />
           {Object.entries(errors).filter(([k]) => k.startsWith(`${f.key}.`)).slice(0, 3).map(([k, m]) => (
             <p key={k} className="mt-1 text-sm text-red-600">
@@ -97,22 +96,24 @@ function FieldInput({ hid, f, values, set, errors }: { hid: string; f: FieldSpec
     case 'media':
     case 'video':
       return (
-        <Field label={f.label} htmlFor={id} error={err} hint={f.help} required={f.required}>
-          <MediaInput hid={hid} id={id} kind={f.type === 'video' ? 'video' : 'image'} value={String(values[f.key] ?? '')} onChange={(v) => set(f.key, v)} invalid={!!err} />
+        <Field label={tr(f.label)} htmlFor={id} error={err} hint={tr(f.help)} required={f.required}>
+          <MediaInput hid={hid} id={id} kind={f.type === 'video' ? 'video' : 'image'} spec={f.imageSpec} value={String(values[f.key] ?? '')} onChange={(v) => set(f.key, v)} invalid={!!err} />
         </Field>
       );
+    case 'gallery':
+      return <GalleryEditor hid={hid} id={id} f={f} value={(values[f.key] as string[]) ?? []} onChange={(v) => set(f.key, v)} errors={errors} />;
     case 'tags': {
       const cur = (values[f.key] as string[]) ?? [];
       return (
         <fieldset>
-          <legend className="mb-1.5 text-sm font-medium">{f.label}</legend>
+          <legend className="mb-1.5 text-sm font-medium">{tr(f.label)}</legend>
           <div className="flex flex-wrap gap-2">
             {(f.options ?? []).map((o) => {
               const on = cur.includes(o.value);
               return (
                 <label key={o.value} className={cx('inline-flex h-8 cursor-pointer items-center rounded-full px-3 text-sm ring-1 transition', on ? 'bg-zinc-900 text-white ring-zinc-900' : 'ring-black/15 hover:bg-zinc-50')}>
                   <input type="checkbox" className="sr-only" checked={on} onChange={() => set(f.key, on ? cur.filter((x) => x !== o.value) : [...cur, o.value])} />
-                  {o.en}
+                  {L(o)}
                 </label>
               );
             })}
@@ -120,14 +121,15 @@ function FieldInput({ hid, f, values, set, errors }: { hid: string; f: FieldSpec
         </fieldset>
       );
     }
-    case 'select':
     case 'department':
+      return <DepartmentSelect hid={hid} id={id} f={f} value={String(values[f.key] ?? '')} onChange={(v) => set(f.key, v)} err={err} control={control} />;
+    case 'select':
       return (
-        <Field label={f.label} htmlFor={id} error={err} hint={f.help} required={f.required}>
+        <Field label={tr(f.label)} htmlFor={id} error={err} hint={tr(f.help)} required={f.required}>
           <Select id={id} value={String(values[f.key] ?? '')} onChange={(e) => set(f.key, e.target.value)} className={control} invalid={!!err}>
             {(f.options ?? []).map((o) => (
               <option key={o.value} value={o.value}>
-                {o.en}
+                {L(o)}
               </option>
             ))}
           </Select>
@@ -137,7 +139,7 @@ function FieldInput({ hid, f, values, set, errors }: { hid: string; f: FieldSpec
       const v = String(values[f.key] ?? '');
       const IconC = ICON_MAP[v];
       return (
-        <Field label={f.label} htmlFor={id} error={err}>
+        <Field label={tr(f.label)} htmlFor={id} error={err}>
           <div className="flex items-center gap-2">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100">{IconC && <IconC className="h-5 w-5" aria-hidden="true" />}</span>
             <Select id={id} value={v} onChange={(e) => set(f.key, e.target.value)} className={control}>
@@ -156,7 +158,7 @@ function FieldInput({ hid, f, values, set, errors }: { hid: string; f: FieldSpec
     case 'number':
     case 'money':
       return (
-        <Field label={f.label} htmlFor={id} error={err} hint={f.help} required={f.required}>
+        <Field label={tr(f.label)} htmlFor={id} error={err} hint={tr(f.help)} required={f.required}>
           <TextInput
             id={id}
             type="number"
@@ -175,20 +177,20 @@ function FieldInput({ hid, f, values, set, errors }: { hid: string; f: FieldSpec
       const raw = values[f.key] as string | null;
       const local = raw ? new Date(new Date(raw).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
       return (
-        <Field label={f.label} htmlFor={id} error={err} hint={f.help ?? 'Your local time'}>
+        <Field label={tr(f.label)} htmlFor={id} error={err} hint={f.help ?? tr('Your local time')}>
           <TextInput id={id} type="datetime-local" value={local} onChange={(e) => set(f.key, e.target.value ? new Date(e.target.value).toISOString() : null)} className={control} />
         </Field>
       );
     }
     case 'textarea':
       return (
-        <Field label={f.label} htmlFor={id} error={err} hint={f.help}>
+        <Field label={tr(f.label)} htmlFor={id} error={err} hint={tr(f.help)}>
           <TextArea id={id} value={String(values[f.key] ?? '')} onChange={(e) => set(f.key, e.target.value)} className="rounded-lg text-sm" />
         </Field>
       );
     default:
       return (
-        <Field label={f.label} htmlFor={id} error={err} hint={f.help} required={f.required}>
+        <Field label={tr(f.label)} htmlFor={id} error={err} hint={tr(f.help)} required={f.required}>
           <TextInput id={id} type={f.type === 'url' ? 'url' : f.type === 'phone' ? 'tel' : 'text'} dir={f.type === 'phone' || f.type === 'url' ? 'ltr' : undefined} value={String(values[f.key] ?? '')} onChange={(e) => set(f.key, e.target.value)} className={control} invalid={!!err} />
         </Field>
       );
@@ -200,9 +202,9 @@ function RefSelect({ hid, f, id, value, onChange, error }: { hid: string; f: Fie
   const options = useMemo(() => q.data ?? [], [q.data]);
   const title = ENTITIES[f.refEntity as EntityName]?.titleField ?? 'name';
   return (
-    <Field label={f.label} htmlFor={id} error={error} hint={q.error ? 'Could not load options' : f.help}>
+    <Field label={tr(f.label)} htmlFor={id} error={error} hint={q.error ? tr('Could not load options') : f.help}>
       <Select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={control}>
-        <option value="">— None —</option>
+        <option value="">{tr('— None —')}</option>
         {options.map((o) => (
           <option key={o.id} value={o.id}>
             {String(o[`${title}_en`] ?? o.id)}
@@ -211,5 +213,60 @@ function RefSelect({ hid, f, id, value, onChange, error }: { hid: string; f: Fie
         ))}
       </Select>
     </Field>
+  );
+}
+
+function DepartmentSelect({ hid, id, f, value, onChange, err, control }: { hid: string; id: string; f: FieldSpec; value: string; onChange: (v: string) => void; err?: string; control: string }) {
+  const q = useDepartmentOptions(hid);
+  const options = q.data ?? [];
+  const known = options.some((d) => d.code === value);
+  return (
+    <Field label={tr(f.label)} htmlFor={id} error={err ?? (q.isError ? tr('Departments could not be loaded') : undefined)} hint={tr(f.help)} required={f.required}>
+      <Select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={control} invalid={!!err || q.isError} disabled={q.isLoading}>
+        {q.isLoading && <option value={value}>{tr('Loading…')}</option>}
+        {!q.isLoading && value && !known && <option value={value}>{value}{' '}{tr('(not configured)')}</option>}
+        {options.map((d) => (
+          <option key={d.code} value={d.code}>
+            {pickLang(d, 'name')}
+            {d.is_active ? '' : ' (inactive)'}
+          </option>
+        ))}
+      </Select>
+    </Field>
+  );
+}
+
+/** Ordered list of images (up to 24), each uploadable, croppable and replaceable. */
+function GalleryEditor({ hid, id, f, value, onChange, errors }: { hid: string; id: string; f: FieldSpec; value: string[]; onChange: (v: string[]) => void; errors: Record<string, string> }) {
+  const move = (i: number, d: -1 | 1) => {
+    const next = [...value];
+    [next[i], next[i + d]] = [next[i + d], next[i]];
+    onChange(next);
+  };
+  return (
+    <fieldset>
+      <legend className="mb-1.5 text-sm font-medium">
+        {tr(f.label)} <span className="font-normal text-zinc-500">({value.length}/24)</span>
+      </legend>
+      <ol className="space-y-3">
+        {value.map((url, i) => (
+          <li key={i} className="rounded-xl border border-black/[0.07] p-3">
+            <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+              <span>{tr('Image {0}', { 0: i + 1 })}</span>
+              <span className="flex gap-1">
+                <Button size="sm" variant="ghost" disabled={i === 0} onClick={() => move(i, -1)} aria-label={tr('Move image {0} up', { 0: i + 1 })}>↑</Button>
+                <Button size="sm" variant="ghost" disabled={i === value.length - 1} onClick={() => move(i, 1)} aria-label={tr('Move image {0} down', { 0: i + 1 })}>↓</Button>
+                <Button size="sm" variant="ghost" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label={tr('Remove image {0}', { 0: i + 1 })}>{tr('Remove')}</Button>
+              </span>
+            </div>
+            <MediaInput hid={hid} id={`${id}-${i}`} spec={f.imageSpec ?? 'gallery'} value={url} onChange={(v) => onChange(v ? value.map((x, j) => (j === i ? v : x)) : value.filter((_, j) => j !== i))} invalid={!!errors[`${f.key}.${i}`]} />
+            {errors[`${f.key}.${i}`] && <p className="mt-1 text-sm text-red-600">{errors[`${f.key}.${i}`]}</p>}
+          </li>
+        ))}
+      </ol>
+      {value.length < 24 && (
+        <Button size="sm" variant="secondary" className="mt-2" onClick={() => onChange([...value, ''])}>{tr('Add image')}</Button>
+      )}
+    </fieldset>
   );
 }

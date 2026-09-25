@@ -7,7 +7,7 @@ import { SectionHeader, ServiceTile } from '../components/cards';
 import { usePageTitle } from '../components/usePageTitle';
 import { useHotel } from '../hotel';
 import { useGuestSession } from '../session';
-import { ENTITIES } from '@shared/entities';
+import { CATEGORY_OPTIONS } from '@shared/categories';
 import type { ServiceRec } from '../types';
 
 /** Services for the guest's own room (not room sales). */
@@ -20,13 +20,13 @@ export function ServiceCatalog({ title, entity, services, lead }: { title: strin
   const { t, lang } = useI18n();
   const { identity } = useGuestSession();
   const { openService } = useQuickAction();
-  const catField = ENTITIES[entity].fields.find((f) => f.key === 'category');
+  const categories = CATEGORY_OPTIONS[entity];
   const groups = useMemo(() => {
-    const order = (catField?.options ?? []).map((o) => o.value);
+    const order = categories.map((o) => o.value);
     const map = new Map<string, ServiceRec[]>();
     for (const s of services) map.set(s.category, [...(map.get(s.category) ?? []), s]);
     return [...map.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
-  }, [services, catField]);
+  }, [services, categories]);
 
   return (
     <div className="mx-auto max-w-6xl pt-8 pb-10">
@@ -42,7 +42,7 @@ export function ServiceCatalog({ title, entity, services, lead }: { title: strin
             <section key={cat} aria-labelledby={`grp-${cat}`} className="px-5 sm:px-8">
               {groups.length > 1 && (
                 <h2 id={`grp-${cat}`} className="eyebrow mb-3 text-muted">
-                  {catField?.options?.find((o) => o.value === cat)?.[lang] ?? cat}
+                  {categories.find((o) => o.value === cat)?.[lang] ?? cat}
                 </h2>
               )}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

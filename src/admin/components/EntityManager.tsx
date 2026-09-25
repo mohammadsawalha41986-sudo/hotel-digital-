@@ -10,6 +10,8 @@ import { Badge, Button, EmptyState, ErrorState, IconButton, Sheet, Skeleton, Tex
 import { useEntities, useEntityMutations, type EntityRecord } from '../data';
 import { useFeedback } from '../feedback';
 import { EntityForm } from './EntityForm';
+import { DataButtons } from '../imports/DataButtons';
+import { tr, L, entLabel, locale, adminLang } from '../i18n';
 
 export function recordTitle(entity: EntityName, r: Record<string, unknown>) {
   const k = ENTITIES[entity].titleField;
@@ -18,17 +20,17 @@ export function recordTitle(entity: EntityName, r: Record<string, unknown>) {
 
 function facts(entity: EntityName, r: EntityRecord, currency: string): string[] {
   const out: string[] = [];
-  const money = (v: unknown) => (typeof v === 'number' ? formatMoney(v, currency, 'en') : null);
+  const money = (v: unknown) => (typeof v === 'number' ? formatMoney(v, currency, adminLang()) : null);
   if (entity === 'laundry_items') {
     const p = [['Wash', r.wash_price], ['Dry', r.dry_clean_price], ['Press', r.press_price]].filter(([, v]) => v != null).map(([l, v]) => `${l} ${money(v)}`);
     out.push(...p);
     if (r.express_pct != null) out.push(`Express +${r.express_pct}%`);
   } else if (r.price != null && typeof r.price === 'number') out.push(money(r.price)!);
-  if (typeof r.department === 'string' && entity !== 'quick_actions') out.push(`→ ${DEPARTMENT_LABELS[r.department as DepartmentCode]?.en ?? r.department}`);
+  if (typeof r.department === 'string' && entity !== 'quick_actions') out.push(`→ ${L(DEPARTMENT_LABELS[r.department as DepartmentCode]) || r.department}`);
   if (typeof r.duration_minutes === 'number') out.push(`${r.duration_minutes} min`);
   if (r.available === false) out.push('Unavailable');
   if (entity === 'quick_actions') out.push(String(r.action).replace('_', ' '));
-  if (entity === 'offers' && (r.starts_at || r.ends_at)) out.push(`Scheduled ${r.starts_at ? new Date(String(r.starts_at)).toLocaleDateString() : '…'} – ${r.ends_at ? new Date(String(r.ends_at)).toLocaleDateString() : '…'}`);
+  if (entity === 'offers' && (r.starts_at || r.ends_at)) out.push(`Scheduled ${r.starts_at ? new Date(String(r.starts_at)).toLocaleDateString(locale()) : '…'} – ${r.ends_at ? new Date(String(r.ends_at)).toLocaleDateString(locale()) : '…'}`);
   if (Array.isArray(r.modifiers) && r.modifiers.length) out.push(`${r.modifiers.length} option groups`);
   return out;
 }
@@ -84,34 +86,35 @@ export function EntityManager({
   const toggle = (r: EntityRecord) =>
     m.update.mutate(
       { id: r.id, is_active: !r.is_active },
-      { onSuccess: () => fb.success(`${recordTitle(entity, r).en} is now ${r.is_active ? 'hidden from guests' : 'visible to guests'}`), onError: (e) => fb.error(errorMessage(e)) }
+      { onSuccess: () => fb.success(tr('{0} is now {1}', { 0: recordTitle(entity, r).en, 1: r.is_active ? tr('hidden from guests') : tr('visible to guests') })), onError: (e) => fb.error(errorMessage(e)) }
     );
 
   const remove = async (r: EntityRecord) => {
     const ok = await fb.confirm({
-      title: `Delete ${def.label.singular.toLowerCase()}?`,
-      message: `“${recordTitle(entity, r).en}” will be removed permanently${def.name === 'outlets' || def.name === 'menus' || def.name === 'menu_categories' || def.name === 'spa_categories' ? ' together with everything inside it' : ''}. Hide it instead if you may need it again.`,
-      confirmLabel: 'Delete',
+      title: tr('Delete {0}?', { 0: entLabel(def, 'singular').toLowerCase() }),
+      message: tr('“{0}” will be removed permanently{1}. Hide it instead if you may need it again.', { 0: recordTitle(entity, r).en, 1: def.name === 'outlets' || def.name === 'menus' || def.name === 'menu_categories' || def.name === 'spa_categories' ? tr(' together with everything inside it') : '' }),
+      confirmLabel: tr('Delete'),
       danger: true,
     });
-    if (ok) m.remove.mutate(r.id, { onSuccess: () => fb.success('Deleted'), onError: (e) => fb.error(errorMessage(e)) });
+    if (ok) m.remove.mutate(r.id, { onSuccess: () => fb.success(tr('Deleted')), onError: (e) => fb.error(errorMessage(e)) });
   };
 
   return (
-    <section aria-label={title ?? def.label.plural} className="rounded-2xl border border-black/[0.07] bg-white">
+    <section aria-label={title ?? entLabel(def, 'plural')} className="rounded-2xl border border-black/[0.07] bg-white">
       <div className="flex flex-wrap items-center gap-2 border-b border-black/[0.06] px-4 py-3">
         <h2 className="me-auto font-semibold">
-          {title ?? def.label.plural} <span className="font-normal text-zinc-400">{q.data ? `(${q.data.length})` : ''}</span>
+          {title ?? entLabel(def, 'plural')} <span className="font-normal text-zinc-400">{q.data ? `(${q.data.length})` : ''}</span>
         </h2>
         {!compact && (q.data?.length ?? 0) > 6 && (
           <div className="relative">
             <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
-            <TextInput aria-label={`Search ${def.label.plural}`} placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 w-48 rounded-lg ps-9 text-sm" />
+            <TextInput aria-label={tr('Search {0}', { 0: entLabel(def, 'plural') })} placeholder={tr('Search…')} value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 w-48 rounded-lg ps-9 text-sm" />
           </div>
         )}
         {extraActions}
+        {!compact && <DataButtons hid={hid} entity={entity} />}
         <Button size="sm" className="rounded-lg" onClick={() => setEditing('new')}>
-          <Plus className="h-4 w-4" aria-hidden="true" /> Add {def.label.singular.toLowerCase()}
+          <Plus className="h-4 w-4" aria-hidden="true" />{' '}{tr('Add')}{' '}{entLabel(def, 'singular').toLowerCase()}
         </Button>
       </div>
       {q.isLoading ? (
@@ -121,9 +124,9 @@ export function EntityManager({
           ))}
         </div>
       ) : q.error ? (
-        <ErrorState title="Could not load" description={errorMessage(q.error)} onRetry={() => q.refetch()} />
+        <ErrorState title={tr('Could not load')} description={errorMessage(q.error)} onRetry={() => q.refetch()} />
       ) : !items.length ? (
-        <EmptyState title={search ? 'No matches' : `No ${def.label.plural.toLowerCase()} yet`} description={search ? undefined : 'Add the first one — it appears on the guest site as soon as it is saved and visible.'} />
+        <EmptyState title={search ? tr('No matches') : tr('No {0} yet', { 0: entLabel(def, 'plural').toLowerCase() })} description={search ? undefined : tr('Add the first one — it appears on the guest site as soon as it is saved and visible.')} />
       ) : (
         <ul className="divide-y divide-black/[0.06]">
           {items.map((r, i) => {
@@ -133,10 +136,10 @@ export function EntityManager({
               <li key={r.id} aria-current={selectedId === r.id ? 'true' : undefined} className={cx('flex items-center gap-3 px-4 py-3', compact && 'gap-2 px-3 py-2', !r.is_active && 'bg-zinc-50/70', selectedId === r.id && 'bg-amber-50/70 shadow-[inset_3px_0_0_#a68633]')}>
                 {!search && (
                   <div className="flex flex-col">
-                    <IconButton label={`Move ${t.en} up`} size="xs" disabled={i === 0} onClick={() => reorder(i, -1)}>
+                    <IconButton label={tr('Move {0} up', { 0: L(t) })} size="xs" disabled={i === 0} onClick={() => reorder(i, -1)}>
                       <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
                     </IconButton>
-                    <IconButton label={`Move ${t.en} down`} size="xs" disabled={i === items.length - 1} onClick={() => reorder(i, 1)}>
+                    <IconButton label={tr('Move {0} down', { 0: L(t) })} size="xs" disabled={i === items.length - 1} onClick={() => reorder(i, 1)}>
                       <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
                     </IconButton>
                   </div>
@@ -146,16 +149,16 @@ export function EntityManager({
                     {img ? <img src={img} alt="" className="h-full w-full object-cover" loading="lazy" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} /> : <Icon name={(r.icon as string) || 'sparkles'} className="h-5 w-5" />}
                   </span>
                 )}
-                <button type="button" className="min-w-0 flex-1 text-start" onClick={() => (onOpen ? onOpen(r) : setEditing(r))}>
+                <button type="button" className="min-w-0 flex-1 text-start" aria-current={onOpen && selectedId === r.id ? 'true' : undefined} onClick={() => (onOpen ? onOpen(r) : setEditing(r))}>
                   <span className="flex flex-wrap items-center gap-2">
-                    <span className="truncate font-medium">{t.en || <em className="text-zinc-400">Untitled</em>}</span>
-                    {!r.is_active && <Badge>Hidden</Badge>}
-                    {r.featured === true && <Badge tone="info">Featured</Badge>}
+                    <span className="truncate font-medium">{L(t) || <em className="text-zinc-400">{tr('Untitled')}</em>}</span>
+                    {!r.is_active && <Badge>{tr('Hidden')}</Badge>}
+                    {r.featured === true && <Badge tone="info">{tr('Featured')}</Badge>}
                   </span>
                   <span className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-zinc-500">
-                    {t.ar && (
-                      <span dir="rtl" lang="ar">
-                        {t.ar}
+                    {(adminLang() === 'ar' ? t.en : t.ar) && (
+                      <span dir={adminLang() === 'ar' ? 'ltr' : 'rtl'} lang={adminLang() === 'ar' ? 'en' : 'ar'}>
+                        {adminLang() === 'ar' ? t.en : t.ar}
                       </span>
                     )}
                     {facts(entity, r, currency).map((f) => (
@@ -163,17 +166,17 @@ export function EntityManager({
                     ))}
                   </span>
                 </button>
-                <IconButton label={r.is_active ? `Hide ${t.en} from guests` : `Show ${t.en} to guests`} onClick={() => toggle(r)} className="h-9 w-9">
+                <IconButton label={r.is_active ? tr('Hide {0} from guests', { 0: L(t) }) : tr('Show {0} to guests', { 0: L(t) })} onClick={() => toggle(r)} className="h-9 w-9">
                   {r.is_active ? <Eye className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4 text-zinc-400" aria-hidden="true" />}
                 </IconButton>
-                <IconButton label={`Edit ${t.en}`} onClick={() => setEditing(r)} className="h-9 w-9">
+                <IconButton label={tr('Edit {0}', { 0: L(t) })} onClick={() => setEditing(r)} className="h-9 w-9">
                   <Pencil className="h-4 w-4" aria-hidden="true" />
                 </IconButton>
-                <IconButton label={`Delete ${t.en}`} onClick={() => remove(r)} className="h-9 w-9 text-red-600">
+                <IconButton label={tr('Delete {0}', { 0: L(t) })} onClick={() => remove(r)} className="h-9 w-9 text-red-600">
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </IconButton>
                 {onOpen && !compact && (
-                  <IconButton label={`Open ${t.en}`} onClick={() => onOpen(r)} className="h-9 w-9">
+                  <IconButton label={tr('Open {0}', { 0: L(t) })} onClick={() => onOpen(r)} className="h-9 w-9">
                     <ChevronRight className="h-4 w-4" aria-hidden="true" />
                   </IconButton>
                 )}
@@ -217,7 +220,7 @@ export function EntityEditor({ hid, entity, parentId, record, onClose }: { hid: 
     try {
       if (record === 'new') await m.create.mutateAsync({ ...data, is_active: active, parent_id: parentId });
       else if (record) await m.update.mutateAsync({ ...data, is_active: active, id: record.id });
-      fb.success(`${def.label.singular} saved`);
+      fb.success(tr('{0} saved', { 0: entLabel(def, 'singular') }));
       onClose();
     } catch (e) {
       if (e instanceof ApiError && Object.keys(e.fields).length) {
@@ -232,18 +235,14 @@ export function EntityEditor({ hid, entity, parentId, record, onClose }: { hid: 
       open={!!record}
       onClose={onClose}
       side="right"
-      title={record === 'new' ? `New ${def.label.singular.toLowerCase()}` : `Edit ${def.label.singular.toLowerCase()}`}
-      description={record && record !== 'new' ? recordTitle(entity, record).en : undefined}
+      title={record === 'new' ? tr('New {0}', { 0: entLabel(def, 'singular').toLowerCase() }) : tr('Edit {0}', { 0: entLabel(def, 'singular').toLowerCase() })}
+      description={record && record !== 'new' ? L(recordTitle(entity, record)) : undefined}
       footer={
         <div className="flex items-center justify-between gap-3">
-          <Toggle label="Visible to guests" checked={active} onChange={setActive} />
+          <Toggle label={tr('Visible to guests')} checked={active} onChange={setActive} />
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button loading={saving} onClick={save}>
-              Save
-            </Button>
+            <Button variant="secondary" onClick={onClose}>{tr('Cancel')}</Button>
+            <Button loading={saving} onClick={save}>{tr('Save')}</Button>
           </div>
         </div>
       }

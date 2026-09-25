@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { REVIEW_STATUSES, ROLES, type Role } from '../../../shared/domain';
+import { REVIEW_STATUSES, ROLES, type Role, GLOBAL_ROLES } from '../../../shared/domain';
 import { IMAGE_URL_PATTERN, VIDEO_URL_PATTERN, mediaUrlSchema } from '../../../shared/fields';
 import { audit } from '../../audit';
 import { requireHotelAccess, requireUser } from '../../auth';
@@ -44,7 +44,7 @@ miscRoutes.post('/:hid/reviews/:id/status', async (c) => {
 miscRoutes.get('/:hid/media', async (c) => {
   const hid = c.req.param('hid');
   requireHotelAccess(c, hid, 'hotel');
-  const rows = await q(`SELECT id, url, kind, source, mime, size_bytes, filename, label, created_at FROM media WHERE hotel_id = $1 ORDER BY created_at DESC LIMIT 500`, [hid]);
+  const rows = await q(`SELECT id, url, kind, source, mime, size_bytes, filename, label, width, height, variants, created_at FROM media WHERE hotel_id = $1 ORDER BY created_at DESC LIMIT 500`, [hid]);
   return c.json({ media: rows });
 });
 
@@ -66,7 +66,15 @@ miscRoutes.post('/:hid/media/upload', async (c) => {
   const form = await c.req.formData().catch(() => null);
   const file = form?.get('file');
   if (!(file instanceof File)) throw badRequest('No file received');
-  const media = await storeUpload(hid, file, { maxBytes: config.maxUploadBytes, allow: ['image', 'video'], source: 'upload', userId: u.id, label: String(form?.get('label') ?? '') });
+  const spec = String(form?.get('spec') ?? '');
+  const media = await storeUpload(hid, file, {
+    maxBytes: config.maxUploadBytes,
+    allow: ['image', 'video', 'svg'],
+    source: 'upload',
+    userId: u.id,
+    label: String(form?.get('label') ?? ''),
+    spec: /^[a-z_]{2,20}$/.test(spec) ? spec : undefined,
+  });
   await audit({ hotelId: hid, user: u, action: 'upload', entity: 'media', entityId: media.id, summary: `Uploaded ${media.filename}`, ip: clientIp(c) });
   return c.json(media, 201);
 });
@@ -127,15 +135,17 @@ miscRoutes.get('/:hid/users', async (c) => {
   requireHotelAccess(c, hid, 'users');
   const rows = await q(
     `SELECT u.id, u.email, u.name, u.role, u.is_active, u.last_login_at, u.created_at
-       FROM users u WHERE u.role = 'SUPER_ADMIN' OR EXISTS (SELECT 1 FROM user_hotels uh WHERE uh.user_id = u.id AND uh.hotel_id = $1)
-      ORDER BY u.role = 'SUPER_ADMIN' DESC, u.name`,
-    [hid]
+       FROM users u WHERE u.role = ANY($2::text[]) OR EXISTS (SELECT 1 FROM user_hotels uh WHERE uh.user_id = u.id AND uh.hotel_id = $1)
+      ORDER BY u.role = ANY($2::text[]) DESC, u.name`,
+    [hid, GLOBAL_ROLES]
   );
   return c.json({ users: rows });
 });
 
+const isGlobal = (r: Role) => GLOBAL_ROLES.includes(r);
+
 function assertCanAssign(actorRole: Role, role: Role) {
-  if (role === 'SUPER_ADMIN' && actorRole !== 'SUPER_ADMIN') throw forbidden('Only super admins can grant super admin access');
+  if (isGlobal(role) && actorRole !== 'SUPER_ADMIN') throw forbidden('Only super admins can grant platform-wide roles');
 }
 
 miscRoutes.post('/:hid/users', async (c) => {
@@ -152,7 +162,7 @@ miscRoutes.post('/:hid/users', async (c) => {
     let userId: string;
     if (existing) {
       // Existing account: grant access to this hotel (role/password unchanged to avoid cross-hotel takeover).
-      if (existing.role === 'SUPER_ADMIN') throw conflict('This user already has access to every hotel');
+      if (isGlobal(existing.role as Role)) throw conflict('This user already has access to every hotel');
       if (await one('SELECT 1 FROM user_hotels WHERE user_id = $1 AND hotel_id = $2', [existing.id, hid], client)) throw conflict('This user already has access to this hotel');
       if (!u.global) throw conflict('A user with this email already exists for another hotel. Ask a super admin to grant access.');
       userId = existing.id;
@@ -164,7 +174,7 @@ miscRoutes.post('/:hid/users', async (c) => {
       );
       userId = row!.id;
     }
-    if (v.role !== 'SUPER_ADMIN') await q('INSERT INTO user_hotels (user_id, hotel_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [userId, hid], client);
+    if (!isGlobal(v.role)) await q('INSERT INTO user_hotels (user_id, hotel_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [userId, hid], client);
     await audit({ hotelId: hid, user: u, action: 'create', entity: 'user', entityId: userId, summary: `Granted ${v.email} (${v.role})`, after: { email: v.email, role: v.role }, ip: clientIp(c) }, client);
     return userId;
   });
@@ -183,8 +193,8 @@ miscRoutes.patch('/:hid/users/:uid', async (c) => {
        FROM users u LEFT JOIN user_hotels uh ON uh.user_id = u.id WHERE u.id = $1 GROUP BY u.id`,
     [uid]
   );
-  if (!target || (!target.hotels.includes(hid) && target.role !== 'SUPER_ADMIN')) throw notFound('User not found');
-  if (target.role === 'SUPER_ADMIN' && !u.global) throw forbidden('Only super admins can edit super admins');
+  if (!target || (!target.hotels.includes(hid) && !isGlobal(target.role))) throw notFound('User not found');
+  if (isGlobal(target.role) && u.role !== 'SUPER_ADMIN') throw forbidden('Only super admins can edit platform-wide accounts');
   // Hotel admins cannot change accounts shared with hotels they do not manage.
   if (!u.global && target.hotels.some((h) => !u.hotelIds.includes(h))) throw forbidden('This user also works for another hotel; ask a super admin');
   const v = parsed.data;

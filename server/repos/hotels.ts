@@ -1,4 +1,5 @@
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../shared/domain';
+import { ENTITIES, ENTITY_NAMES } from '../../shared/entities';
 import {
   brandingSchema,
   hotelProfileSchema,
@@ -24,6 +25,7 @@ export interface HotelRow {
   site_published: Record<string, unknown>;
   site_published_at: Date | null;
   site_draft_updated_at: Date | null;
+  draft_updated_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -39,7 +41,16 @@ export interface Hotel {
 }
 
 /** Parses stored JSON through the current schemas so old rows gain new defaults. */
+const hydrated = new WeakMap<HotelRow, Hotel>();
+
+/** Parsed view of a hotel row (memoised per row object; rows from caches are shared). */
 export function hydrate(row: HotelRow): Hotel {
+  let h = hydrated.get(row);
+  if (!h) hydrated.set(row, (h = parseHotel(row)));
+  return h;
+}
+
+function parseHotel(row: HotelRow): Hotel {
   const profile = hotelProfileSchema.parse({ ...row.profile, slug: row.slug, name_en: row.name_en, name_ar: row.name_ar });
   return {
     id: row.id,
@@ -79,4 +90,21 @@ export async function ensureDepartments(hotelId: string, db?: Queryable) {
       db
     );
   }
+}
+
+/** What still routes to a department (content and open requests); empty when it can be removed. */
+export async function departmentUsage(hotelId: string, code: string, db?: Queryable): Promise<string[]> {
+  const used: string[] = [];
+  for (const name of ENTITY_NAMES) {
+    if (!ENTITIES[name].fields.some((f) => f.type === 'department')) continue;
+    const n = await one<{ n: number }>(`SELECT COUNT(*) AS n FROM ${ENTITIES[name].table} WHERE hotel_id = $1 AND data->>'department' = $2`, [hotelId, code], db);
+    if (n && n.n > 0) used.push(`${n.n} ${ENTITIES[name].label.plural.toLowerCase()}`);
+  }
+  const open = await one<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM requests WHERE hotel_id = $1 AND department = $2 AND status IN ('NEW','ACCEPTED','IN_PROGRESS','READY')`,
+    [hotelId, code],
+    db
+  );
+  if (open && open.n > 0) used.push(`${open.n} open request(s)`);
+  return used;
 }

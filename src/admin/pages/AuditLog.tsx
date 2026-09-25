@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { api, errorMessage } from '../../lib/api';
 import { Badge, Button, EmptyState, ErrorState, Select, Skeleton } from '../../components/ui';
 import { PageHeader } from '../layout/AdminLayout';
+import { tr, locale } from '../i18n';
 
 interface Entry {
   id: number;
@@ -30,13 +31,13 @@ export function AuditLog({ hid }: { hid: string }) {
   const rows = q.data?.pages.flat() ?? [];
   return (
     <>
-      <PageHeader title="Audit log" description="Who changed what and when — prices, menus, routing, publishing, request status and more. Entries cannot be edited." />
+      <PageHeader title={tr('Audit log')} description={tr('Who changed what and when — prices, menus, routing, publishing, request status and more. Entries cannot be edited.')} />
       <div className="mb-4 w-64">
-        <label htmlFor="audit-entity" className="sr-only">Filter</label>
+        <label htmlFor="audit-entity" className="sr-only">{tr('Filter')}</label>
         <Select id="audit-entity" value={entity} onChange={(e) => setEntity(e.target.value)} className="h-10 rounded-lg text-sm">
           {ENTITY_FILTERS.map((e) => (
             <option key={e} value={e}>
-              {e ? e.replace(/_/g, ' ') : 'All changes'}
+              {e ? e.replace(/_/g, ' ') : tr('All changes')}
             </option>
           ))}
         </Select>
@@ -44,10 +45,10 @@ export function AuditLog({ hid }: { hid: string }) {
       {q.isLoading ? (
         <Skeleton className="h-64" />
       ) : q.error ? (
-        <ErrorState title="Could not load the audit log" description={errorMessage(q.error)} onRetry={() => q.refetch()} />
+        <ErrorState title={tr('Could not load the audit log')} description={errorMessage(q.error)} onRetry={() => q.refetch()} />
       ) : !rows.length ? (
         <div className="rounded-2xl border border-black/[0.07] bg-white">
-          <EmptyState title="No entries" />
+          <EmptyState title={tr('No entries')} />
         </div>
       ) : (
         <div className="rounded-2xl border border-black/[0.07] bg-white">
@@ -55,7 +56,7 @@ export function AuditLog({ hid }: { hid: string }) {
             {rows.map((e) => (
               <li key={e.id} className="px-4 py-3 text-sm">
                 <button type="button" className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-start" aria-expanded={open === e.id} onClick={() => setOpen(open === e.id ? null : e.id)}>
-                  <span className="w-40 shrink-0 text-xs text-zinc-500">{new Date(e.created_at).toLocaleString()}</span>
+                  <span className="w-40 shrink-0 text-xs text-zinc-500">{new Date(e.created_at).toLocaleString(locale())}</span>
                   <Badge tone={e.action === 'delete' ? 'danger' : e.action === 'publish' ? 'success' : 'neutral'}>{e.action}</Badge>
                   <span className="min-w-0 flex-1 font-medium">{e.summary || `${e.entity} ${e.entity_id ?? ''}`}</span>
                   <span className="text-xs text-zinc-500">{e.user_email || 'system'}</span>
@@ -71,9 +72,7 @@ export function AuditLog({ hid }: { hid: string }) {
           </ul>
           {q.hasNextPage && (
             <div className="border-t border-black/[0.06] p-3 text-center">
-              <Button variant="secondary" size="sm" className="rounded-lg" loading={q.isFetchingNextPage} onClick={() => q.fetchNextPage()}>
-                Load older entries
-              </Button>
+              <Button variant="secondary" size="sm" className="rounded-lg" loading={q.isFetchingNextPage} onClick={() => q.fetchNextPage()}>{tr('Load older entries')}</Button>
             </div>
           )}
         </div>

@@ -1,13 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { ChefHat, Clock, Flame, MapPin, Phone, Plus, Sparkles, Utensils } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { ALLERGENS, DIETARY } from '@shared/fields';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { ALLERGENS, DIETARY, OUTLET_TYPES } from '@shared/fields';
 import { api } from '../../lib/api';
 import { useI18n } from '../../lib/i18n';
 import { Badge, EmptyState, ErrorState, Img, Skeleton, cx } from '../../components/ui';
 import { useBasket } from '../basket';
-import { HoursLine, OfferCard, OpenPill, OutletCard, SectionHeader, useOpenState } from '../components/cards';
+import { HoursLine, OpenPill, OutletCard, SectionHeader, useOpenState } from '../components/cards';
+import { MerchBadges, OfferCarousel, PopularItems } from '../components/sell';
+import { Stagger, StaggerItem } from '../components/motion';
+import { track } from '../track';
 import { ItemSheet } from '../sheets/ItemSheet';
 import { OfferSheet } from '../sheets/OfferSheet';
 import { useHotel } from '../hotel';
@@ -17,29 +20,55 @@ import { usePageTitle } from '../components/usePageTitle';
 
 export function Dining() {
   const { bundle } = useHotel();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const title = usePageTitle('dining');
   const [offer, setOffer] = useState<Rec | null>(null);
+  const [type, setType] = useState('all');
   const offers = bundle.catalog.offers.filter((o) => (o.placement as string[] | undefined)?.includes('dining'));
   const outlets = bundle.catalog.outlets;
+  // Filter chips only when there is something to filter.
+  const types = useMemo(() => [...new Set(outlets.map((o) => o.type))].filter(Boolean), [outlets]);
+  const shown = type === 'all' ? outlets : outlets.filter((o) => o.type === type);
+  const popular = bundle.catalog.featured_items ?? [];
   return (
     <div className="mx-auto max-w-6xl pt-8 pb-10">
-      <SectionHeader as="h1" title={title} />
+      <SectionHeader as="h1" title={title} subtitle={outlets.length > 1 ? t('outletsCount', { n: outlets.length }) : undefined} />
       {offers.length > 0 && (
-        <div className="snap-row no-scrollbar mb-10 gap-4 px-5 sm:px-8">
-          {offers.map((o) => (
-            <div key={o.id} className={cx('shrink-0', offers.length > 1 ? 'w-[88%] sm:w-[70%]' : 'w-full')}>
-              <OfferCard offer={o} onOpen={() => setOffer(o)} />
-            </div>
+        <div className="mb-10">
+          <OfferCarousel offers={offers} onOpen={setOffer} />
+        </div>
+      )}
+      {popular.length > 0 && (
+        <section aria-labelledby="dining-popular" className="mb-10">
+          <h2 id="dining-popular" className="eyebrow mb-3 px-5 text-muted sm:px-8">
+            {t('popularNow')}
+          </h2>
+          <PopularItems items={popular} />
+        </section>
+      )}
+      {types.length > 1 && outlets.length > 3 && (
+        <div className="no-scrollbar mb-5 flex gap-2 overflow-x-auto px-5 sm:px-8" role="group" aria-label={title}>
+          {['all', ...types].map((ty) => (
+            <button
+              key={ty}
+              type="button"
+              aria-pressed={type === ty}
+              onClick={() => setType(ty)}
+              className={cx('h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition', type === ty ? 'bg-ink text-white' : 'bg-surface ring-1 ring-line hover:ring-black/20')}
+            >
+              {ty === 'all' ? t('allTypes') : OUTLET_TYPES.find((o) => o.value === ty)?.[lang] ?? ty}
+            </button>
           ))}
         </div>
       )}
       {outlets.length ? (
-        <div className="grid gap-4 px-5 sm:grid-cols-2 sm:px-8 lg:grid-cols-3">
-          {outlets.map((o) => (
-            <OutletCard key={o.id} outlet={o} />
+        <Stagger className="grid gap-4 px-5 sm:grid-cols-2 sm:px-8 lg:grid-cols-3">
+          {shown.map((o) => (
+            <StaggerItem key={o.id}>
+              <OutletCard outlet={o} />
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       ) : (
         <EmptyState icon={<Utensils className="h-6 w-6" />} title={t('noResults')} description={t('comingSoon')} />
       )}
@@ -54,17 +83,36 @@ export function OutletPage() {
   const { t, pick } = useI18n();
   const outlet = bundle.catalog.outlets.find((o) => o.id === outletId);
   const menuQ = useQuery({
-    queryKey: ['menu', slug, outletId],
-    queryFn: () => api<{ menus: Menu[] }>(`/public/hotels/${slug}/outlets/${outletId}/menu`),
+    queryKey: ['menu', slug, outletId, bundle.preview, bundle.version],
+    queryFn: () => api<{ menus: Menu[] }>(`/public/hotels/${slug}/outlets/${outletId}/menu${bundle.preview ? '?preview=1' : ''}`),
     enabled: !!outlet,
   });
   const [menuIdx, setMenuIdx] = useState(0);
-  const [item, setItem] = useState<MenuItem | null>(null);
+  const [item, setItemState] = useState<MenuItem | null>(null);
+  const [params, setParams] = useSearchParams();
+  const setItem = (i: MenuItem | null) => {
+    setItemState(i);
+    if (i) track('menu_item_view', { target_type: 'menu_item', target_code: String(i.code ?? '') });
+    if (!i && params.has('item')) {
+      params.delete('item');
+      setParams(params, { replace: true });
+    }
+  };
   const [activeCat, setActiveCat] = useState<string>('');
   const catNav = useRef<HTMLDivElement>(null);
   const state = useOpenState(outlet ?? {});
 
   const menus = menuQ.data?.menus ?? [];
+  // Deep link from “Popular right now”: ?item=<id> opens that item.
+  useEffect(() => {
+    const id = params.get('item');
+    if (!id || !menuQ.data) return;
+    for (const m of menuQ.data.menus) for (const c of m.categories) {
+      const hit = c.items.find((x) => x.id === id);
+      if (hit) return setItemState(hit);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menuQ.data, params]);
   const menu = menus[Math.min(menuIdx, menus.length - 1)];
   const cats = useMemo(() => (menu?.categories ?? []).filter((c) => c.items.length), [menu]);
 
@@ -218,6 +266,7 @@ function MenuItemRow({ item, canOrder, onOpen }: { item: MenuItem; canOrder: boo
             </Badge>
           )}
           {item.recommended && <Badge tone="warning">{t('recommended')}</Badge>}
+          <MerchBadges rec={item as never} max={2} />
           {off && <Badge>{t('unavailable')}</Badge>}
         </div>
         <h3 className="mt-1 font-semibold leading-snug">{pick(item, 'name')}</h3>
@@ -237,7 +286,7 @@ function MenuItemRow({ item, canOrder, onOpen }: { item: MenuItem; canOrder: boo
         </div>
       </div>
       <div className="relative shrink-0">
-        <Img src={item.image} alt="" className="h-24 w-24 rounded-2xl sm:h-28 sm:w-28" />
+        <Img src={item.image} alt="" fallbackIcon={<Utensils />} className="h-24 w-24 rounded-2xl sm:h-28 sm:w-28" />
         {canOrder && !off && (
           <span className="absolute -bottom-2 left-1/2 flex h-9 min-w-9 -translate-x-1/2 items-center justify-center gap-1 rounded-full bg-surface px-2.5 text-sm font-bold text-brand shadow-md ring-1 ring-line" aria-hidden="true">
             {inBasket > 0 ? inBasket : <Plus className="h-4 w-4" />}

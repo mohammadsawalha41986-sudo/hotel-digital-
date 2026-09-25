@@ -4,7 +4,7 @@ import { SLUG, enterAsGuest, uiLogin } from './helpers';
 test.describe.configure({ mode: 'serial' });
 test.use({ viewport: { width: 1440, height: 900 } });
 
-const PNG = Buffer.from('89504e470d0a1a0a0000000d4948445200000010000000100806000000' + '1ff3ff610000001949444154789c63fccf400a60a219c3a8068c1a3060d480a10600d06d1ff1f3d8a8b70000000049454e44ae426082', 'hex');
+const PNG = Buffer.from('89504e470d0a1a0a0000000d4948445200000008000000080806000000c40fbe8b0000000970485973000003e8000003e801b57b526b0000001249444154189563a85231f98f0f338c0c0500c19d74419121225d0000000049454e44ae426082', 'hex');
 
 let hid = '';
 const go = async (page: Page, path: string) => {
@@ -38,9 +38,6 @@ test('hotel admin edits every guest-facing module through the UI', async ({ page
   await page.getByRole('button', { name: 'Hide Gallery' }).click();
   await page.getByRole('button', { name: 'Save draft' }).click();
   await expect(page.getByText('Draft saved')).toBeVisible();
-  await page.getByRole('button', { name: 'Publish', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Publish' }).click();
-  await expect(page.getByText('Published — the guest site is updated')).toBeVisible();
 
   // New offer
   await go(page, 'offers');
@@ -70,7 +67,7 @@ test('hotel admin edits every guest-facing module through the UI', async ({ page
 
   // New room service
   await go(page, 'room-services');
-  await page.getByRole('button', { name: 'Add room service' }).click();
+  await page.getByRole('button', { name: 'Add in-room service' }).click();
   await page.locator('#f-name-en').fill('Baby cot');
   await page.locator('#f-name-ar').fill('سرير أطفال');
   await page.locator('#f-department').selectOption('HOUSEKEEPING');
@@ -93,6 +90,16 @@ test('hotel admin edits every guest-facing module through the UI', async ({ page
   await page.getByLabel('Housekeeping WhatsApp').fill('+966 51 111 1111');
   await page.getByRole('button', { name: 'Save routing' }).click();
   await expect(page.getByText('Routing saved')).toBeVisible();
+
+  // Nothing above reaches guests until it is published — then everything goes live together.
+  await expect(page.getByText('Unpublished changes')).toBeVisible();
+  await page.getByRole('button', { name: /^Publish updates/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Publish updates' });
+  await expect(dialog).toContainText('price change');
+  await dialog.getByLabel('Note (optional)').fill('E2E content refresh');
+  await dialog.getByRole('button', { name: 'Publish now' }).click();
+  await expect(page.getByText(/Published version \d+/)).toBeVisible();
+  await expect(page.getByText('All changes live')).toBeVisible();
 });
 
 test('every change persists after a full reload', async ({ page }) => {
@@ -101,7 +108,7 @@ test('every change persists after a full reload', async ({ page }) => {
   await expect(page.locator('#b-logo')).toHaveValue(/^\/media\//);
 
   await go(page, 'website');
-  await expect(page.getByText('Live = draft')).toBeVisible();
+  await expect(page.getByText('Everything published')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Show Gallery' })).toBeVisible();
   await page.getByRole('radio', { name: 'Hero' }).click();
   await page.getByRole('button', { name: 'Customize Your stay, perfected' }).click();
@@ -126,7 +133,7 @@ test('every change persists after a full reload', async ({ page }) => {
   await expect(page.getByLabel('Housekeeping WhatsApp')).toHaveValue('+966 51 111 1111');
   await go(page, 'audit');
   await expect(page.getByText(/Updated Menu item "\[Demo\] Club sandwich": price \(price change\)/)).toBeVisible();
-  await expect(page.getByText('Published website changes')).toBeVisible();
+  await expect(page.getByText(/Published version \d+ — E2E content refresh/)).toBeVisible();
 });
 
 test('the guest site reflects every published change', async ({ page, request }) => {
@@ -162,10 +169,15 @@ test('role restrictions are enforced in the UI', async ({ page }) => {
   await uiLogin(page, 'fnb@demo.hotelhub.local');
   const nav = page.getByRole('navigation', { name: 'Admin' });
   await expect(nav.getByRole('link', { name: 'Dining & menus' })).toBeVisible();
-  await expect(nav.getByRole('link', { name: 'Branding' })).toHaveCount(0);
-  await expect(nav.getByRole('link', { name: 'Users & roles' })).toHaveCount(0);
+  await expect(nav.getByRole('link', { name: 'Brand & theme' })).toHaveCount(0);
+  await expect(nav.getByRole('link', { name: 'Users & permissions' })).toHaveCount(0);
   await page.goto(`/admin/h/${hid}/branding`);
   await expect(page.getByText('Access restricted')).toBeVisible();
+  // The same labels exist for a hotel admin, so the absence above is real, not a stale name.
+  await page.context().clearCookies();
+  await uiLogin(page, 'admin@demo.hotelhub.local');
+  await expect(nav.getByRole('link', { name: 'Brand & theme' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'Users & permissions' })).toBeVisible();
 });
 
 test('error pages instead of blank screens', async ({ page }) => {

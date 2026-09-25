@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { feedbackDepartment, roleCan, roleSeesDepartment, STATUS_TRANSITIONS } from '../../shared/domain';
 import { evaluateHours } from '../../shared/hours';
-import { coerceCell, importColumns } from '../../shared/importSpec';
+import { dateTime, fieldValue, localDateTime, num, time } from '../../server/services/excel/cells';
+import { stableJson } from '../../server/services/excel/state';
+import { templateForSheet } from '../../server/services/excel/templates';
 import { lineAmounts, sumLines } from '../../shared/pricing';
 import { guestIdentitySchema } from '../../shared/hotel';
 import { buildEntitySchema } from '../../shared/fields';
@@ -64,23 +66,41 @@ describe('domain rules', () => {
   });
 });
 
-describe('import column mapping', () => {
-  test('menu items reference their parents by name', () => {
-    const headers = importColumns('menu_items').map((c) => c.header);
-    assert.deepEqual(headers.slice(0, 4), ['id', 'outlet', 'menu', 'category']);
-    assert.ok(headers.includes('price') && headers.includes('name_ar'));
-    assert.ok(!headers.includes('modifiers'));
+describe('excel cell coercion', () => {
+  const f = (key: string) => ENTITIES.menu_items.fields.find((x) => x.key === key)!;
+  test('tags, booleans and numbers typed by hand (English, Arabic, Arabic-Indic digits)', () => {
+    assert.deepEqual(fieldValue(f('dietary'), 'Vegan, gluten_free'), { value: ['vegan', 'gluten_free'] });
+    assert.deepEqual(fieldValue(f('dietary'), 'نباتي'), { value: ['vegetarian'] }, 'Arabic option labels are accepted');
+    assert.ok(fieldValue(f('price'), 'abc').error);
+    assert.deepEqual(fieldValue(f('featured'), 'نعم'), { value: true });
+    assert.deepEqual(num('١٢٫٥'), { value: 12.5 });
+    assert.deepEqual(num('SAR 1,250'), { value: 1250 });
   });
-  test('cell coercion', () => {
-    const f = (key: string) => ENTITIES.menu_items.fields.find((x) => x.key === key)!;
-    assert.deepEqual(coerceCell(f('dietary'), 'Vegan, gluten_free'), { value: ['vegan', 'gluten_free'] });
-    assert.ok(coerceCell(f('price'), 'abc').error);
-    assert.deepEqual(coerceCell(f('featured'), 'نعم'), { value: true });
+  test('times from text, AM/PM and Excel time cells', () => {
+    assert.deepEqual(time('7:05'), { value: '07:05' });
+    assert.deepEqual(time('4:30 pm'), { value: '16:30' });
+    assert.deepEqual(time(0.75), { value: '18:00' });
+    assert.deepEqual(time('24:00'), { value: '00:00' });
+    assert.ok(time('25:00').error);
   });
-  test('media fields reject non-http schemes', () => {
+  test('dates are hotel-local wall-clock time and export back unchanged', () => {
+    const v = dateTime('2027-03-01 14:00', 'Asia/Riyadh');
+    assert.deepEqual(v, { value: '2027-03-01T11:00:00.000Z' });
+    assert.equal(localDateTime(v.value!, 'Asia/Riyadh'), '2027-03-01 14:00');
+    assert.deepEqual(dateTime('2027-03-01T11:00:00Z', 'Asia/Riyadh'), { value: '2027-03-01T11:00:00.000Z' }, 'explicit zones are respected');
+    assert.ok(dateTime('01/03/2027', 'UTC').error);
+  });
+  test('media URLs reject non-http schemes', () => {
+    assert.ok(fieldValue(f('image'), 'javascript:alert(1)').error);
+    assert.deepEqual(fieldValue(f('gallery'), 'https://a.test/1.jpg | https://a.test/2.jpg'), { value: ['https://a.test/1.jpg', 'https://a.test/2.jpg'] });
     const schema = buildEntitySchema(ENTITIES.offers.fields);
-    assert.ok(!schema.safeParse({ title_en: 'x', image: 'javascript:alert(1)' }).success);
     assert.ok(schema.safeParse({ title_en: 'x', image: '/media/abc/def.png' }).success);
+  });
+  test('sheets are recognised by name, title or number prefix; states compare key-order independently', () => {
+    assert.equal(templateForSheet('07 F&B Items')?.key, 'fnb_items');
+    assert.equal(templateForSheet('offers & packages')?.key, 'offers');
+    assert.equal(templateForSheet('Random'), undefined);
+    assert.equal(stableJson({ b: 1, a: { d: 2, c: 3 } }), stableJson({ a: { c: 3, d: 2 }, b: 1 }));
   });
 });
 

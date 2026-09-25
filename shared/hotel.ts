@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_SEED, TOKEN_KEYS, type TokenKey } from './theme';
 import {
   DEPARTMENTS,
   FEEDBACK_TYPES,
@@ -75,38 +76,70 @@ export const FONT_CHOICES = {
   display: ['Cormorant Garamond', 'Playfair Display', 'Marcellus', 'DM Serif Display', 'Fraunces', 'Plus Jakarta Sans'],
 } as const;
 
-export const brandingSchema = z.object({
+const tokenOverridesSchema = z
+  .object(Object.fromEntries(TOKEN_KEYS.map((k) => [k, hex.optional()])) as Record<TokenKey, z.ZodOptional<typeof hex>>)
+  .partial()
+  .default({});
+
+export const TYPE_SCALES = ['compact', 'default', 'large'] as const;
+export const HEADING_WEIGHTS = ['500', '600', '700'] as const;
+
+/**
+ * Branding: brand colours (the seed of the theme engine), manual token
+ * overrides, logo assets and typography. The full token set is derived at
+ * runtime (shared/theme.ts) so it always stays contrast-safe.
+ */
+export const brandingObjectSchema = z.object({
   logo: mediaUrlSchema.default(''),
+  /** For dark backgrounds. */
   logo_inverse: mediaUrlSchema.default(''),
+  /** Dark version for light backgrounds when the main logo is light. */
+  logo_dark: mediaUrlSchema.default(''),
+  /** Square brand mark (app icon, small headers). */
+  mark: mediaUrlSchema.default(''),
   favicon: mediaUrlSchema.default(''),
   colors: z
     .object({
-      primary: hex.default('#7A2434'),
-      secondary: hex.default('#1F1A17'),
-      accent: hex.default('#B8955A'),
-      background: hex.default('#F8F5F0'),
-      surface: hex.default('#FFFFFF'),
-      text: hex.default('#1F1A17'),
-      muted: hex.default('#6F665E'),
+      primary: hex.default(DEFAULT_SEED.primary),
+      secondary: hex.default(DEFAULT_SEED.secondary),
+      accent: hex.default(DEFAULT_SEED.accent),
     })
-    .default({
-      primary: '#7A2434',
-      secondary: '#1F1A17',
-      accent: '#B8955A',
-      background: '#F8F5F0',
-      surface: '#FFFFFF',
-      text: '#1F1A17',
-      muted: '#6F665E',
-    }),
+    .default({ ...DEFAULT_SEED }),
+  theme: z
+    .object({
+      overrides: tokenOverridesSchema,
+      /** Where the brand colours came from (for the editor). */
+      source: z.enum(['default', 'logo', 'manual']).default('default'),
+    })
+    .default({ overrides: {}, source: 'default' }),
   fonts: z
     .object({
       ar: z.string().max(60).default('Tajawal'),
       en: z.string().max(60).default('Plus Jakarta Sans'),
       display: z.string().max(60).default('Cormorant Garamond'),
+      scale: z.enum(TYPE_SCALES).default('default'),
+      heading_weight: z.enum(HEADING_WEIGHTS).default('600'),
     })
-    .default({ ar: 'Tajawal', en: 'Plus Jakarta Sans', display: 'Cormorant Garamond' }),
+    .default({ ar: 'Tajawal', en: 'Plus Jakarta Sans', display: 'Cormorant Garamond', scale: 'default', heading_weight: '600' }),
   gallery: z.array(z.object({ url: mediaUrlSchema, caption_en: str(200), caption_ar: str(200) })).max(60).default([]),
 });
+
+/** Earlier versions stored background/surface/text/muted as colours; they become token overrides. */
+function upgradeBranding(v: unknown): unknown {
+  if (!v || typeof v !== 'object') return v;
+  const b = v as Record<string, any>;
+  const c = b.colors;
+  if (!c || typeof c !== 'object' || !['background', 'surface', 'text', 'muted'].some((k) => k in c)) return v;
+  const { background, surface, text, muted, ...seed } = c;
+  const legacy: Record<string, string> = {};
+  if (background) legacy.page_background = background;
+  if (surface) legacy.card_background = surface;
+  if (text) legacy.text_primary = text;
+  if (muted) legacy.text_secondary = muted;
+  return { ...b, colors: seed, theme: { ...(b.theme ?? {}), overrides: { ...legacy, ...(b.theme?.overrides ?? {}) } } };
+}
+
+export const brandingSchema = z.preprocess(upgradeBranding, brandingObjectSchema);
 export type Branding = z.infer<typeof brandingSchema>;
 
 export const settingsSchema = z.object({
@@ -116,6 +149,8 @@ export const settingsSchema = z.object({
   /** Department used when a request's department has no WhatsApp number. */
   fallback_department: z.enum(DEPARTMENTS).nullable().default('FRONT_OFFICE'),
   emergency_phone: phoneSchema.default(''),
+  /** Dialling code applied to local numbers (e.g. 0555… → +966555…). */
+  default_country_code: z.string().regex(/^[1-9][0-9]{0,3}$/, 'Digits only, e.g. 966').default('966'),
 });
 export type HotelSettings = z.infer<typeof settingsSchema>;
 
@@ -282,6 +317,13 @@ export const guestRequestSchema = z.object({
   ]),
 });
 export type GuestRequestInput = z.input<typeof guestRequestSchema>;
+
+export const guestSessionSchema = z.object({
+  guest: guestIdentitySchema,
+  lang: z.enum(['en', 'ar']).default('en'),
+  /** QR when the guest arrived through a printed code (?qr=1 / ?room=). */
+  entry: z.enum(['QR', 'GUEST_PORTAL']).default('GUEST_PORTAL'),
+});
 
 export const reviewInputSchema = z.object({
   guest_name: z.string().trim().min(2).max(80),

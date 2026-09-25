@@ -42,7 +42,9 @@ export const DEPARTMENT_LABELS: Record<DepartmentCode, { en: string; ar: string 
 // ---------------------------------------------------------------------------
 export const ROLES = [
   'SUPER_ADMIN',
+  'PLATFORM_FINANCE',
   'HOTEL_ADMIN',
+  'HOTEL_FINANCE',
   'MANAGEMENT',
   'FNB',
   'HOUSEKEEPING',
@@ -55,7 +57,9 @@ export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABELS: Record<Role, string> = {
   SUPER_ADMIN: 'Super Admin',
+  PLATFORM_FINANCE: 'Platform Finance',
   HOTEL_ADMIN: 'Hotel Admin',
+  HOTEL_FINANCE: 'Hotel Finance',
   MANAGEMENT: 'Management',
   FNB: 'Food & Beverage',
   HOUSEKEEPING: 'Housekeeping',
@@ -65,10 +69,17 @@ export const ROLE_LABELS: Record<Role, string> = {
   SPA: 'Spa',
 };
 
+/** Roles that see every hotel. */
+export const GLOBAL_ROLES: readonly Role[] = ['SUPER_ADMIN', 'PLATFORM_FINANCE'];
+/** Roles that may see guest phone numbers and names in order/finance views. */
+export const PII_ROLES: readonly Role[] = ['SUPER_ADMIN', 'HOTEL_ADMIN', 'MANAGEMENT', 'FRONT_OFFICE', 'FNB', 'HOUSEKEEPING', 'MAINTENANCE', 'LAUNDRY', 'SPA'];
+
 /** Departments whose requests a role can see and act on. */
 export const ROLE_DEPARTMENTS: Record<Role, readonly DepartmentCode[]> = {
   SUPER_ADMIN: DEPARTMENTS,
+  PLATFORM_FINANCE: DEPARTMENTS,
   HOTEL_ADMIN: DEPARTMENTS,
+  HOTEL_FINANCE: DEPARTMENTS,
   MANAGEMENT: DEPARTMENTS,
   FNB: ['FNB'],
   HOUSEKEEPING: ['HOUSEKEEPING'],
@@ -96,17 +107,24 @@ export const MODULES = [
   'users',
   'audit',
   'import',
+  'guests', // guest CRM (personal data)
+  'orders', // order records, search, reports
+  'finance', // this hotel's ledger, settlements, commission (subject to hotel finance access)
+  'commercial', // platform-wide: agreements, commission rules, all hotels' finance
 ] as const;
 export type Module = (typeof MODULES)[number];
 
 export const ROLE_MODULES: Record<Role, readonly Module[]> = {
   SUPER_ADMIN: MODULES,
-  HOTEL_ADMIN: MODULES,
-  MANAGEMENT: ['dashboard', 'requests', 'reviews', 'audit'],
+  // Platform finance: every hotel's orders and money, no content, no guest CRM.
+  PLATFORM_FINANCE: ['dashboard', 'orders', 'finance', 'commercial'],
+  HOTEL_ADMIN: MODULES.filter((m) => m !== 'commercial'),
+  HOTEL_FINANCE: ['dashboard', 'orders', 'finance'],
+  MANAGEMENT: ['dashboard', 'requests', 'reviews', 'audit', 'guests', 'orders'],
   FNB: ['dashboard', 'requests', 'dining', 'offers', 'import'],
   HOUSEKEEPING: ['dashboard', 'requests', 'room_services', 'import'],
   MAINTENANCE: ['dashboard', 'requests', 'room_services'],
-  FRONT_OFFICE: ['dashboard', 'requests', 'hotel_services', 'reviews', 'import'],
+  FRONT_OFFICE: ['dashboard', 'requests', 'hotel_services', 'reviews', 'import', 'guests'],
   LAUNDRY: ['dashboard', 'requests', 'laundry', 'import'],
   SPA: ['dashboard', 'requests', 'spa', 'import'],
 };
@@ -143,13 +161,14 @@ export const REQUEST_TYPE_LABELS: Record<RequestType, { en: string; ar: string }
   FEEDBACK: { en: 'Guest Feedback', ar: 'ملاحظات النزيل' },
 };
 
-export const REQUEST_STATUSES = ['NEW', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED'] as const;
+export const REQUEST_STATUSES = ['NEW', 'ACCEPTED', 'IN_PROGRESS', 'READY', 'COMPLETED', 'REJECTED', 'CANCELLED'] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
 export const REQUEST_STATUS_LABELS: Record<RequestStatus, { en: string; ar: string }> = {
   NEW: { en: 'Received', ar: 'تم الاستلام' },
   ACCEPTED: { en: 'Accepted', ar: 'تم القبول' },
   IN_PROGRESS: { en: 'In progress', ar: 'قيد التنفيذ' },
+  READY: { en: 'Ready', ar: 'جاهز' },
   COMPLETED: { en: 'Completed', ar: 'مكتمل' },
   REJECTED: { en: 'Declined', ar: 'مرفوض' },
   CANCELLED: { en: 'Cancelled', ar: 'ملغى' },
@@ -158,14 +177,15 @@ export const REQUEST_STATUS_LABELS: Record<RequestStatus, { en: string; ar: stri
 /** Allowed lifecycle transitions. Terminal states have no exits. */
 export const STATUS_TRANSITIONS: Record<RequestStatus, readonly RequestStatus[]> = {
   NEW: ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED'],
-  ACCEPTED: ['IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED'],
-  IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
+  ACCEPTED: ['IN_PROGRESS', 'READY', 'COMPLETED', 'REJECTED', 'CANCELLED'],
+  IN_PROGRESS: ['READY', 'COMPLETED', 'CANCELLED'],
+  READY: ['COMPLETED', 'CANCELLED'],
   COMPLETED: [],
   REJECTED: [],
   CANCELLED: [],
 };
 
-export const OPEN_STATUSES: readonly RequestStatus[] = ['NEW', 'ACCEPTED', 'IN_PROGRESS'];
+export const OPEN_STATUSES: readonly RequestStatus[] = ['NEW', 'ACCEPTED', 'IN_PROGRESS', 'READY'];
 
 export const FEEDBACK_TYPES = ['COMPLAINT', 'SUGGESTION', 'COMPLIMENT', 'SERVICE_RECOVERY'] as const;
 export type FeedbackType = (typeof FEEDBACK_TYPES)[number];
@@ -205,7 +225,9 @@ export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 // Homepage / website manager
 // ---------------------------------------------------------------------------
 export const SECTION_TYPES = [
+  'experiences',
   'offers',
+  'popular_items',
   'quick_actions',
   'dining',
   'room_services',

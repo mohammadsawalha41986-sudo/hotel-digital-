@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import { Client, bundle, guest, ids, login, menuItems, one, outletByName, q, setup, teardown, users } from './helpers';
+import { clearPublicCaches } from '../../server/services/bundleCache';
 
 before(setup);
 after(teardown);
@@ -145,7 +146,8 @@ describe('multi-hotel isolation', () => {
     const superAdmin = await login(users.superAdmin);
     const royalOutlet = await outletByName('In-Room Dining');
     const r = await superAdmin.post(`/admin/hotels/${ids.harbour}/entities/menus`, { name_en: 'Hijack', parent_id: royalOutlet.id });
-    assert.equal(r.status, 400);
+    assert.equal(r.status, 422);
+    assert.match(r.body.error.details.fields.parent_id, /not found in this hotel/);
     const royalService = (await bundle()).catalog.room_services[0];
     const qa = await superAdmin.post(`/admin/hotels/${ids.harbour}/entities/quick_actions`, { label_en: 'x', action: 'room_service', room_service_id: royalService.id });
     assert.equal(qa.status, 422);
@@ -171,6 +173,7 @@ describe('multi-hotel isolation', () => {
 
   test('unpublished hotels are invisible to guests but previewable by their staff', async () => {
     await q('UPDATE hotels SET is_published = false WHERE id = $1', [ids.harbour]);
+    clearPublicCaches(); // direct SQL bypasses the app's cache invalidation
     assert.equal((await new Client().get('/public/hotels/demo-harbour-hotel')).status, 404);
     const staff = await login(users.harbourAdmin);
     const r = await staff.get('/public/hotels/demo-harbour-hotel');
@@ -179,6 +182,7 @@ describe('multi-hotel isolation', () => {
     const otherStaff = await login(users.admin);
     assert.equal((await otherStaff.get('/public/hotels/demo-harbour-hotel')).status, 404);
     await q('UPDATE hotels SET is_published = true WHERE id = $1', [ids.harbour]);
+    clearPublicCaches();
   });
 
   test('public bundle does not leak private routing numbers', async () => {

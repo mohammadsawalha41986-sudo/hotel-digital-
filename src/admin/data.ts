@@ -39,7 +39,25 @@ export function useHotelMutation<TBody>(hid: string, path: string, method: 'PUT'
       if (data && typeof data === 'object' && 'profile' in data) qc.setQueryData(['hotel', hid], data);
       qc.invalidateQueries({ queryKey: ['me'] });
       qc.invalidateQueries({ queryKey: ['bundle'] });
+      qc.invalidateQueries({ queryKey: ['publishing', hid] });
+      qc.invalidateQueries({ queryKey: ['hotel', hid] });
     },
+  });
+}
+
+export interface PublishingState {
+  has_unpublished_changes: boolean;
+  latest: { id: string; version: number; published_at: string } | null;
+  changes: { action: string; entity: string; summary: string; user_email: string; created_at: string }[];
+}
+
+/** Draft vs. live state for the "Publish updates" control. */
+export function usePublishing(hid: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ['publishing', hid],
+    queryFn: () => api<PublishingState>(`/admin/hotels/${hid}/publishing`),
+    enabled: !!hid && enabled,
+    refetchInterval: 30_000,
   });
 }
 
@@ -60,11 +78,29 @@ export function useEntities(hid: string, entity: EntityName, parentId?: string |
   });
 }
 
+export interface DepartmentOption {
+  code: string;
+  name_en: string;
+  name_ar: string;
+  is_active: boolean;
+}
+
+/** The hotel's routing departments (built-in and hotel-defined) for pickers. */
+export function useDepartmentOptions(hid: string) {
+  return useQuery({
+    queryKey: ['department-options', hid],
+    queryFn: () => api<{ departments: DepartmentOption[] }>(`/admin/hotels/${hid}/departments/options`).then((r) => r.departments),
+    enabled: !!hid,
+    staleTime: 60_000,
+  });
+}
+
 export function useEntityMutations(hid: string, entity: EntityName) {
   const qc = useQueryClient();
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['entities', hid, entity] });
     qc.invalidateQueries({ queryKey: ['bundle'] });
+    qc.invalidateQueries({ queryKey: ['publishing', hid] });
   };
   const base = `/admin/hotels/${hid}/entities/${entity}`;
   return {

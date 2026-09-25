@@ -6,7 +6,7 @@ import { requireHotelAccess } from '../../auth';
 import { clientIp, type AppEnv, type Ctx } from '../../context';
 import { tx } from '../../db';
 import { badRequest, notFound, validationError } from '../../errors';
-import { createEntity, deleteEntity, listEntities, reorderEntities, updateEntity } from '../../repos/entities';
+import { countEntities, createEntity, deleteEntity, duplicateEntity, listEntities, reorderEntities, setArchived, updateEntity } from '../../repos/entities';
 
 export const entityRoutes = new Hono<AppEnv>();
 
@@ -28,8 +28,20 @@ entityRoutes.get('/:hid/entities/:entity', async (c) => {
   const { hid, name } = resolve(c);
   requireHotelAccess(c, hid, ENTITIES[name].module);
   const parent = c.req.query('parent_id');
-  const rows = await listEntities(name, hid, parent ? { parentId: parent } : {});
+  const archived = c.req.query('archived'); // 'only' | 'include' | undefined
+  const rows = await listEntities(name, hid, {
+    ...(parent ? { parentId: parent } : {}),
+    archivedOnly: archived === 'only',
+    includeArchived: archived === 'include',
+  });
   return c.json({ items: rows });
+});
+
+entityRoutes.get('/:hid/entities/:entity/stats', async (c) => {
+  const { hid, name } = resolve(c);
+  requireHotelAccess(c, hid, ENTITIES[name].module);
+  const counts = await countEntities(name, hid);
+  return c.json(counts);
 });
 
 entityRoutes.post('/:hid/entities/:entity', async (c) => {
@@ -53,16 +65,41 @@ entityRoutes.patch('/:hid/entities/:entity/:id', async (c) => {
     throw badRequest('Invalid JSON body');
   });
   const result = await tx(async (client) => {
-    const { before, after } = await updateEntity(name, hid, c.req.param('id'), patch, client);
-    const d = diff(before, after);
-    const changed = Object.keys(d.after ?? {});
-    if (changed.length) {
-      await audit({ hotelId: hid, user: u, action: 'update', entity: name, entityId: after.id, summary: summarize(name, 'Updated', after, changed), ...d, ip: clientIp(c) }, client);
+    if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw badRequest('Expected a JSON object');
+    const { before, after, changed } = await updateEntity(name, hid, c.req.param('id'), patch, client);
+    if (changed) {
+      const d = diff(before, after);
+      const keys = Object.keys(d.after ?? {}).filter((k) => k !== 'updated_at');
+      await audit({ hotelId: hid, user: u, action: 'update', entity: name, entityId: after.id, summary: summarize(name, 'Updated', after, keys), ...d, ip: clientIp(c) }, client);
     }
-    return after;
+    return { ...after, changed };
   });
   return c.json(result);
 });
+
+entityRoutes.post('/:hid/entities/:entity/:id/duplicate', async (c) => {
+  const { hid, name } = resolve(c);
+  const u = requireHotelAccess(c, hid, ENTITIES[name].module);
+  const copy = await tx(async (client) => {
+    const created = await duplicateEntity(name, hid, c.req.param('id'), client);
+    await audit({ hotelId: hid, user: u, action: 'duplicate', entity: name, entityId: created.id, summary: summarize(name, 'Duplicated', created), after: created, ip: clientIp(c) }, client);
+    return created;
+  });
+  return c.json(copy, 201);
+});
+
+for (const [path, archived] of [['archive', true], ['restore', false]] as const) {
+  entityRoutes.post(`/:hid/entities/:entity/:id/${path}`, async (c) => {
+    const { hid, name } = resolve(c);
+    const u = requireHotelAccess(c, hid, ENTITIES[name].module);
+    const rec = await tx(async (client) => {
+      const r = await setArchived(name, hid, c.req.param('id'), archived, client);
+      await audit({ hotelId: hid, user: u, action: path, entity: name, entityId: r.id, summary: summarize(name, archived ? 'Archived' : 'Restored', r), ip: clientIp(c) }, client);
+      return r;
+    });
+    return c.json(rec);
+  });
+}
 
 entityRoutes.delete('/:hid/entities/:entity/:id', async (c) => {
   const { hid, name } = resolve(c);

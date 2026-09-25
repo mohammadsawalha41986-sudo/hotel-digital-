@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { MotionConfig } from 'motion/react';
 import { useEffect, useMemo } from 'react';
 import { Route, Routes, useParams } from 'react-router-dom';
 import type { Lang } from '@shared/domain';
@@ -11,6 +12,7 @@ import { BasketProvider } from './basket';
 import { FlowProvider } from './flow';
 import { HotelContext, PAGE_SEGMENT, useHotel, type HotelCtx } from './hotel';
 import { GuestSessionProvider, useGuestSession } from './session';
+import { initTracking } from './track';
 import type { PublicBundle } from './types';
 import { GuestLayout } from './layout/GuestLayout';
 import { Welcome } from './pages/Welcome';
@@ -65,11 +67,16 @@ function GuestRoot({ bundle, slug, preview }: { bundle: PublicBundle; slug: stri
     };
   }, [bundle, slug, preview]);
 
+  useEffect(() => initTracking(slug, bundle.preview), [slug, bundle.preview]);
+
   return (
     <HotelContext.Provider value={ctx}>
-      <GuestSessionProvider slug={slug} defaultLang={p.default_language} allowed={allowed} preview={bundle.preview}>
-        <Localized bundle={bundle} slug={slug} />
-      </GuestSessionProvider>
+      {/* Motion collapses to instant changes for guests who prefer reduced motion. */}
+      <MotionConfig reducedMotion="user">
+        <GuestSessionProvider slug={slug} defaultLang={p.default_language} allowed={allowed} preview={bundle.preview}>
+          <Localized bundle={bundle} slug={slug} />
+        </GuestSessionProvider>
+      </MotionConfig>
     </HotelContext.Provider>
   );
 }
@@ -83,7 +90,7 @@ function Localized({ bundle, slug }: { bundle: PublicBundle; slug: string }) {
     const root = document.documentElement;
     for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bundle.hotel.branding.colors.secondary);
-    const fav = bundle.hotel.branding.favicon || bundle.hotel.branding.logo;
+    const fav = bundle.hotel.branding.favicon || bundle.hotel.branding.mark || bundle.hotel.branding.logo;
     if (fav) document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.setAttribute('href', fav);
     return () => {
       for (const k of Object.keys(vars)) root.style.removeProperty(k);

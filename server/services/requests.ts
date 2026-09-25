@@ -11,12 +11,18 @@ import {
 import type { CustomField, ModifierGroup } from '../../shared/fields';
 import { guestRequestSchema, type GuestIdentity } from '../../shared/hotel';
 import { isAvailableNow } from '../../shared/hours';
-import { lineAmounts, sumLines, type LineAmounts, type Totals } from '../../shared/pricing';
+import { lineAmounts, resolveVatMode, sumLines, toMinor, type LineAmounts, type Totals } from '../../shared/pricing';
 import { buildWhatsAppMessage, waLink, type MessageLine } from '../../shared/whatsapp';
 import { one, q, tx } from '../db';
 import { HttpError, badRequest, validationError } from '../errors';
-import { getEntityRow, toRecord, type EntityRow } from '../repos/entities';
+import { sha256 } from '../security';
+import type { EntityName } from '../../shared/entities';
+import type { EntityRecord } from '../repos/entities';
+import { liveStates, publishedContent } from './publish';
 import type { Hotel } from '../repos/hotels';
+import type { SessionUser } from '../context';
+import type { OrderSource, OrderType } from '../../shared/commerce';
+import { identifyGuest } from './guests';
 
 export interface StoredLine extends MessageLine {
   item_id?: string;
@@ -26,8 +32,27 @@ export interface StoredLine extends MessageLine {
   note?: string;
 }
 
+/** Structured line data persisted to order_lines (immutable snapshot). */
+export interface OrderLineInput {
+  item_entity: string;
+  item_id: string | null;
+  item_code: string;
+  category_code: string;
+  name_en: string;
+  name_ar: string;
+  quantity: number;
+  unit_price_minor: number;
+  modifiers: unknown[];
+  service: string;
+  vat_mode: 'inclusive' | 'exclusive' | 'exempt';
+  vat_rate_bps: number;
+  amounts: LineAmounts;
+  note: string;
+}
+
 interface Built {
   type: RequestType;
+  orderLines: OrderLineInput[];
   department: DepartmentCode;
   title_en: string;
   title_ar: string;
@@ -42,6 +67,27 @@ interface Built {
 }
 
 const unavailable = (message: string) => new HttpError(409, 'unavailable', message);
+
+function finLine(
+  hotel: Hotel,
+  base: Omit<OrderLineInput, 'vat_mode' | 'vat_rate_bps' | 'amounts' | 'unit_price_minor' | 'modifiers' | 'service' | 'note'> & Partial<Pick<OrderLineInput, 'modifiers' | 'service' | 'note'>>,
+  unitPrice: number,
+  vatMode: string | undefined,
+  amounts: LineAmounts
+): OrderLineInput {
+  const settings = { vat_rate: hotel.profile.vat_rate, prices_include_vat: hotel.profile.prices_include_vat };
+  const mode = resolveVatMode(vatMode as never, settings);
+  return {
+    modifiers: [],
+    service: '',
+    note: '',
+    ...base,
+    unit_price_minor: toMinor(unitPrice),
+    vat_mode: mode,
+    vat_rate_bps: mode === 'exempt' ? 0 : Math.round(hotel.profile.vat_rate * 100),
+    amounts,
+  };
+}
 
 function assertOpen(rec: Record<string, unknown>, hotel: Hotel, label: string) {
   const state = isAvailableNow(rec.status_override as string | undefined, rec.hours as never, hotel.profile.timezone);
@@ -77,44 +123,81 @@ function checkAnswers(fields: CustomField[], answers: Record<string, unknown>) {
   return { facts, clean };
 }
 
-async function loadActive(name: Parameters<typeof getEntityRow>[0], hotelId: string, id: string, what: string) {
-  const row = await getEntityRow(name, hotelId, id);
-  if (!row || !row.is_active) throw unavailable(`This ${what} is no longer available.`);
-  return { row, rec: toRecord(name, row) };
+/**
+ * The published catalog for pricing an order: prices, names and structure
+ * are exactly what guests were shown. Live state is enforced on top — an item
+ * hidden, archived, deleted or marked unavailable since the last publish
+ * cannot be ordered.
+ */
+class OrderCatalog {
+  private constructor(
+    private hotelId: string,
+    private byId: Map<string, Map<string, EntityRecord>>
+  ) {}
+
+  static async load(hotelId: string) {
+    const content = await publishedContent(hotelId);
+    const byId = new Map<string, Map<string, EntityRecord>>();
+    for (const [name, rows] of Object.entries(content.catalog)) byId.set(name, new Map(rows.map((r) => [r.id, r])));
+    return new OrderCatalog(hotelId, byId);
+  }
+
+  find(name: EntityName, id: string | null | undefined) {
+    return id ? this.byId.get(name)?.get(id) : undefined;
+  }
+
+  /** Published records that are still live, with live availability/status applied. Missing ids are absent from the result. */
+  async live(name: EntityName, ids: string[]): Promise<Map<string, EntityRecord>> {
+    const wanted = [...new Set(ids)].filter((id) => /^[0-9a-f-]{36}$/i.test(id) && this.find(name, id));
+    const states = await liveStates(this.hotelId, name, wanted);
+    const out = new Map<string, EntityRecord>();
+    for (const id of wanted) {
+      const st = states.get(id);
+      if (!st || !st.is_active || st.archived) continue;
+      const rec = { ...this.find(name, id)! };
+      if (st.available !== null && 'available' in rec) rec.available = st.available;
+      if (st.status_override !== null && 'status_override' in rec) rec.status_override = st.status_override;
+      out.set(id, rec);
+    }
+    return out;
+  }
+
+  async require(name: EntityName, id: string, what: string): Promise<EntityRecord> {
+    const rec = (await this.live(name, [id])).get(id);
+    if (!rec) throw unavailable(`This ${what} is no longer available.`);
+    return rec;
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Per-kind builders (all prices re-read from the database)
+// Per-kind builders (prices from the published catalog, never from the client)
 // ---------------------------------------------------------------------------
-async function buildOrder(hotel: Hotel, guest: GuestIdentity, p: Extract<ReturnType<typeof guestRequestSchema.parse>['payload'], { kind: 'ORDER' }>): Promise<Built> {
-  const { rec: outlet } = await loadActive('outlets', hotel.id, p.outlet_id, 'outlet');
+async function buildOrder(hotel: Hotel, guest: GuestIdentity, p: Extract<ReturnType<typeof guestRequestSchema.parse>['payload'], { kind: 'ORDER' }>, cat: OrderCatalog): Promise<Built> {
+  const outlet = await cat.require('outlets', p.outlet_id, 'outlet');
   const outletName = { en: String(outlet.name_en), ar: String(outlet.name_ar || outlet.name_en) };
   if (!outlet.accepts_orders) throw unavailable(`${outletName.en} does not take orders through the guest app.`);
   if (guest.type === 'EXTERNAL' && outlet.external_orders === false) throw unavailable(`${outletName.en} serves in-house guests only.`);
   assertOpen(outlet, hotel, outletName.en);
 
-  // Items must belong to an active category of an active menu of this outlet.
-  const itemIds = [...new Set(p.lines.map((l) => l.item_id))];
-  const rows = await q<EntityRow & { menu_active: boolean; cat_active: boolean; menu_data: Record<string, unknown> }>(
-    `SELECT i.*, m.is_active AS menu_active, c.is_active AS cat_active, m.data AS menu_data
-       FROM menu_items i
-       JOIN menu_categories c ON c.id = i.parent_id AND c.hotel_id = i.hotel_id
-       JOIN menus m ON m.id = c.parent_id AND m.hotel_id = i.hotel_id
-      WHERE i.hotel_id = $1 AND m.parent_id = $2 AND i.id = ANY($3::uuid[])`,
-    [hotel.id, outlet.id, itemIds]
-  );
-  const byId = new Map(rows.map((r) => [r.id, r]));
+  // Items must belong to a live category of a live menu of this outlet.
+  const itemIds = p.lines.map((l) => l.item_id);
+  const items = await cat.live('menu_items', itemIds);
+  const catIds = [...items.values()].map((i) => i.parent_id!).filter(Boolean);
+  const categories = await cat.live('menu_categories', catIds);
+  const menus = await cat.live('menus', [...categories.values()].map((c) => c.parent_id!).filter(Boolean));
   const vat = { vat_rate: hotel.profile.vat_rate, prices_include_vat: hotel.profile.prices_include_vat };
   const amounts: LineAmounts[] = [];
   const lines: StoredLine[] = [];
+  const orderLines: OrderLineInput[] = [];
 
   for (const [idx, l] of p.lines.entries()) {
-    const row = byId.get(l.item_id);
-    if (!row || !row.is_active || !row.menu_active || !row.cat_active) throw unavailable(`An item in your basket is no longer on the menu (line ${idx + 1}).`);
-    const item = toRecord('menu_items', row);
+    const item = items.get(l.item_id);
+    const category = item ? categories.get(item.parent_id ?? '') : undefined;
+    const menu = category ? menus.get(category.parent_id ?? '') : undefined;
+    if (!item || !category || !menu || menu.parent_id !== outlet.id) throw unavailable(`An item in your basket is no longer on the menu (line ${idx + 1}).`);
     const name = { en: String(item.name_en), ar: String(item.name_ar || item.name_en) };
     if (item.available === false) throw unavailable(`${name.en} is currently unavailable.`);
-    const menuHours = (row.menu_data as { hours?: unknown }).hours;
+    const menuHours = menu.hours as { mode?: string } | undefined;
     if (menuHours && !isAvailableNow('auto', menuHours as never, hotel.profile.timezone).open) throw unavailable(`${name.en} is not served at this time.`);
 
     let unit = Number(item.price ?? 0);
@@ -134,30 +217,23 @@ async function buildOrder(hotel: Hotel, guest: GuestIdentity, p: Extract<ReturnT
         return o;
       });
       if (opts.length) {
-        unit += opts.reduce((s, o) => s + o.price, 0);
+        unit += opts.reduce((sum, o) => sum + o.price, 0);
         chosen.push({ group_en: g.name_en, group_ar: g.name_ar || g.name_en, options: opts.map((o) => ({ en: o.name_en, ar: o.name_ar || o.name_en, price: o.price })) });
       }
     }
     const a = lineAmounts(unit, l.quantity, item.vat_mode as never, vat);
     amounts.push(a);
+    orderLines.push(
+      finLine(hotel, { item_entity: 'menu_items', item_id: item.id, item_code: String(item.code ?? ''), category_code: String(category.code ?? ''), name_en: name.en, name_ar: name.ar, quantity: l.quantity, modifiers: chosen, note: l.note }, unit, item.vat_mode as string, a)
+    );
     const detailEn = [...chosen.map((c) => `${c.group_en}: ${c.options.map((o) => o.en).join(', ')}`), l.note ? `Note: ${l.note}` : ''].filter(Boolean).join(' · ');
     const detailAr = [...chosen.map((c) => `${c.group_ar}: ${c.options.map((o) => o.ar).join('، ')}`), l.note ? `ملاحظة: ${l.note}` : ''].filter(Boolean).join(' · ');
-    lines.push({
-      item_id: row.id,
-      quantity: l.quantity,
-      name_en: name.en,
-      name_ar: name.ar,
-      unit_price: unit,
-      amount: a.gross / 100,
-      modifiers: chosen,
-      note: l.note,
-      detail_en: detailEn,
-      detail_ar: detailAr,
-    });
+    lines.push({ item_id: item.id, quantity: l.quantity, name_en: name.en, name_ar: name.ar, unit_price: unit, amount: a.gross / 100, modifiers: chosen, note: l.note, detail_en: detailEn, detail_ar: detailAr });
   }
 
   return {
     type: 'ORDER',
+    orderLines,
     department: 'FNB',
     title_en: outletName.en,
     title_ar: outletName.ar,
@@ -172,9 +248,9 @@ async function buildOrder(hotel: Hotel, guest: GuestIdentity, p: Extract<ReturnT
   };
 }
 
-async function buildService(hotel: Hotel, guest: GuestIdentity, p: { kind: 'ROOM_SERVICE' | 'HOTEL_SERVICE'; service_id: string; quantity: number; answers: Record<string, unknown>; notes: string }): Promise<Built> {
+async function buildService(hotel: Hotel, guest: GuestIdentity, p: { kind: 'ROOM_SERVICE' | 'HOTEL_SERVICE'; service_id: string; quantity: number; answers: Record<string, unknown>; notes: string }, cat: OrderCatalog): Promise<Built> {
   const entity = p.kind === 'ROOM_SERVICE' ? 'room_services' : 'hotel_services';
-  const { rec } = await loadActive(entity, hotel.id, p.service_id, 'service');
+  const rec = await cat.require(entity, p.service_id, 'service');
   const name = { en: String(rec.name_en), ar: String(rec.name_ar || rec.name_en) };
   if (rec.available === false) throw unavailable(`${name.en} is currently unavailable.`);
   if (p.kind === 'HOTEL_SERVICE' && rec.requestable === false) throw unavailable(`${name.en} cannot be requested online.`);
@@ -183,9 +259,13 @@ async function buildService(hotel: Hotel, guest: GuestIdentity, p: { kind: 'ROOM
   const qty = rec.allow_quantity ? Math.min(p.quantity, Number(rec.max_quantity ?? 10)) : 1;
   const { facts, clean } = checkAnswers((rec.custom_fields as CustomField[]) ?? [], p.answers);
   const price = rec.price == null ? null : Number(rec.price);
-  const totals = price ? sumLines([lineAmounts(price, qty, 'inherit', { vat_rate: hotel.profile.vat_rate, prices_include_vat: hotel.profile.prices_include_vat })]) : null;
+  const svcAmounts = lineAmounts(price ?? 0, qty, 'inherit', { vat_rate: hotel.profile.vat_rate, prices_include_vat: hotel.profile.prices_include_vat });
+  const totals = price ? sumLines([svcAmounts]) : null;
   return {
     type: p.kind,
+    orderLines: [
+      finLine(hotel, { item_entity: entity, item_id: rec.id, item_code: String(rec.code ?? ''), category_code: String(rec.category ?? '').toUpperCase(), name_en: name.en, name_ar: name.ar, quantity: qty }, price ?? 0, 'inherit', svcAmounts),
+    ],
     department: rec.department as DepartmentCode,
     title_en: name.en,
     title_ar: name.ar,
@@ -199,23 +279,27 @@ async function buildService(hotel: Hotel, guest: GuestIdentity, p: { kind: 'ROOM
   };
 }
 
-async function buildSpa(hotel: Hotel, p: { service_id: string; date: string; time: string; guests: number; answers: Record<string, unknown>; notes: string }): Promise<Built> {
-  const { row, rec } = await loadActive('spa_services', hotel.id, p.service_id, 'treatment');
+async function buildSpa(hotel: Hotel, p: { service_id: string; date: string; time: string; guests: number; answers: Record<string, unknown>; notes: string }, cat: OrderCatalog): Promise<Built> {
+  const rec = await cat.require('spa_services', p.service_id, 'treatment');
   const name = { en: String(rec.name_en), ar: String(rec.name_ar || rec.name_en) };
   if (rec.available === false || rec.bookable === false) throw unavailable(`${name.en} cannot be booked right now.`);
-  const cat = row.parent_id ? await getEntityRow('spa_categories', hotel.id, row.parent_id) : null;
-  if (cat && !cat.is_active) throw unavailable(`${name.en} is no longer available.`);
+  const category = rec.parent_id ? (await cat.live('spa_categories', [rec.parent_id])).get(rec.parent_id) : undefined;
+  if (!category) throw unavailable(`${name.en} is no longer available.`);
   const maxGuests = Number(rec.max_guests ?? 4);
   if (p.guests > maxGuests) throw new HttpError(422, 'validation_failed', `Maximum ${maxGuests} guests for this treatment`, { fields: { guests: `Maximum ${maxGuests}` } });
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: hotel.profile.timezone }).format(new Date());
   if (p.date < today) throw new HttpError(422, 'validation_failed', 'Choose today or a future date', { fields: { date: 'Date is in the past' } });
   const { facts, clean } = checkAnswers((rec.booking_fields as CustomField[]) ?? [], p.answers);
   const price = rec.price == null ? null : Number(rec.price);
-  const totals = price ? sumLines([lineAmounts(price, p.guests, 'inherit', { vat_rate: hotel.profile.vat_rate, prices_include_vat: hotel.profile.prices_include_vat })]) : null;
+  const spaAmounts = lineAmounts(price ?? 0, p.guests, 'inherit', { vat_rate: hotel.profile.vat_rate, prices_include_vat: hotel.profile.prices_include_vat });
+  const totals = price ? sumLines([spaAmounts]) : null;
   const duration = rec.duration_minutes ? `${rec.duration_minutes} min` : '';
   return {
     type: 'SPA',
-    department: 'SPA',
+    orderLines: [
+      finLine(hotel, { item_entity: 'spa_services', item_id: rec.id, item_code: String(rec.code ?? ''), category_code: String(category.code ?? ''), name_en: name.en, name_ar: name.ar, quantity: p.guests }, price ?? 0, 'inherit', spaAmounts),
+    ],
+    department: (rec.department as DepartmentCode) || 'SPA',
     title_en: name.en,
     title_ar: name.ar,
     source_id: String(rec.id),
@@ -226,30 +310,34 @@ async function buildSpa(hotel: Hotel, p: { service_id: string; date: string; tim
       { label_en: 'Guests', label_ar: 'عدد الأشخاص', value: String(p.guests) },
       ...facts,
     ],
-    details: { date: p.date, time: p.time, guests: p.guests, answers: clean, category_id: row.parent_id },
+    details: { date: p.date, time: p.time, guests: p.guests, answers: clean, category_id: rec.parent_id },
     notes: p.notes,
     totals,
     priority: 'NORMAL',
   };
 }
 
-async function buildLaundry(hotel: Hotel, guest: GuestIdentity, p: { lines: { item_id: string; service: 'wash' | 'dry_clean' | 'press'; quantity: number }[]; express: boolean; pickup: string; notes: string }): Promise<Built> {
+async function buildLaundry(hotel: Hotel, guest: GuestIdentity, p: { lines: { item_id: string; service: 'wash' | 'dry_clean' | 'press'; quantity: number }[]; express: boolean; pickup: string; notes: string }, cat: OrderCatalog): Promise<Built> {
   if (guest.type !== 'IN_HOUSE') throw new HttpError(422, 'validation_failed', 'Laundry pickup is available to in-house guests.', { fields: { 'guest.room': 'Room number required' } });
-  const ids = [...new Set(p.lines.map((l) => l.item_id))];
-  const rows = await q<EntityRow>('SELECT * FROM laundry_items WHERE hotel_id = $1 AND id = ANY($2::uuid[]) AND is_active', [hotel.id, ids]);
-  const byId = new Map(rows.map((r) => [r.id, toRecord('laundry_items', r)]));
+  const items = await cat.live('laundry_items', p.lines.map((l) => l.item_id));
+  const categories = await cat.live('laundry_categories', [...items.values()].map((i) => i.parent_id!).filter(Boolean));
   const vat = { vat_rate: hotel.profile.vat_rate, prices_include_vat: hotel.profile.prices_include_vat };
   const amounts: LineAmounts[] = [];
   const lines: StoredLine[] = [];
+  const orderLines: OrderLineInput[] = [];
   for (const [idx, l] of p.lines.entries()) {
-    const item = byId.get(l.item_id);
-    if (!item) throw unavailable(`A laundry item is no longer available (line ${idx + 1}).`);
+    const item = items.get(l.item_id);
+    const category = item ? categories.get(item.parent_id ?? '') : undefined;
+    if (!item || !category || item.available === false) throw unavailable(`A laundry item is no longer available (line ${idx + 1}).`);
     const base = item[`${l.service}_price`];
     if (base == null) throw new HttpError(422, 'validation_failed', `${item.name_en} is not offered for ${LAUNDRY_SERVICE_LABELS[l.service].en}`);
     if (p.express && item.express_pct == null) throw new HttpError(422, 'validation_failed', `Express service is not available for ${item.name_en}`);
-    const unit = p.express ? Number(base) * (1 + Number(item.express_pct) / 100) : Number(base);
-    const a = lineAmounts(Math.round(unit * 100) / 100, l.quantity, 'inherit', vat);
+    const unit = Math.round((p.express ? Number(base) * (1 + Number(item.express_pct) / 100) : Number(base)) * 100) / 100;
+    const a = lineAmounts(unit, l.quantity, 'inherit', vat);
     amounts.push(a);
+    orderLines.push(
+      finLine(hotel, { item_entity: 'laundry_items', item_id: item.id, item_code: String(item.code ?? ''), category_code: String(category.code ?? ''), name_en: String(item.name_en), name_ar: String(item.name_ar || item.name_en), quantity: l.quantity, service: l.service + (p.express ? ':express' : '') }, unit, 'inherit', a)
+    );
     lines.push({
       item_id: item.id,
       service: l.service,
@@ -258,12 +346,13 @@ async function buildLaundry(hotel: Hotel, guest: GuestIdentity, p: { lines: { it
       name_ar: String(item.name_ar || item.name_en),
       detail_en: LAUNDRY_SERVICE_LABELS[l.service].en + (p.express ? ' · Express' : ''),
       detail_ar: LAUNDRY_SERVICE_LABELS[l.service].ar + (p.express ? ' · سريع' : ''),
-      unit_price: Math.round(unit * 100) / 100,
+      unit_price: unit,
       amount: a.gross / 100,
     });
   }
   return {
     type: 'LAUNDRY',
+    orderLines,
     department: 'LAUNDRY',
     title_en: p.express ? 'Express laundry pickup' : 'Laundry pickup',
     title_ar: p.express ? 'استلام غسيل سريع' : 'استلام غسيل',
@@ -283,11 +372,12 @@ async function buildLaundry(hotel: Hotel, guest: GuestIdentity, p: { lines: { it
 function buildFeedback(p: { feedback_type: 'COMPLAINT' | 'SUGGESTION' | 'COMPLIMENT' | 'SERVICE_RECOVERY'; about_department: DepartmentCode | null; subject: string; message: string; urgency: 'LOW' | 'NORMAL' | 'HIGH'; attachment: string }): Built {
   const label = FEEDBACK_TYPE_LABELS[p.feedback_type];
   const facts: Built['facts'] = [{ label_en: 'Subject', label_ar: 'الموضوع', value: p.subject }];
-  if (p.about_department) facts.push({ label_en: 'About', label_ar: 'بخصوص', value: DEPARTMENT_LABELS[p.about_department].en });
+  if (p.about_department) facts.push({ label_en: 'About', label_ar: 'بخصوص', value: DEPARTMENT_LABELS[p.about_department]?.en ?? p.about_department });
   facts.push({ label_en: 'Urgency', label_ar: 'الأهمية', value: p.urgency });
   if (p.attachment) facts.push({ label_en: 'Attachment', label_ar: 'مرفق', value: p.attachment });
   return {
     type: 'FEEDBACK',
+    orderLines: [],
     department: feedbackDepartment(p.feedback_type, p.urgency),
     title_en: `${label.en}: ${p.subject}`,
     title_ar: `${label.ar}: ${p.subject}`,
@@ -339,28 +429,77 @@ export interface CreatedRequest {
   created_at: string;
 }
 
-export async function createGuestRequest(hotel: Hotel, body: unknown, guestTokenHash: string): Promise<CreatedRequest> {
+const ORDER_TYPE_OF: Record<RequestType, OrderType> = {
+  ORDER: 'FNB',
+  ROOM_SERVICE: 'ROOM_SERVICE',
+  HOTEL_SERVICE: 'GUEST_SERVICE',
+  LAUNDRY: 'LAUNDRY',
+  SPA: 'SPA',
+  FEEDBACK: 'OTHER',
+};
+
+export interface CreateOptions {
+  /** Channel. Guests: derived from their session (QR vs portal). Staff: ADMIN / MANUAL / WHATSAPP. */
+  source?: OrderSource;
+  /** Staff member entering the order on the guest's behalf. */
+  actor?: SessionUser | null;
+  guestExtra?: { email?: string; stay_reference?: string; check_in?: string | null; check_out?: string | null };
+  /** Client-chosen key (one per checkout attempt): retries return the original request. */
+  idempotencyKey?: string | null;
+}
+
+/** The response of an already-created request, for idempotent replays. */
+async function replayCreated(hotelId: string, tokenHash: string, key: string, bodyHash: string): Promise<CreatedRequest | null> {
+  const r = await one<{ id: string; reference: string; status: string; department: DepartmentCode; whatsapp_to: string; whatsapp_text: string; subtotal: number | null; vat: number | null; total: number | null; created_at: Date; idempotency_hash: string }>(
+    `SELECT id, reference, status, department, whatsapp_to, whatsapp_text, subtotal, vat, total, created_at, idempotency_hash
+       FROM requests WHERE hotel_id = $1 AND guest_token_hash = $2 AND idempotency_key = $3`,
+    [hotelId, tokenHash, key]
+  );
+  if (!r) return null;
+  if (r.idempotency_hash !== bodyHash) throw new HttpError(422, 'idempotency_mismatch', 'This checkout was already submitted with different details. Please start a new order.');
+  return {
+    id: r.id,
+    reference: r.reference,
+    status: r.status,
+    department: r.department,
+    whatsapp_url: r.whatsapp_to ? waLink(r.whatsapp_to, r.whatsapp_text) : null,
+    totals: r.total == null ? null : { subtotal: r.subtotal ?? 0, vat: r.vat ?? 0, total: r.total },
+    created_at: r.created_at.toISOString(),
+  };
+}
+
+/**
+ * Creates an order/request: validated and priced server-side, linked to the
+ * guest profile and stay, with immutable order lines and a CREATED event.
+ */
+export async function createGuestRequest(hotel: Hotel, body: unknown, guestTokenHash: string | null, opts: CreateOptions = {}): Promise<CreatedRequest> {
   const parsed = guestRequestSchema.safeParse(body);
   if (!parsed.success) throw validationError(parsed.error);
   const { guest, payload, lang } = parsed.data;
+  const idem = opts.idempotencyKey && guestTokenHash ? { key: opts.idempotencyKey, hash: sha256(JSON.stringify(parsed.data)) } : null;
+  if (idem) {
+    const prior = await replayCreated(hotel.id, guestTokenHash!, idem.key, idem.hash);
+    if (prior) return prior;
+  }
 
   if (guest.type === 'EXTERNAL' && !hotel.settings.external_guests_enabled) throw new HttpError(422, 'validation_failed', 'This hotel serves in-house guests only.', { fields: { 'guest.type': 'In-house guests only' } });
   if (hotel.settings.require_phone && !guest.phone) throw new HttpError(422, 'validation_failed', 'Please add a phone number so the team can reach you', { fields: { 'guest.phone': 'Phone is required' } });
 
+  const cat = await OrderCatalog.load(hotel.id);
   let built: Built;
   switch (payload.kind) {
     case 'ORDER':
-      built = await buildOrder(hotel, guest, payload);
+      built = await buildOrder(hotel, guest, payload, cat);
       break;
     case 'ROOM_SERVICE':
     case 'HOTEL_SERVICE':
-      built = await buildService(hotel, guest, payload);
+      built = await buildService(hotel, guest, payload, cat);
       break;
     case 'SPA':
-      built = await buildSpa(hotel, payload);
+      built = await buildSpa(hotel, payload, cat);
       break;
     case 'LAUNDRY':
-      built = await buildLaundry(hotel, guest, payload);
+      built = await buildLaundry(hotel, guest, payload, cat);
       break;
     case 'FEEDBACK':
       built = buildFeedback(payload);
@@ -369,10 +508,32 @@ export async function createGuestRequest(hotel: Hotel, body: unknown, guestToken
 
   const room = guest.type === 'IN_HOUSE' ? guest.room.toUpperCase() : '';
   const whatsappTo = await resolveWhatsApp(hotel, built.department, built.whatsappOverride);
+  const isCommercial = (built.totals?.total ?? 0) > 0;
 
+  try {
+    return await insertGuestRequest();
+  } catch (e) {
+    // Two identical submits raced past the replay check: the unique index let
+    // exactly one commit; the other returns that same request.
+    if (idem && (e as { code?: string; constraint?: string }).constraint === 'requests_idempotency_uq') {
+      const prior = await replayCreated(hotel.id, guestTokenHash!, idem.key, idem.hash);
+      if (prior) return prior;
+    }
+    throw e;
+  }
+
+  function insertGuestRequest() {
   return tx(async (client) => {
+    let source: OrderSource = opts.source ?? 'GUEST_PORTAL';
+    if (!opts.source && guestTokenHash) {
+      const s = await one<{ entry: string }>(`SELECT entry FROM guest_sessions WHERE hotel_id = $1 AND token_hash = $2 ORDER BY created_at LIMIT 1`, [hotel.id, guestTokenHash], client);
+      if (s?.entry === 'QR') source = 'QR';
+    }
+    const who = await identifyGuest(client, hotel, { ...guest, lang, ...opts.guestExtra }, guestTokenHash, source);
     const reference = await nextReference(client, hotel, built.type);
+    const deptRow = await one<{ name_en: string; name_ar: string }>(`SELECT name_en, name_ar FROM departments WHERE hotel_id = $1 AND code = $2`, [hotel.id, built.department], client);
     const message = buildWhatsAppMessage({
+      department_name: deptRow ? { en: deptRow.name_en, ar: deptRow.name_ar } : undefined,
       lang,
       hotel_en: hotel.profile.name_en,
       hotel_ar: hotel.profile.name_ar,
@@ -393,8 +554,10 @@ export async function createGuestRequest(hotel: Hotel, body: unknown, guestToken
     });
     const row = await one<{ id: string; created_at: Date }>(
       `INSERT INTO requests (hotel_id, reference, type, department, priority, title_en, title_ar, guest_type, guest_name, guest_phone, room, lang,
-                             source_id, lines, details, notes, subtotal, vat, total, currency, whatsapp_to, whatsapp_text, guest_token_hash)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+                             source_id, lines, details, notes, subtotal, vat, total, currency, whatsapp_to, whatsapp_text, guest_token_hash,
+                             guest_id, stay_id, hotel_name, source, order_type, is_commercial, financial_status, created_by,
+                             idempotency_key, idempotency_hash)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33)
        RETURNING id, created_at`,
       [
         hotel.id,
@@ -406,7 +569,7 @@ export async function createGuestRequest(hotel: Hotel, body: unknown, guestToken
         built.title_ar,
         guest.type,
         guest.name,
-        guest.phone,
+        who.guest.phone || guest.phone,
         room,
         lang,
         built.source_id,
@@ -419,13 +582,37 @@ export async function createGuestRequest(hotel: Hotel, body: unknown, guestToken
         hotel.profile.currency,
         whatsappTo,
         message,
-        guestTokenHash,
+        guestTokenHash ?? '',
+        who.guest.id,
+        who.stayId,
+        hotel.profile.name_en,
+        source,
+        ORDER_TYPE_OF[built.type],
+        isCommercial,
+        isCommercial ? 'AWAITING_ELIGIBILITY' : 'NOT_APPLICABLE',
+        opts.actor?.id ?? null,
+        idem?.key ?? null,
+        idem?.hash ?? null,
       ],
       client
     );
+    for (const [i, l] of built.orderLines.entries()) {
+      await q(
+        `INSERT INTO order_lines (hotel_id, request_id, line_no, item_entity, item_id, item_code, category_code, name_en, name_ar, quantity,
+                                  unit_price_minor, modifiers, service, vat_mode, vat_rate_bps, discount_minor, net_minor, vat_minor, gross_minor, note)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,0,$16,$17,$18,$19)`,
+        [
+          hotel.id, row!.id, i + 1, l.item_entity, l.item_id, l.item_code, l.category_code, l.name_en, l.name_ar, l.quantity,
+          l.unit_price_minor, JSON.stringify(l.modifiers), l.service, l.vat_mode, l.vat_rate_bps, l.amounts.net, l.amounts.vat, l.amounts.gross, l.note,
+        ],
+        client
+      );
+    }
+    const actorName = opts.actor?.name ?? guest.name;
     await q(
-      `INSERT INTO request_events (request_id, hotel_id, to_status, note, is_internal) VALUES ($1,$2,'NEW',$3,false)`,
-      [row!.id, hotel.id, 'Request received'],
+      `INSERT INTO request_events (request_id, hotel_id, user_id, to_status, note, is_internal, event_type, actor_type, actor_name)
+       VALUES ($1,$2,$3,'NEW',$4,false,'CREATED',$5,$6)`,
+      [row!.id, hotel.id, opts.actor?.id ?? null, opts.actor ? `Entered by staff (${source.toLowerCase()})` : 'Request received', opts.actor ? 'staff' : 'guest', actorName],
       client
     );
     return {
@@ -438,4 +625,5 @@ export async function createGuestRequest(hotel: Hotel, body: unknown, guestToken
       created_at: row!.created_at.toISOString(),
     };
   });
+  }
 }

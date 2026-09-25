@@ -1,6 +1,5 @@
 import { Shirt } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { ENTITIES } from '@shared/entities';
 import { LAUNDRY_SERVICES, type LaundryService } from '@shared/domain';
 import { lineAmounts, sumLines } from '@shared/pricing';
 import { ApiError, errorMessage } from '../../lib/api';
@@ -18,11 +17,11 @@ const priceOf = (i: LaundryItem, s: LaundryService) => i[`${s}_price` as const];
 
 export function Laundry() {
   const { bundle } = useHotel();
-  const { t, pick, money, lang } = useI18n();
+  const { t, pick, money } = useI18n();
   const title = usePageTitle('laundry');
   const flow = useFlow();
   const { identity } = useGuestSession();
-  const items = bundle.catalog.laundry_items.filter((i) => LAUNDRY_SERVICES.some((s) => priceOf(i, s) != null));
+  const items = bundle.catalog.laundry_items.filter((i) => i.available !== false && LAUNDRY_SERVICES.some((s) => priceOf(i, s) != null));
   const [qty, setQty] = useState<Record<string, number>>({});
   const [review, setReview] = useState(false);
   const [express, setExpress] = useState(false);
@@ -30,7 +29,6 @@ export function Laundry() {
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<unknown>(null);
-  const catField = ENTITIES.laundry_items.fields.find((f) => f.key === 'category')!;
   const vat = { vat_rate: bundle.hotel.profile.vat_rate, prices_include_vat: bundle.hotel.profile.prices_include_vat };
 
   const selected = useMemo(
@@ -55,12 +53,11 @@ export function Laundry() {
   );
   const count = selected.reduce((s, l) => s + l.quantity, 0);
 
-  const groups = useMemo(() => {
-    const order = (catField.options ?? []).map((o) => o.value);
-    const map = new Map<string, LaundryItem[]>();
-    for (const i of items) map.set(i.category, [...(map.get(i.category) ?? []), i]);
-    return [...map.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
-  }, [items, catField]);
+  // Categories arrive in their configured order; empty ones are skipped.
+  const groups = useMemo(
+    () => bundle.catalog.laundry_categories.map((c) => ({ cat: c, list: items.filter((i) => i.parent_id === c.id) })).filter((g) => g.list.length),
+    [bundle.catalog.laundry_categories, items]
+  );
 
   const submit = async () => {
     const errs: Record<string, string> = {};
@@ -102,11 +99,14 @@ export function Laundry() {
         </div>
       )}
       <div className="space-y-10 px-5 sm:px-8">
-        {groups.map(([cat, list]) => (
-          <section key={cat} aria-labelledby={`ldy-${cat}`}>
-            <h2 id={`ldy-${cat}`} className="eyebrow mb-3 text-muted">
-              {catField.options?.find((o) => o.value === cat)?.[lang] ?? cat}
-            </h2>
+        {groups.map(({ cat, list }) => (
+          <section key={cat.id} aria-labelledby={`ldy-${cat.id}`}>
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h2 id={`ldy-${cat.id}`} className="eyebrow text-muted">
+                {pick(cat, 'name')}
+              </h2>
+              {pick(cat, 'turnaround') && <p className="text-xs text-muted">{pick(cat, 'turnaround')}</p>}
+            </div>
             <ul className="divide-y divide-line overflow-hidden rounded-[1.4rem] bg-surface ring-1 ring-line">
               {list.map((i) => (
                 <li key={i.id} className="p-4">

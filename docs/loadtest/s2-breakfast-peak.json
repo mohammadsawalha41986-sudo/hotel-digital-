@@ -1,0 +1,165 @@
+{
+  "label": "S2 breakfast peak (1 process)",
+  "config": {
+    "ip_mode": "guest",
+    "ramp_s": 60,
+    "hotels": 20,
+    "guests_per_hotel": 50,
+    "staff_per_hotel": 4,
+    "burst": 0,
+    "duration_s": 247,
+    "order_share": 0.25,
+    "think_s": [
+      3,
+      8
+    ]
+  },
+  "concurrent_users": 1080,
+  "requests": 60131,
+  "rps": 243.1,
+  "error_rate_pct": 0.106,
+  "latency_ms": {
+    "p50": 5,
+    "p95": 21.7,
+    "p99": 45.4,
+    "max": 187
+  },
+  "steady_state_latency_ms": {
+    "n": 41429,
+    "p50": 5.3,
+    "p95": 22.5,
+    "p99": 47.6
+  },
+  "server": {
+    "cpu_avg_pct": 48,
+    "cpu_max_pct": 107,
+    "rss_max_mb": 318
+  },
+  "db": {
+    "conns_max": 11,
+    "active_max": 4
+  },
+  "endpoints": {
+    "bundle": {
+      "n": 1000,
+      "rps": 4,
+      "p50": 2.1,
+      "p95": 14,
+      "p99": 29,
+      "max": 143.3,
+      "errors": {}
+    },
+    "events": {
+      "n": 9384,
+      "rps": 37.9,
+      "p50": 4.5,
+      "p95": 14.6,
+      "p99": 32,
+      "max": 116.8,
+      "errors": {}
+    },
+    "identify": {
+      "n": 1000,
+      "rps": 4,
+      "p50": 7.3,
+      "p95": 23.7,
+      "p99": 40.2,
+      "max": 79.5,
+      "errors": {}
+    },
+    "menu": {
+      "n": 13082,
+      "rps": 52.9,
+      "p50": 3.3,
+      "p95": 10.6,
+      "p99": 23.6,
+      "max": 95.8,
+      "errors": {}
+    },
+    "my_requests": {
+      "n": 5622,
+      "rps": 22.7,
+      "p50": 2.4,
+      "p95": 9.2,
+      "p99": 21.3,
+      "max": 58,
+      "errors": {}
+    },
+    "order_retry": {
+      "n": 416,
+      "rps": 1.7,
+      "p50": 2.8,
+      "p95": 7.8,
+      "p99": 28,
+      "max": 38.7,
+      "errors": {
+        "429": 4
+      }
+    },
+    "order_submit": {
+      "n": 9325,
+      "rps": 37.7,
+      "p50": 11.7,
+      "p95": 31.3,
+      "p99": 65.3,
+      "max": 187,
+      "errors": {
+        "429": 60
+      }
+    },
+    "page_html": {
+      "n": 1000,
+      "rps": 4,
+      "p50": 1,
+      "p95": 4,
+      "p99": 8.7,
+      "max": 24.2,
+      "errors": {}
+    },
+    "staff_bell": {
+      "n": 640,
+      "rps": 2.6,
+      "p50": 5.9,
+      "p95": 36.8,
+      "p99": 75.6,
+      "max": 143.7,
+      "errors": {}
+    },
+    "staff_dashboard": {
+      "n": 80,
+      "rps": 0.3,
+      "p50": 67.9,
+      "p95": 128.7,
+      "p99": 171.3,
+      "max": 171.3,
+      "errors": {}
+    },
+    "staff_queue": {
+      "n": 8457,
+      "rps": 34.2,
+      "p50": 5.6,
+      "p95": 20.3,
+      "p99": 44.9,
+      "max": 138.2,
+      "errors": {}
+    },
+    "staff_status": {
+      "n": 7125,
+      "rps": 28.8,
+      "p50": 9.7,
+      "p95": 30.5,
+      "p99": 60.2,
+      "max": 151.3,
+      "errors": {}
+    },
+    "static_asset": {
+      "n": 3000,
+      "rps": 12.1,
+      "p50": 2.9,
+      "p95": 12.6,
+      "p99": 23.8,
+      "max": 71.5,
+      "errors": {}
+    }
+  }
+}
